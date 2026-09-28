@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 
@@ -26,14 +26,19 @@ export default function NewComplaint() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<number | null | undefined>(undefined);
 
-  useEffect(() => {
+  const pickTarget = (id: string | null) => {
+    setTarget(id);
     setCtx(null);
-    if (target) api.targetContext(target).then(setCtx).catch(() => {});
-  }, [target]);
+    if (id) api.targetContext(id).then(setCtx).catch(() => {});
+  };
 
-  useEffect(() => {
-    if (category === 'harassment') router.replace('/complaint/confidential');
-  }, [category]);
+  const pickCategory = (c: Cat) => {
+    if (c === 'harassment') {
+      router.replace('/complaint/confidential');
+      return;
+    }
+    setCategory(c);
+  };
 
   const options = useMemo(
     () =>
@@ -108,7 +113,7 @@ export default function NewComplaint() {
         {error && <Banner tone="danger">{error}</Banner>}
 
         <Card style={{ gap: spacing.lg }}>
-          <SelectField label="Who is this about?" icon="person-outline" placeholder="Choose a person" options={options} value={target} onChange={setTarget} />
+          <SelectField label="Who is this about?" icon="person-outline" placeholder="Choose a person" options={options} value={target} onChange={pickTarget} />
           {ctx?.small_group && (
             <Banner tone="warning" title="Small team">
               {`This person's team has only ${ctx.group_size} other people. They may be able to guess who filed this from the details.`}
@@ -117,7 +122,7 @@ export default function NewComplaint() {
           <ChoiceChips
             label="Category"
             value={category}
-            onChange={setCategory}
+            onChange={pickCategory}
             options={[
               ...(Object.keys(complaintCategoryLabel) as ComplaintCategory[]).map((c) => ({ value: c as Cat, label: complaintCategoryLabel[c] })),
               { value: 'harassment' as const, label: 'Sexual harassment →', tint: colors.accent, icon: 'lock-closed-outline' as const },

@@ -117,9 +117,9 @@ export function HeroHeader({
 export function Skeleton({ height = 16, width = '100%', radiusSize = 8, style }: { height?: number; width?: number | `${number}%`; radiusSize?: number; style?: ViewStyle }) {
   const o = useSharedValue(0.45);
   useEffect(() => {
-    o.value = withRepeat(withTiming(1, { duration: 750, easing: Easing.inOut(Easing.ease) }), -1, true);
+    o.set(withRepeat(withTiming(1, { duration: 750, easing: Easing.inOut(Easing.ease) }), -1, true));
   }, [o]);
-  const anim = useAnimatedStyle(() => ({ opacity: o.value }));
+  const anim = useAnimatedStyle(() => ({ opacity: o.get() }));
   return <Animated.View style={[{ height, width, borderRadius: radiusSize, backgroundColor: '#E3E6EF' }, anim, style]} />;
 }
 

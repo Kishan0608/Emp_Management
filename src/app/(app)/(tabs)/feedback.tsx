@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { FeedbackCard } from '@/components/cards';
@@ -17,9 +17,12 @@ export default function Feedback() {
   const [scope, setScope] = useState<Scope>(params.scope ?? (isEmployee ? 'mine' : 'inbox'));
   const [q, setQ] = useState('');
 
-  useEffect(() => {
+  // Follow deep links like /tasks?scope=review without an effect.
+  const [lastParam, setLastParam] = useState(params.scope);
+  if (params.scope !== lastParam) {
+    setLastParam(params.scope);
     if (params.scope) setScope(params.scope);
-  }, [params.scope]);
+  }
 
   const { data, loading, refreshing, refresh, error } = useLoad(() => api.feedback(scope, me.id), [scope]);
 

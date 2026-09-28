@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 
 import { Banner, Button, Card, Divider, ListRow, PageHeader, Screen, SectionTitle, SwitchRow, TextField } from '@/components/ui';
@@ -34,10 +34,6 @@ export default function Settings() {
   const [mfa, setMfa] = useState(settings.require_mfa_admins);
   const [newDept, setNewDept] = useState('');
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    setMfa(settings.require_mfa_admins);
-  }, [settings.require_mfa_admins]);
 
   const save = async () => {
     const patch: Partial<AppSettings> = { company_name: name.trim(), require_mfa_admins: mfa };

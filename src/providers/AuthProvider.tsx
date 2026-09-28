@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
@@ -28,12 +29,22 @@ interface AuthValue {
 
 const AuthContext = createContext<AuthValue | null>(null);
 
+// Last interaction time is stored so the timeout also applies after the app was closed.
+const LAST_ACTIVE_KEY = 'emp.lastActiveAt';
+
+function markActive(ref: { current: number }, force = false) {
+  const now = Date.now();
+  const stale = now - ref.current > 15_000;
+  ref.current = now;
+  if (force || stale) AsyncStorage.setItem(LAST_ACTIVE_KEY, String(now)).catch(() => {});
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ctx, setCtx] = useState<MyContext | null>(null);
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [notice, setNotice] = useState<string | null>(null);
-  const lastActive = useRef(Date.now());
+  const lastActive = useRef(0);
   const pushRegistered = useRef(false);
 
   const signOut = useCallback(async (allDevices = false, message?: string) => {
@@ -43,6 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // logging out must work even offline
     }
     await supabase.auth.signOut({ scope: allDevices ? 'global' : 'local' });
+    await AsyncStorage.removeItem(LAST_ACTIVE_KEY).catch(() => {});
+    lastActive.current = 0;
     pushRegistered.current = false;
     setCtx(null);
     setSession(null);
@@ -63,6 +76,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await signOut(false, 'This account is deactivated. Contact HR.');
           return;
         }
+        // Cold start: if the app sat unused past the timeout, require a fresh sign-in.
+        const stored = Number((await AsyncStorage.getItem(LAST_ACTIVE_KEY)) ?? 0);
+        const limitMs = c.settings.session_timeout_minutes * 60_000;
+        if (lastActive.current === 0 && stored > 0 && Date.now() - stored > limitMs) {
+          await signOut(false, 'You were signed out after a period of inactivity.');
+          return;
+        }
+        markActive(lastActive, true);
         setCtx(c);
         const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
         if (c.mfa_required && aal?.currentLevel !== 'aal2') setStatus('needsMfa');
@@ -107,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!ctx || status === 'signedOut') return;
     const limitMs = ctx.settings.session_timeout_minutes * 60_000;
     const check = () => {
-      if (Date.now() - lastActive.current > limitMs) {
+      if (lastActive.current > 0 && Date.now() - lastActive.current > limitMs) {
         signOut(false, 'You were signed out after a period of inactivity.');
       }
     };
@@ -129,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error.status === 429) throw new Error('Too many attempts. Please wait a few minutes and try again.');
         throw new Error(error.message === 'Invalid login credentials' ? 'Incorrect email or password.' : error.message);
       }
-      lastActive.current = Date.now();
+      markActive(lastActive, true);
       setSession(data.session);
       await resolve(data.session);
     },
@@ -151,9 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signOut,
       refresh,
-      touch: () => {
-        lastActive.current = Date.now();
-      },
+      touch: () => markActive(lastActive),
       clearNotice: () => setNotice(null),
     }),
     [status, session, ctx, notice, signIn, signOut, refresh],

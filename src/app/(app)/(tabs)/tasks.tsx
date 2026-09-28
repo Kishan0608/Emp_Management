@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { TaskCard } from '@/components/cards';
@@ -23,9 +23,12 @@ export default function Tasks() {
   const [filter, setFilter] = useState<Filter>('active');
   const [q, setQ] = useState('');
 
-  useEffect(() => {
+  // Follow deep links like /tasks?scope=review without an effect.
+  const [lastParam, setLastParam] = useState(params.scope);
+  if (params.scope !== lastParam) {
+    setLastParam(params.scope);
     if (params.scope) setScope(params.scope);
-  }, [params.scope]);
+  }
 
   const { data, loading, refreshing, refresh, error } = useLoad(() => api.tasks(scope, me.id), [scope]);
 

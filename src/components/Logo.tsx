@@ -16,9 +16,9 @@ export function Logo({ size = 64, animated = false, delay = 0 }: { size?: number
   useEffect(() => {
     if (!animated) return;
     const spring = { damping: 14, stiffness: 120 };
-    a.value = withDelay(delay, withSpring(1, spring));
-    b.value = withDelay(delay + 150, withSpring(1, spring));
-    c.value = withDelay(delay + 300, withSpring(1, spring));
+    a.set(withDelay(delay, withSpring(1, spring)));
+    b.set(withDelay(delay + 150, withSpring(1, spring)));
+    c.set(withDelay(delay + 300, withSpring(1, spring)));
   }, [animated, delay, a, b, c]);
 
   const bar = size * 0.14;
@@ -33,7 +33,7 @@ export function Logo({ size = 64, animated = false, delay = 0 }: { size?: number
 }
 
 function Bar({ progress, width, height, color }: { progress: SharedValue<number>; width: number; height: number; color: string }) {
-  const style = useAnimatedStyle(() => ({ width: width * progress.value, opacity: Math.min(1, progress.value * 1.5) }));
+  const style = useAnimatedStyle(() => ({ width: width * progress.get(), opacity: Math.min(1, progress.get() * 1.5) }));
   return <Animated.View style={[{ height, borderRadius: height / 2, backgroundColor: color }, style]} />;
 }
 

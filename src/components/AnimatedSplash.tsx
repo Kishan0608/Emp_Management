@@ -42,20 +42,20 @@ export function AnimatedSplash({ ready, onFinish }: { ready: boolean; onFinish: 
     // Hide the static native splash as soon as this animated one is on screen.
     SplashScreen.hideAsync().catch(() => {});
 
-    logoOpacity.value = withTiming(1, { duration: 350 });
-    logoScale.value = withSpring(1, { damping: 11, stiffness: 110 });
+    logoOpacity.set(withTiming(1, { duration: 350 }));
+    logoScale.set(withSpring(1, { damping: 11, stiffness: 110 }));
 
     const pulse = (delay: number) =>
       withDelay(delay, withRepeat(withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration: 1800, easing: Easing.out(Easing.quad) })), -1));
-    ring1.value = pulse(300);
-    ring2.value = pulse(1200);
+    ring1.set(pulse(300));
+    ring2.set(pulse(1200));
 
-    titleOpacity.value = withDelay(550, withTiming(1, { duration: 450 }));
-    titleY.value = withDelay(550, withSpring(0, { damping: 16 }));
-    tagOpacity.value = withDelay(800, withTiming(1, { duration: 450 }));
+    titleOpacity.set(withDelay(550, withTiming(1, { duration: 450 })));
+    titleY.set(withDelay(550, withSpring(0, { damping: 16 })));
+    tagOpacity.set(withDelay(800, withTiming(1, { duration: 450 })));
 
-    progress.value = withTiming(0.85, { duration: MIN_VISIBLE_MS, easing: Easing.out(Easing.cubic) });
-    shimmer.value = withRepeat(withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }), -1);
+    progress.set(withTiming(0.85, { duration: MIN_VISIBLE_MS, easing: Easing.out(Easing.cubic) }));
+    shimmer.set(withRepeat(withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }), -1));
 
     const t = setTimeout(() => setMinElapsed(true), MIN_VISIBLE_MS);
     return () => clearTimeout(t);
@@ -63,23 +63,23 @@ export function AnimatedSplash({ ready, onFinish }: { ready: boolean; onFinish: 
 
   useEffect(() => {
     if (!ready || !minElapsed) return;
-    progress.value = withTiming(1, { duration: 250 });
-    exit.value = withDelay(
+    progress.set(withTiming(1, { duration: 250 }));
+    exit.set(withDelay(
       250,
       withTiming(0, { duration: 420, easing: Easing.in(Easing.quad) }, (done) => {
         if (done) runOnJS(onFinish)();
       }),
-    );
+    ));
   }, [ready, minElapsed, progress, exit, onFinish]);
 
-  const rootStyle = useAnimatedStyle(() => ({ opacity: exit.value, transform: [{ scale: 1 + (1 - exit.value) * 0.06 }] }));
-  const logoStyle = useAnimatedStyle(() => ({ opacity: logoOpacity.value, transform: [{ scale: logoScale.value }] }));
-  const r1 = useAnimatedStyle(() => ({ opacity: 0.4 * (1 - ring1.value), transform: [{ scale: 1 + ring1.value * 1.3 }] }));
-  const r2 = useAnimatedStyle(() => ({ opacity: 0.4 * (1 - ring2.value), transform: [{ scale: 1 + ring2.value * 1.3 }] }));
-  const titleStyle = useAnimatedStyle(() => ({ opacity: titleOpacity.value, transform: [{ translateY: titleY.value }] }));
-  const tagStyle = useAnimatedStyle(() => ({ opacity: tagOpacity.value }));
-  const barStyle = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
-  const shimmerStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shimmer.value * 220 }] }));
+  const rootStyle = useAnimatedStyle(() => ({ opacity: exit.get(), transform: [{ scale: 1 + (1 - exit.get()) * 0.06 }] }));
+  const logoStyle = useAnimatedStyle(() => ({ opacity: logoOpacity.get(), transform: [{ scale: logoScale.get() }] }));
+  const r1 = useAnimatedStyle(() => ({ opacity: 0.4 * (1 - ring1.get()), transform: [{ scale: 1 + ring1.get() * 1.3 }] }));
+  const r2 = useAnimatedStyle(() => ({ opacity: 0.4 * (1 - ring2.get()), transform: [{ scale: 1 + ring2.get() * 1.3 }] }));
+  const titleStyle = useAnimatedStyle(() => ({ opacity: titleOpacity.get(), transform: [{ translateY: titleY.get() }] }));
+  const tagStyle = useAnimatedStyle(() => ({ opacity: tagOpacity.get() }));
+  const barStyle = useAnimatedStyle(() => ({ width: `${progress.get() * 100}%` }));
+  const shimmerStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shimmer.get() * 220 }] }));
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, styles.root, rootStyle]} pointerEvents={ready && minElapsed ? 'none' : 'auto'}>

@@ -1,11 +1,12 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { errorMessage } from '@/lib/api';
 
 /**
  * Loads data when the screen gains focus, with pull-to-refresh support.
- * `loading` is true only for the first load, so lists don't flash on refresh.
+ * Shows the skeleton on first load and whenever `deps` change (e.g. a new filter);
+ * later refocuses refresh silently so lists don't flash.
  */
 export function useLoad<T>(fn: () => Promise<T>, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null);
@@ -13,10 +14,16 @@ export function useLoad<T>(fn: () => Promise<T>, deps: unknown[] = []) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fnRef = useRef(fn);
-  fnRef.current = fn;
+  const loadedKey = useRef<string | null>(null);
+  const key = JSON.stringify(deps);
+
+  useEffect(() => {
+    fnRef.current = fn;
+  });
 
   const run = useCallback(async (mode: 'initial' | 'refresh' | 'silent') => {
     if (mode === 'refresh') setRefreshing(true);
+    if (mode === 'initial') setLoading(true);
     try {
       const result = await fnRef.current();
       setData(result);
@@ -31,9 +38,10 @@ export function useLoad<T>(fn: () => Promise<T>, deps: unknown[] = []) {
 
   useFocusEffect(
     useCallback(() => {
-      run(data === null ? 'initial' : 'silent');
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [run, ...deps]),
+      const first = loadedKey.current !== key;
+      loadedKey.current = key;
+      run(first ? 'initial' : 'silent');
+    }, [run, key]),
   );
 
   return {
