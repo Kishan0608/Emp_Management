@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
   },
   chipText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.textSecondary },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.overlay },
+  backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.overlay },
   sheet: {
     position: 'absolute',
     left: 0,

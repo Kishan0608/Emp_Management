@@ -52,7 +52,7 @@ function check<T>(res: { data: T | null; error: unknown }): T {
   return res.data as T;
 }
 
-async function invokeFn<T>(name: string, body: unknown): Promise<T> {
+async function invokeFn<T>(name: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(name, { body });
   if (error) {
     if (error instanceof FunctionsHttpError) {
@@ -207,7 +207,7 @@ export const api = {
   },
 
   // ---------- feedback ----------
-  feedback: async (scope: 'inbox' | 'mine' | 'qa' | 'blockers', me: string) => {
+  feedback: async (scope: 'inbox' | 'mine' | 'qa' | 'blockers' | 'all', me: string) => {
     let q = supabase
       .from('feedback_items')
       .select('*, author:users!feedback_items_author_id_fkey(full_name)')

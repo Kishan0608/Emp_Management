@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router/js-tabs';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useMe } from '@/providers/AuthProvider';
@@ -8,10 +8,10 @@ import { colors, fonts } from '@/theme/tokens';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-function TabIcon({ name, focused, color }: { name: IconName; focused: boolean; color: string }) {
+function TabIcon({ name, focused, color }: { name: IconName; focused: boolean; color: ColorValue }) {
   return (
     <View style={[styles.iconWrap, focused && styles.iconActive]}>
-      <Ionicons name={focused ? name : (`${name}-outline` as IconName)} size={22} color={color} />
+      <Ionicons name={focused ? name : (`${name}-outline` as IconName)} size={22} color={color as string} />
     </View>
   );
 }
