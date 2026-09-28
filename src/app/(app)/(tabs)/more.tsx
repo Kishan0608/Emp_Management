@@ -1,0 +1,130 @@
+import Constants from 'expo-constants';
+import { router, type Href } from 'expo-router';
+import { useState } from 'react';
+import { Alert, Platform, StyleSheet, Text, View } from 'react-native';
+
+import { PrivacyNotice } from '@/components/PrivacyNotice';
+import { Avatar, Badge, Card, Divider, HeroHeader, IconTile, ListRow, Screen, SectionTitle, Sheet, type IconName } from '@/components/ui';
+import { roleLabel } from '@/lib/format';
+import { useAuth, useMe } from '@/providers/AuthProvider';
+import { colors, spacing, type } from '@/theme/tokens';
+
+interface Item {
+  icon: IconName;
+  label: string;
+  hint?: string;
+  href?: Href;
+  onPress?: () => void;
+  tint?: string;
+  bg?: string;
+}
+
+export default function More() {
+  const { signOut } = useAuth();
+  const { me, department, manager, isBoss, isHR, is_committee } = useMe();
+  const [privacy, setPrivacy] = useState(false);
+
+  const confirm = (title: string, message: string, fn: () => void) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(`${title}\n\n${message}`)) fn();
+      return;
+    }
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: fn },
+    ]);
+  };
+
+  const general: Item[] = [
+    { icon: 'person-circle-outline', label: 'My profile', href: `/people/${me.id}` },
+    { icon: 'people-outline', label: 'People directory', href: '/people' },
+    { icon: 'notifications-outline', label: 'Notifications', href: '/notifications' },
+  ];
+  const admin: Item[] = [
+    ...(isBoss ? [{ icon: 'person-add-outline' as const, label: 'Invite a person', hint: 'Invite-only accounts', href: '/people/invite' as Href }] : []),
+    ...(isBoss ? [{ icon: 'eye-outline' as const, label: 'Visibility settings', hint: 'Who sees which employee details', href: '/admin/visibility' as Href }] : []),
+    ...(isBoss || isHR ? [{ icon: 'bar-chart-outline' as const, label: 'Analytics & exports', href: '/admin/analytics' as Href }] : []),
+    ...(isBoss ? [{ icon: 'settings-outline' as const, label: 'Company settings', hint: 'Thresholds, retention, security', href: '/admin/settings' as Href }] : []),
+    ...(isBoss ? [{ icon: 'receipt-outline' as const, label: 'Audit log', href: '/admin/audit' as Href }] : []),
+  ];
+
+  const renderItems = (items: Item[]) => (
+    <Card padded={false}>
+      {items.map((it, i) => (
+        <View key={it.label}>
+          {i > 0 && <Divider inset={64} />}
+          <ListRow
+            left={<IconTile icon={it.icon} color={it.tint ?? colors.brand} bg={it.bg ?? colors.brandSoft} size={36} />}
+            title={it.label}
+            subtitle={it.hint}
+            onPress={it.onPress ?? (() => it.href && router.push(it.href))}
+          />
+        </View>
+      ))}
+    </Card>
+  );
+
+  return (
+    <>
+      <Screen header={<HeroHeader title="More" subtitle="Account & administration" />}>
+        <Card style={styles.profile} onPress={() => router.push(`/people/${me.id}`)}>
+          <Avatar name={me.full_name} id={me.id} size={56} />
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={type.h2}>{me.full_name}</Text>
+            <Text style={type.small}>{me.email}</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              <Badge label={roleLabel[me.role]} tone="brand" />
+              {department && <Badge label={department} />}
+              {me.is_case_handler && <Badge label="Case handler" tone="danger" />}
+              {is_committee && <Badge label="Internal Committee" tone="info" />}
+            </View>
+            {manager && <Text style={type.small}>Reports to {manager}</Text>}
+          </View>
+        </Card>
+
+        <SectionTitle title="General" />
+        {renderItems(general)}
+
+        {admin.length > 0 && (
+          <>
+            <SectionTitle title="Administration" />
+            {renderItems(admin)}
+          </>
+        )}
+
+        <SectionTitle title="Privacy & security" />
+        {renderItems([
+          { icon: 'document-lock-outline', label: 'Privacy notice', hint: 'DPDP Act, 2023', onPress: () => setPrivacy(true) },
+          {
+            icon: 'log-out-outline',
+            label: 'Sign out',
+            tint: colors.warning,
+            bg: colors.warningSoft,
+            onPress: () => confirm('Sign out?', 'You will need your password to sign in again.', () => signOut(false)),
+          },
+          {
+            icon: 'phone-portrait-outline',
+            label: 'Sign out of all devices',
+            hint: 'Ends every session on every device',
+            tint: colors.danger,
+            bg: colors.dangerSoft,
+            onPress: () => confirm('Sign out everywhere?', 'Every device signed in to your account will be signed out.', () => signOut(true)),
+          },
+        ])}
+
+        <Text style={styles.version}>Emp Management · v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
+      </Screen>
+
+      <Sheet visible={privacy} onClose={() => setPrivacy(false)} title="Privacy notice">
+        <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.lg }}>
+          <PrivacyNotice />
+        </View>
+      </Sheet>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  profile: { flexDirection: 'row', gap: spacing.lg, alignItems: 'center' },
+  version: { ...type.small, textAlign: 'center', marginTop: spacing.xxl, color: colors.textMuted },
+});
