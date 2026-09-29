@@ -20,6 +20,7 @@ export const supabase = createClient(url || 'https://placeholder.supabase.co', k
     autoRefreshToken: !isServer,
     persistSession: !isServer,
     detectSessionInUrl: false,
+    flowType: 'pkce', // Google sign-in returns a one-time code that is exchanged in the app
   },
 });
 

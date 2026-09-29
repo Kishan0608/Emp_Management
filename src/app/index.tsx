@@ -2,7 +2,6 @@ import { Redirect } from 'expo-router';
 import { View } from 'react-native';
 
 import { useAuth } from '@/providers/AuthProvider';
-import { colors } from '@/theme/tokens';
 
 /** Entry point: sends each auth state to its screen. */
 export default function Index() {
@@ -10,6 +9,8 @@ export default function Index() {
   switch (status) {
     case 'signedOut':
       return <Redirect href="/sign-in" />;
+    case 'needsOnboarding':
+      return <Redirect href="/onboarding" />;
     case 'needsMfa':
       return <Redirect href="/mfa" />;
     case 'needsPassword':
@@ -19,6 +20,6 @@ export default function Index() {
     case 'ready':
       return <Redirect href="/home" />;
     default:
-      return <View style={{ flex: 1, backgroundColor: colors.brandDeep }} />;
+      return <View style={{ flex: 1, backgroundColor: '#3A3935' }} />;
   }
 }

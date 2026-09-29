@@ -354,9 +354,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     alignSelf: 'flex-start',
-    paddingHorizontal: 9,
+    paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: radius.pill,
+    borderRadius: 6,
   },
   badgeText: { fontFamily: fonts.semibold, fontSize: 11.5, letterSpacing: 0.2 },
   badgeDot: {

@@ -67,7 +67,9 @@ export interface DirectoryUser {
   role: Role;
   job_title: string | null;
   department_id: string | null;
+  department?: string | null;
   manager_id: string | null;
+  phone?: string | null;
   is_active: boolean;
   is_case_handler: boolean;
 }

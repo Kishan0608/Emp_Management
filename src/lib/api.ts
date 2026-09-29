@@ -34,6 +34,25 @@ import type {
   VisibilityRule,
 } from './types';
 
+export type OnboardingStatus = 'invited' | 'email_pending' | 'email_verified' | 'key_verified' | 'approver_pending' | 'awaiting_approval' | 'active';
+
+export interface OnboardingState {
+  status: OnboardingStatus;
+  email: string;
+  google: boolean;
+  first_name: string | null;
+  last_name: string | null;
+  approver_name: string | null;
+  approver_role: Role | null;
+  code_sent_to: string | null;
+  code_expires_at: string | null;
+}
+
+export interface OnboardingOptions {
+  departments: { id: string; name: string }[];
+  approvers: { id: string; full_name: string; role: Role; job_title: string | null; department: string | null }[];
+}
+
 /** Turns any Supabase / network error into one readable sentence. */
 export function errorMessage(e: unknown): string {
   if (!e) return 'Something went wrong';
@@ -80,6 +99,15 @@ export const api = {
   dashboard: async () => check<DashboardStats>(await supabase.rpc('dashboard_stats')),
 
   // ---------- people ----------
+  taskAssignees: async () => {
+    try {
+      const res = await supabase.rpc('get_task_assignees');
+      if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+        return res.data as DirectoryUser[];
+      }
+    } catch {}
+    return check<DirectoryUser[]>(await supabase.from('users').select(USER_FIELDS).order('full_name').limit(1000));
+  },
   directory: async () =>
     check<DirectoryUser[]>(await supabase.from('users').select(USER_FIELDS).order('full_name').limit(1000)),
   departments: async () => check<Department[]>(await supabase.from('departments').select('id, name').order('name')),
@@ -248,6 +276,45 @@ export const api = {
     check(await supabase.rpc('set_feedback_status', { p_id: id, p_status: status })),
   setFeedbackPublished: async (id: string, published: boolean) =>
     check(await supabase.rpc('set_feedback_published', { p_id: id, p_published: published })),
+
+  // ---------- self sign-up & onboarding ----------
+  signupStart: async (email: string, password: string) =>
+    invokeFn<{ ok: true; sent_to: string; test_code?: string }>('signup-start', { email, password }),
+  onboardingState: async () => check<OnboardingState>(await supabase.rpc('onboarding_state')),
+  sendCode: async (purpose: 'email' | 'approver') =>
+    invokeFn<{ ok: true; sent_to: string; test_code?: string }>('onboarding-mail', { purpose }),
+  verifyEmail: async (code: string) => check(await supabase.rpc('onboarding_verify_email', { p_code: code })),
+  verifyKey: async (key: string) => check(await supabase.rpc('onboarding_verify_key', { p_key: key })),
+  onboardingOptions: async () => check<OnboardingOptions>(await supabase.rpc('onboarding_options')),
+  submitProfile: async (p: { first: string; last: string; jobTitle: string; departmentId: string; reportsTo: string; role: Role }) => {
+    const res = await supabase.rpc('onboarding_submit_profile', {
+      p_first: p.first,
+      p_middle: null,
+      p_last: p.last,
+      p_job_title: p.jobTitle,
+      p_department: p.departmentId,
+      p_reports_to: p.reportsTo,
+      p_role: p.role,
+    });
+    if (res.error && (res.error.message?.includes('Could not find the function') || res.error.code === 'PGRST202')) {
+      return check(
+        await supabase.rpc('onboarding_submit_profile', {
+          p_first: p.first,
+          p_last: p.last,
+          p_job_title: p.jobTitle,
+          p_department: p.departmentId,
+          p_reports_to: p.reportsTo,
+          p_role: p.role,
+        }),
+      );
+    }
+    return check(res);
+  },
+  confirmApprover: async (code: string) => check(await supabase.rpc('onboarding_confirm_approver', { p_code: code })),
+  passwordResetStart: async (email: string) =>
+    invokeFn<{ ok: true; sent_to: string; test_code?: string }>('password-reset', { action: 'start', email }),
+  passwordResetComplete: async (email: string, code: string, password: string) =>
+    invokeFn<{ ok: true }>('password-reset', { action: 'complete', email, code, password }),
 
   // ---------- complaints ----------
   submitComplaint: async (p: { target_id: string; category: ComplaintCategory; description: string }) =>

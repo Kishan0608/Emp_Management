@@ -12,7 +12,7 @@ import { useMe } from '@/providers/AuthProvider';
 import { colors, fonts, radius, shadow, spacing, type } from '@/theme/tokens';
 
 export default function Home() {
-  const { me, settings, department, isBoss, isHR, isManager, isCaseHandler } = useMe();
+  const { me, settings, department, isBoss, isHR, isManager, isCaseHandler, isEmployee } = useMe();
   const stats = useLoad(() => api.dashboard());
   const myTasks = useLoad(() => api.tasks('mine', me.id));
   const s = stats.data;
@@ -56,7 +56,9 @@ export default function Home() {
 
       {/* quick actions */}
       <View style={styles.quickRow}>
-        <QuickAction icon="add-circle" label="New task" color={colors.task} bg={colors.taskSoft} onPress={() => router.push('/task/new')} />
+        {!isEmployee && (
+          <QuickAction icon="add-circle" label="New task" color={colors.task} bg={colors.taskSoft} onPress={() => router.push('/task/new')} />
+        )}
         <QuickAction icon="chatbubble-ellipses" label="Ask / Feedback" color={colors.feedback} bg={colors.feedbackSoft} onPress={() => router.push('/feedback/new')} />
         <QuickAction icon="shield" label="Complaint" color={colors.complaint} bg={colors.complaintSoft} onPress={() => router.push('/complaint/new')} />
       </View>
@@ -223,9 +225,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
     backgroundColor: 'rgba(255,255,255,0.18)',
   },
   rolePillText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.white },

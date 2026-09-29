@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState } from 'react-native';
 
 import { api, errorMessage } from '@/lib/api';
+import { googleSignIn } from '@/lib/oauth';
 import { registerForPush } from '@/lib/push';
 import { supabase } from '@/lib/supabase';
 import type { MyContext, Role } from '@/lib/types';
@@ -12,7 +13,7 @@ import type { MyContext, Role } from '@/lib/types';
  * Where the signed-in person is in the entry flow. The router shows exactly
  * one group of screens for each state (see app/_layout.tsx).
  */
-export type AuthStatus = 'loading' | 'signedOut' | 'needsMfa' | 'needsPassword' | 'needsConsent' | 'ready';
+export type AuthStatus = 'loading' | 'signedOut' | 'needsOnboarding' | 'needsMfa' | 'needsPassword' | 'needsConsent' | 'ready';
 
 interface AuthValue {
   status: AuthStatus;
@@ -21,6 +22,7 @@ interface AuthValue {
   role: Role | null;
   notice: string | null;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: (allDevices?: boolean, notice?: string) => Promise<void>;
   refresh: () => Promise<void>;
   touch: () => void;
@@ -76,13 +78,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await signOut(false, 'This account is deactivated. Contact your administrator.');
           return;
         }
+        if (c.user.account_status === 'awaiting_approval') {
+          await signOut(false, 'Your account is waiting for approval from the administrator. Try again once approved.');
+          return;
+        }
         if (c.user.account_status && c.user.account_status !== 'active') {
-          await signOut(
-            false,
-            c.user.account_status === 'awaiting_approval'
-              ? 'Your account is waiting for approval from the administrator. Try again once approved.'
-              : 'Your account is not activated yet. Tap "Activate account" and enter your key.',
-          );
+          // Self sign-up in progress: email code, key/QR, profile, approver code.
+          setCtx(c);
+          setStatus('needsOnboarding');
           return;
         }
         // Cold start: if the app sat unused past the timeout, require a fresh sign-in.
@@ -166,6 +169,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [resolve],
   );
 
+  const signInWithGoogle = useCallback(async () => {
+    setNotice(null);
+    const session = await googleSignIn();
+    if (!session) return; // cancelled
+    markActive(lastActive, true);
+    setSession(session);
+    await resolve(session);
+  }, [resolve]);
+
   const refresh = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
     await resolve(data.session);
@@ -179,12 +191,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: ctx?.user.role ?? null,
       notice,
       signIn,
+      signInWithGoogle,
       signOut,
       refresh,
       touch: () => markActive(lastActive),
       clearNotice: () => setNotice(null),
     }),
-    [status, session, ctx, notice, signIn, signOut, refresh],
+    [status, session, ctx, notice, signIn, signInWithGoogle, signOut, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

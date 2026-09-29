@@ -16,10 +16,10 @@ type Scope = 'mine' | 'assigned' | 'review' | 'team';
 type Filter = 'active' | 'done' | 'all';
 
 export default function Tasks() {
-  const { me, isEmployee } = useMe();
+  const { me, isEmployee, isBoss } = useMe();
   const toast = useToast();
   const params = useLocalSearchParams<{ scope?: Scope }>();
-  const [scope, setScope] = useState<Scope>(params.scope ?? 'mine');
+  const [scope, setScope] = useState<Scope>(isEmployee ? 'mine' : (params.scope ?? 'mine'));
   const [filter, setFilter] = useState<Filter>('active');
   const [q, setQ] = useState('');
 
@@ -27,10 +27,10 @@ export default function Tasks() {
   const [lastParam, setLastParam] = useState(params.scope);
   if (params.scope !== lastParam) {
     setLastParam(params.scope);
-    if (params.scope) setScope(params.scope);
+    if (params.scope) setScope(isEmployee ? 'mine' : params.scope);
   }
 
-  const { data, loading, refreshing, refresh, error } = useLoad(() => api.tasks(scope, me.id), [scope]);
+  const { data, loading, refreshing, refresh, error } = useLoad(() => api.tasks(isEmployee ? 'mine' : scope, me.id), [scope, isEmployee]);
 
   const list = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -42,12 +42,14 @@ export default function Tasks() {
     });
   }, [data, filter, q]);
 
-  const scopes = [
-    { value: 'mine' as const, label: 'Mine' },
-    { value: 'assigned' as const, label: 'Assigned' },
-    { value: 'review' as const, label: 'Review' },
-    ...(isEmployee ? [] : [{ value: 'team' as const, label: 'Team' }]),
-  ];
+  const scopes = isEmployee
+    ? []
+    : [
+        { value: 'mine' as const, label: 'Mine' },
+        { value: 'assigned' as const, label: 'Assigned' },
+        { value: 'review' as const, label: 'Review' },
+        { value: 'team' as const, label: isBoss ? 'All People' : 'My Team' },
+      ];
 
   const exportCsv = async () => {
     try {
@@ -89,16 +91,18 @@ export default function Tasks() {
         header={
           <HeroHeader
             title="Tasks"
-            subtitle="Assign · track · approve"
+            subtitle={isEmployee ? 'Tasks assigned to you' : isBoss ? 'All company tasks' : 'Team tasks & reviews'}
             colorsOverride={gradients.task}
             right={<IconButton icon="download-outline" label="Export CSV" color={colors.white} bg="rgba(255,255,255,0.18)" onPress={exportCsv} />}>
-            <View style={{ marginTop: spacing.lg }}>
-              <Segmented dark options={scopes} value={scope} onChange={setScope} />
-            </View>
+            {!isEmployee && (
+              <View style={{ marginTop: spacing.lg }}>
+                <Segmented dark options={scopes} value={scope} onChange={setScope} />
+              </View>
+            )}
           </HeroHeader>
         }>
         <View style={{ gap: spacing.md }}>
-          <TextField icon="search" placeholder="Search tasks or people" value={q} onChangeText={setQ} autoCorrect={false} />
+          <TextField icon="search" placeholder={isEmployee ? 'Search my tasks' : 'Search tasks or people'} value={q} onChangeText={setQ} autoCorrect={false} />
           <ChoiceChips
             options={[
               { value: 'active', label: 'Active' },
@@ -124,7 +128,7 @@ export default function Tasks() {
           )}
         </View>
       </Screen>
-      <Fab label={isEmployee ? 'To-do' : 'New task'} onPress={() => router.push('/task/new')} />
+      {!isEmployee && <Fab label="New task" onPress={() => router.push('/task/new')} />}
     </View>
   );
 }

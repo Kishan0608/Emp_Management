@@ -12,8 +12,26 @@ import { BrandTile } from '@/components/brand/SkflLogo';
 import { COMPANY } from '@/components/brand/skflPaths';
 import { colors, fonts, gradients, layout, radius, spacing, type } from '@/theme/tokens';
 
+import { KeyboardScrollProvider, useKeyboardScroll } from '@/providers/KeyboardScrollProvider';
+
 /** Standard scrollable page with a max width (tablet/web) and pull-to-refresh. */
-export function Screen({
+export function Screen(props: {
+  children: ReactNode;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  header?: ReactNode;
+  footer?: ReactNode;
+  contentStyle?: ViewStyle;
+  keyboard?: boolean;
+}) {
+  return (
+    <KeyboardScrollProvider>
+      <ScreenContent {...props} />
+    </KeyboardScrollProvider>
+  );
+}
+
+function ScreenContent({
   children,
   refreshing,
   onRefresh,
@@ -31,12 +49,25 @@ export function Screen({
   keyboard?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const { scrollRef, onScroll, keyboardHeight, isKeyboardVisible } = useKeyboardScroll();
+
   const body = (
     <View style={styles.root}>
       {header}
       <ScrollView
+        ref={scrollRef}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.content, { paddingBottom: (footer ? 16 : insets.bottom) + 96 }, contentStyle]}
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom: (footer ? 16 : insets.bottom) + (isKeyboardVisible ? keyboardHeight + spacing.xl : 96),
+          },
+          contentStyle,
+        ]}
         refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={colors.brand} colors={[colors.brand]} /> : undefined}>
         <Animated.View entering={FadeIn.duration(320)} style={styles.inner}>
           {children}
@@ -45,12 +76,16 @@ export function Screen({
       {footer && <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>{footer}</View>}
     </View>
   );
-  if (!keyboard) return body;
-  return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {body}
-    </KeyboardAvoidingView>
-  );
+
+  if (footer || keyboard) {
+    return (
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {body}
+      </KeyboardAvoidingView>
+    );
+  }
+
+  return body;
 }
 
 /** Plain header for pushed (detail) screens. */

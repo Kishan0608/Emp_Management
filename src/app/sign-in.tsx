@@ -1,52 +1,61 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text } from 'react-native';
 
+import { AuthLink, GoogleButton, OrDivider } from '@/components/auth-kit';
 import { AuthShell } from '@/components/AuthShell';
-import { AppText, Banner, Button, TextField } from '@/components/ui';
+import { Banner, Button, TextField } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
-import { colors, fonts, radius, spacing } from '@/theme/tokens';
-
-const DEMO = [
-  ['Boss', 'boss@example.com'],
-  ['HR', 'hr@example.com'],
-  ['Manager', 'manager@example.com'],
-  ['Employee', 'neha@example.com'],
-] as const;
+import { colors, fonts } from '@/theme/tokens';
 
 export default function SignIn() {
-  const { signIn, notice, clearNotice } = useAuth();
+  const { signIn, signInWithGoogle, notice, clearNotice } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<'password' | 'google' | null>(null);
 
   const submit = async () => {
     setError(null);
     clearNotice();
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError('Enter your work email.');
-    if (password.length < 6) return setError('Enter your password.');
-    setBusy(true);
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError('Enter your email address.');
+    if (!password) return setError('Enter your password.');
+    setBusy('password');
     try {
       await signIn(email, password);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
-      setBusy(false);
+      setBusy(null);
+    }
+  };
+
+  const google = async () => {
+    setError(null);
+    setBusy('google');
+    try {
+      await signInWithGoogle();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(null);
     }
   };
 
   return (
-    <AuthShell icon="log-in-outline" title="Welcome back" subtitle="Sign in with the work account your administrator created for you.">
+    <AuthShell
+      title="Welcome back"
+      subtitle="Sign in to continue to your workspace"
+      below={<AuthLink lead="New to SKFL?" action="Create account" onPress={() => router.push('/sign-up')} />}>
       {notice && <Banner tone="warning">{notice}</Banner>}
       {error && <Banner tone="danger">{error}</Banner>}
       <TextField
-        label="Work email"
+        label="Email"
         icon="mail-outline"
         value={email}
         onChangeText={setEmail}
-        placeholder="you@company.com"
+        placeholder="you@gmail.com"
         autoCapitalize="none"
         autoComplete="email"
         keyboardType="email-address"
@@ -65,35 +74,12 @@ export default function SignIn() {
         returnKeyType="go"
         onSubmitEditing={submit}
       />
-      <Button title="Sign in" icon="arrow-forward" size="lg" loading={busy} onPress={submit} />
-      <Button title="New here? Activate account with a key" icon="key-outline" variant="secondary" onPress={() => router.push('/activate')} />
-      <AppText variant="small" style={{ textAlign: 'center' }}>
-        Forgot your password? Ask your administrator for a recovery key, then use Activate account.
-      </AppText>
-
-      {__DEV__ && (
-        <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
-          <AppText variant="caption">Demo accounts · password Demo@2026</AppText>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-            {DEMO.map(([label, mail]) => (
-              <Pressable
-                key={mail}
-                onPress={() => {
-                  setEmail(mail);
-                  setPassword('Demo@2026');
-                }}
-                style={({ pressed }) => ({
-                  paddingHorizontal: 12,
-                  paddingVertical: 7,
-                  borderRadius: radius.pill,
-                  backgroundColor: pressed ? colors.brandTint : colors.brandSoft,
-                })}>
-                <Text style={{ fontFamily: fonts.semibold, fontSize: 12.5, color: colors.brand }}>{label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      )}
+      <Button title="Sign in" icon="arrow-forward" size="lg" loading={busy === 'password'} disabled={!!busy} onPress={submit} />
+      <Pressable onPress={() => router.push('/forgot-password')} hitSlop={8} style={{ alignSelf: 'center' }}>
+        <Text style={{ fontFamily: fonts.semibold, fontSize: 14, color: colors.brand }}>Forgot password?</Text>
+      </Pressable>
+      <OrDivider />
+      <GoogleButton onPress={google} loading={busy === 'google'} />
     </AuthShell>
   );
 }

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -13,10 +13,11 @@ import {
   View,
   type TextInputProps,
 } from 'react-native';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatDate, toDateOnly } from '@/lib/format';
+import { useKeyboardScroll } from '@/providers/KeyboardScrollProvider';
 import { colors, fonts, radius, shadow, spacing, type } from '@/theme/tokens';
 
 import { AppText, Button, type IconName } from './primitives';
@@ -54,13 +55,19 @@ interface TextFieldProps extends TextInputProps {
 export function TextField({ label, hint, error, icon, secureToggle, counter, multiline, style, value, ...rest }: TextFieldProps) {
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(!!secureToggle);
+  const containerRef = useRef<View>(null);
+  const inputRef = useRef<TextInput>(null);
+  const { scrollToView } = useKeyboardScroll();
+
   return (
     <Field
       label={label}
       hint={hint}
       error={error}
       right={counter ? <Text style={styles.hint}>{`${value?.length ?? 0}/${counter}`}</Text> : undefined}>
-      <View
+      <Pressable
+        ref={containerRef}
+        onPress={() => inputRef.current?.focus()}
         style={[
           styles.inputWrap,
           multiline && { alignItems: 'flex-start', paddingVertical: spacing.md },
@@ -69,6 +76,7 @@ export function TextField({ label, hint, error, icon, secureToggle, counter, mul
         ]}>
         {icon && <Ionicons name={icon} size={18} color={focused ? colors.brand : colors.textMuted} style={multiline ? { marginTop: 2 } : null} />}
         <TextInput
+          ref={inputRef}
           placeholderTextColor={colors.textMuted}
           {...rest}
           value={value}
@@ -77,6 +85,7 @@ export function TextField({ label, hint, error, icon, secureToggle, counter, mul
           secureTextEntry={secureToggle ? hidden : rest.secureTextEntry}
           onFocus={(e) => {
             setFocused(true);
+            scrollToView(containerRef.current);
             rest.onFocus?.(e);
           }}
           onBlur={(e) => {
@@ -90,7 +99,7 @@ export function TextField({ label, hint, error, icon, secureToggle, counter, mul
             <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textMuted} />
           </Pressable>
         )}
-      </View>
+      </Pressable>
     </Field>
   );
 }
@@ -208,11 +217,11 @@ export function Sheet({ visible, onClose, title, children }: { visible: boolean;
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <Animated.View entering={FadeIn.duration(180)} style={styles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
         </Animated.View>
-        <Animated.View entering={SlideInDown.springify().damping(20)} style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
+        <Animated.View entering={SlideInUp.springify().damping(20)} style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
           <View style={styles.grabber} />
           <View style={styles.sheetHeader}>
             <AppText variant="h2" style={{ flex: 1 }}>
@@ -319,6 +328,10 @@ export function SelectField({
 // ---------- date (quick picks + manual) ----------
 export function DateField({ label, value, onChange, hint }: { label: string; value: string | null; onChange: (v: string | null) => void; hint?: string }) {
   const [text, setText] = useState(value ?? '');
+  const containerRef = useRef<View>(null);
+  const inputRef = useRef<TextInput>(null);
+  const { scrollToView } = useKeyboardScroll();
+
   const add = (days: number) => {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -352,12 +365,14 @@ export function DateField({ label, value, onChange, hint }: { label: string; val
           </Pressable>
         )}
       </View>
-      <View style={styles.inputWrap}>
+      <Pressable ref={containerRef} onPress={() => inputRef.current?.focus()} style={styles.inputWrap}>
         <Ionicons name="calendar-outline" size={18} color={colors.textMuted} />
         <TextInput
+          ref={inputRef}
           value={text}
           placeholder="YYYY-MM-DD"
           placeholderTextColor={colors.textMuted}
+          onFocus={() => scrollToView(containerRef.current)}
           onChangeText={(t) => {
             setText(t);
             if (/^\d{4}-\d{2}-\d{2}$/.test(t) && !Number.isNaN(Date.parse(t))) onChange(t);
@@ -367,7 +382,7 @@ export function DateField({ label, value, onChange, hint }: { label: string; val
           keyboardType={Platform.OS === 'web' ? 'default' : 'numbers-and-punctuation'}
           maxLength={10}
         />
-      </View>
+      </Pressable>
     </Field>
   );
 }

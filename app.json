@@ -21,6 +21,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -46,6 +47,20 @@
         "expo-notifications",
         {
           "color": "#D8CE89"
+        }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false,
+          "style": "dark"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "SKFL uses the camera only to scan the activation QR code from your administrator.",
+          "recordAudioAndroid": false
         }
       ]
     ],

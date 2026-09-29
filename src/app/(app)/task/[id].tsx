@@ -154,7 +154,6 @@ export default function TaskDetail() {
               <Badge label={taskStatusLabel[t.status]} tone={taskStatusTone[t.status]} />
               {!t.is_personal && <Badge label={`${priorityLabel[t.priority]} priority`} tone={priorityTone[t.priority]} icon="flag-outline" />}
               {due && <Badge label={due.text} tone={due.tone} icon="time-outline" />}
-              <Badge label={t.visibility} icon={t.visibility === 'private' ? 'lock-closed-outline' : 'people-outline'} />
             </View>
             <AppText variant="h1">{t.title}</AppText>
             {t.description && <AppText variant="body" color={colors.textSecondary}>{t.description}</AppText>}
@@ -167,8 +166,12 @@ export default function TaskDetail() {
               <Person label="Assigned to" name={t.assignee?.full_name} id={t.assignee_id} />
               <Divider inset={64} />
               <Person label="Assigned by" name={t.creator?.full_name} id={t.created_by} />
-              <Divider inset={64} />
-              <Person label="Reviewer" name={t.reviewer?.full_name} id={t.reviewer_id} />
+              {t.reviewer_id && t.reviewer_id !== t.created_by && (
+                <>
+                  <Divider inset={64} />
+                  <Person label="Reviewer" name={t.reviewer?.full_name} id={t.reviewer_id} />
+                </>
+              )}
             </Card>
           )}
 

@@ -74,9 +74,15 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
           sends the user back to "index", which redirects to the right place. */}
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, animation: 'fade' }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="auth-callback" />
         <Stack.Protected guard={status === 'signedOut'}>
           <Stack.Screen name="sign-in" />
+          <Stack.Screen name="sign-up" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="forgot-password" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="activate" options={{ animation: 'slide_from_right' }} />
+        </Stack.Protected>
+        <Stack.Protected guard={status === 'needsOnboarding'}>
+          <Stack.Screen name="onboarding" />
         </Stack.Protected>
         <Stack.Protected guard={status === 'needsMfa'}>
           <Stack.Screen name="mfa" />
