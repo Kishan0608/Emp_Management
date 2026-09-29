@@ -128,7 +128,7 @@ export const api = {
       }),
     ),
   invite: async (p: { email: string; full_name: string; role: Role; department_id: string | null; manager_id: string | null; job_title: string }) =>
-    invokeFn<{ ok: true; user_id: string; temp_password: string }>('invite-user', p),
+    invokeFn<{ ok: true; user_id: string; activation_key: string }>('invite-user', p),
   setCommittee: async (userId: string, member: boolean) =>
     check(await supabase.rpc('admin_set_committee', { p_user_id: userId, p_member: member })),
 

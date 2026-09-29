@@ -8,8 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, gradients, radius, shadow, spacing } from '@/theme/tokens';
 
 import { AnimatedBackdrop } from './AnimatedBackdrop';
-import { BrandTile } from './brand/SkflLogo';
-import { COMPANY } from './brand/skflPaths';
+import { SkflMark } from './brand/SkflLogo';
+import { CHARCOAL_STOPS, COMPANY } from './brand/skflPaths';
 
 /**
  * Shared layout for sign-in, 2FA, password and consent screens:
@@ -20,7 +20,7 @@ export function AuthShell({ title, subtitle, children, icon }: { title: string; 
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.root}>
-      <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={CHARCOAL_STOPS} start={{ x: 0, y: 1 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
       <AnimatedBackdrop variant="full" />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -28,19 +28,11 @@ export function AuthShell({ title, subtitle, children, icon }: { title: string; 
           contentContainerStyle={[styles.scroll, { paddingTop: insets.top + spacing.xxl, paddingBottom: insets.bottom + spacing.xxl }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          <Animated.View entering={FadeInDown.duration(600)} style={styles.brandRow}>
-            <BrandTile size={64} />
-            <View style={{ flexShrink: 1 }}>
-              <Text style={styles.brand} numberOfLines={1} adjustsFontSizeToFit>
-                {COMPANY.name}
-              </Text>
-              <View style={styles.tagRow}>
-                <Text style={styles.tag}>{COMPANY.product}</Text>
-                <View style={[styles.dot, { backgroundColor: colors.task }]} />
-                <View style={[styles.dot, { backgroundColor: colors.complaint }]} />
-                <View style={[styles.dot, { backgroundColor: colors.feedback }]} />
-              </View>
-            </View>
+          <Animated.View entering={FadeInDown.duration(600)} style={styles.brandBlock}>
+            <SkflMark width={210} />
+            <Text style={styles.brand} numberOfLines={1} adjustsFontSizeToFit>
+              {COMPANY.name.toUpperCase()}
+            </Text>
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(150).duration(600).springify().damping(18)} style={styles.card}>
@@ -61,7 +53,7 @@ export function AuthShell({ title, subtitle, children, icon }: { title: string; 
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(400).duration(600)} style={styles.footer}>
-            <Ionicons name="shield-checkmark" size={14} color="rgba(246,222,141,0.8)" />
+            <Ionicons name="shield-checkmark" size={14} color="rgba(229,227,172,0.8)" />
             <Text style={styles.footerText}>© {COMPANY.name} · secured & audit logged</Text>
           </Animated.View>
         </ScrollView>
@@ -71,21 +63,10 @@ export function AuthShell({ title, subtitle, children, icon }: { title: string; 
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.brandDeep, overflow: 'hidden' },
+  root: { flex: 1, backgroundColor: '#3A3935', overflow: 'hidden' },
   scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: spacing.lg, alignItems: 'center' },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    width: '100%',
-    maxWidth: 460,
-    marginBottom: spacing.xxl,
-    paddingHorizontal: spacing.xs,
-  },
-  brand: { fontFamily: fonts.bold, fontSize: 22, color: colors.goldLight, letterSpacing: -0.3 },
-  tagRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' },
-  dot: { width: 6, height: 6, borderRadius: 3, marginLeft: 6 },
-  tag: { fontFamily: fonts.medium, fontSize: 13, color: 'rgba(255,255,255,0.75)', marginRight: 4 },
+  brandBlock: { alignItems: 'center', gap: spacing.md, width: '100%', maxWidth: 460, marginBottom: spacing.xxl },
+  brand: { fontFamily: fonts.semibold, fontSize: 14, letterSpacing: 3.5, color: colors.goldLight, textAlign: 'center' },
   card: {
     width: '100%',
     maxWidth: 460,
@@ -111,5 +92,5 @@ const styles = StyleSheet.create({
   title: { fontFamily: fonts.bold, fontSize: 24, color: colors.text, letterSpacing: -0.4 },
   subtitle: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.textSecondary, marginTop: 6 },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.xl },
-  footerText: { fontFamily: fonts.medium, fontSize: 12, color: 'rgba(246,222,141,0.7)' },
+  footerText: { fontFamily: fonts.medium, fontSize: 12, color: 'rgba(229,227,172,0.75)' },
 });

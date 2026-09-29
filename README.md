@@ -1,8 +1,8 @@
-# SKFL · Shree Karni Fabcom Ltd: Employee Management
+# SKFL · Shree Karni Fabcom Ltd
 
-![SKFL](assets/brand/skfl-logo-transparent.png)
+![SKFL](assets/brand/skfl-logo-fullhd.png)
 
-Employee management app for **Shree Karni Fabcom Ltd (SKFL)** with three modules: **Tasks**, **Complaints** (anonymous), and **Feedback** (questions, ideas, blockers).
+App for **Shree Karni Fabcom Ltd (SKFL)** with three modules: **Tasks**, **Complaints** (anonymous), and **Feedback** (questions, ideas, blockers).
 Built with React Native + Expo (SDK 57, Expo Router) on Supabase (Postgres, Auth, Storage, Edge Functions).
 
 Every permission is enforced in the database (row-level security and checked functions). The app screens only reflect what the server allows.
@@ -16,7 +16,7 @@ npm install
 npx expo start        # press w for web, or scan the QR code with Expo Go
 ```
 
-`.env.local` already points at the **Emp_Managenment** Supabase project. It holds only the public (publishable) key. Never put the `service_role` key in the app.
+`.env.local` already points at the SKFL Supabase project. It holds only the public (publishable) key. Never put the `service_role` key in the app.
 
 | Command | What it does |
 | --- | --- |

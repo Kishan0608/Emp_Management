@@ -23,6 +23,7 @@ export interface AppUser {
   is_active: boolean;
   is_case_handler: boolean;
   must_change_password: boolean;
+  account_status?: 'invited' | 'awaiting_approval' | 'active';
   consent_version: number | null;
   consent_at: string | null;
   created_at: string;

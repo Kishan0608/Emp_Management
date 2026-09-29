@@ -1,22 +1,22 @@
 {
   "expo": {
     "name": "SKFL",
-    "slug": "emp-management",
+    "slug": "skfl",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "empmanagement",
+    "scheme": "skfl",
     "userInterfaceStyle": "light",
-    "backgroundColor": "#0B0B0D",
+    "backgroundColor": "#3A3935",
     "ios": {
       "icon": "./assets/images/icon.png",
       "supportsTablet": true,
-      "bundleIdentifier": "com.shreekarnifabcom.employee"
+      "bundleIdentifier": "com.shreekarnifabcom.skfl"
     },
     "android": {
-      "package": "com.shreekarnifabcom.employee",
+      "package": "com.shreekarnifabcom.skfl",
       "adaptiveIcon": {
-        "backgroundColor": "#0B0B0D",
+        "backgroundColor": "#3A3935",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -27,7 +27,7 @@
       "output": "single",
       "favicon": "./assets/images/favicon.png",
       "name": "Shree Karni Fabcom Ltd",
-      "themeColor": "#0B0B0D",
+      "themeColor": "#3A3935",
       "shortName": "SKFL"
     },
     "plugins": [
@@ -35,9 +35,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0B0B0D",
+          "backgroundColor": "#3A3935",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 220
+          "imageWidth": 240
         }
       ],
       "expo-secure-store",
@@ -45,7 +45,7 @@
       [
         "expo-notifications",
         {
-          "color": "#D4A437"
+          "color": "#D8CE89"
         }
       ]
     ],
@@ -53,6 +53,6 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "description": "Shree Karni Fabcom Ltd \u2014 Employee Management: tasks, anonymous complaints and feedback."
+    "description": "Shree Karni Fabcom Ltd (SKFL): tasks, anonymous complaints and feedback."
   }
 }

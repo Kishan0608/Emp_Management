@@ -1,15 +1,15 @@
 import { Platform, type TextStyle, type ViewStyle } from 'react-native';
 
 export const colors = {
-  // brand: Shree Karni Fabcom Ltd (gold on charcoal)
-  brand: '#9C7415', // deep gold, readable on white
-  brandDark: '#6E520E',
-  brandDeep: '#0B0B0D', // charcoal
-  brandSoft: '#FBF5E6',
-  brandTint: '#EFDFB2',
-  gold: '#D4A437',
-  goldLight: '#F6DE8D',
-  ink: '#141416', // text on gold
+  // brand: Shree Karni Fabcom Ltd — champagne gold on brushed charcoal (sampled from the logo)
+  brand: '#7D6E22', // deep champagne gold, readable on white
+  brandDark: '#5C511A',
+  brandDeep: '#2F2E2B', // logo charcoal
+  brandSoft: '#F8F6E7',
+  brandTint: '#E6E1B6',
+  gold: '#D8CE89',
+  goldLight: '#E5E3AC',
+  ink: '#1C1B19', // text on gold
   accent: '#7C3AED',
 
   // modules
@@ -44,13 +44,13 @@ export const colors = {
 } as const;
 
 export const gradients = {
-  brand: ['#0B0B0D', '#18171B', '#2A2316'] as const, // splash & sign-in
-  hero: ['#121215', '#1E1D21', '#3A2F18'] as const, // page headers
-  gold: ['#F6DE8D', '#D9A93B', '#B07D1A'] as const, // primary actions
-  goldLine: ['rgba(212,164,55,0)', '#E7B94A', 'rgba(212,164,55,0)'] as const,
-  task: ['#0C1413', '#12302B', '#0F766E'] as const,
-  complaint: ['#150E10', '#3A1520', '#9F1239'] as const,
-  feedback: ['#0E1117', '#172442', '#1D4ED8'] as const,
+  brand: ['#34332F', '#4A4845', '#605B57', '#4A4845', '#2F2E2B'] as const, // logo background: brushed charcoal
+  hero: ['#2A2927', '#3A3936', '#55514D'] as const, // page headers (charcoal with sheen)
+  gold: ['#EDEAB8', '#DCD28B', '#C4B468'] as const, // primary actions (logo champagne)
+  goldLine: ['rgba(229,227,172,0)', '#E5E3AC', 'rgba(229,227,172,0)'] as const,
+  task: ['#252B29', '#1E3A35', '#0F766E'] as const,
+  complaint: ['#2B2527', '#3F1E27', '#9F1239'] as const,
+  feedback: ['#25272C', '#1F2A45', '#1D4ED8'] as const,
 };
 
 export const spacing = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32, huge: 48 } as const;

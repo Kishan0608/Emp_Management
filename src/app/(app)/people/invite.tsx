@@ -30,7 +30,7 @@ export default function Invite() {
     setBusy(true);
     try {
       const res = await api.invite({ email: email.trim(), full_name: name.trim(), role, department_id: dept, manager_id: manager, job_title: title.trim() });
-      setResult({ email: email.trim().toLowerCase(), password: res.temp_password });
+      setResult({ email: email.trim().toLowerCase(), password: res.activation_key });
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -42,14 +42,16 @@ export default function Invite() {
     return (
       <Screen header={<PageHeader title="Invitation ready" />}>
         <Card style={{ gap: spacing.lg }}>
-          <AppText variant="h2">Share these sign-in details privately</AppText>
-          <AppText variant="small">The one-time password is shown only once. The person must change it at first sign-in and read the privacy notice.</AppText>
+          <AppText variant="h2">Share the activation key privately</AppText>
+          <AppText variant="small">
+            The key is shown only once. The person taps &quot;Activate account&quot; in the app, enters their email, this key and their own password. Then approve them in the admin panel.
+          </AppText>
           <View style={styles.cred}>
             <Text style={styles.credLabel}>Email</Text>
             <Text style={styles.credValue} selectable>
               {result.email}
             </Text>
-            <Text style={[styles.credLabel, { marginTop: spacing.md }]}>One-time password</Text>
+            <Text style={[styles.credLabel, { marginTop: spacing.md }]}>Activation key</Text>
             <Text style={[styles.credValue, { letterSpacing: 1 }]} selectable>
               {result.password}
             </Text>
@@ -59,7 +61,7 @@ export default function Invite() {
             icon="copy-outline"
             variant="secondary"
             onPress={async () => {
-              await Clipboard.setStringAsync(`Email: ${result.email}\nOne-time password: ${result.password}`);
+              await Clipboard.setStringAsync(`Open the SKFL app → Activate account\nEmail: ${result.email}\nActivation key: ${result.password}\n(Works once, expires in 7 days.)`);
               toast('Copied', 'info');
             }}
           />

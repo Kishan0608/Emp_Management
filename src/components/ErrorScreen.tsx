@@ -95,5 +95,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.danger,
   },
-  footer: { fontFamily: fonts.medium, fontSize: 12, letterSpacing: 1.5, color: 'rgba(246,222,141,0.6)' },
+  footer: { fontFamily: fonts.medium, fontSize: 12, letterSpacing: 1.5, color: 'rgba(229,227,172,0.7)' },
 });

@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
@@ -65,8 +66,9 @@ export default function SignIn() {
         onSubmitEditing={submit}
       />
       <Button title="Sign in" icon="arrow-forward" size="lg" loading={busy} onPress={submit} />
+      <Button title="New here? Activate account with a key" icon="key-outline" variant="secondary" onPress={() => router.push('/activate')} />
       <AppText variant="small" style={{ textAlign: 'center' }}>
-        Access is invite-only. Forgot your password? Ask HR to reset it.
+        Forgot your password? Ask your administrator for a recovery key, then use Activate account.
       </AppText>
 
       {__DEV__ && (

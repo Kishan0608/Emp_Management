@@ -40,7 +40,7 @@ export default function Mfa() {
         for (const f of data.all.filter((f) => f.status === 'unverified')) {
           await supabase.auth.mfa.unenroll({ factorId: f.id });
         }
-        const { data: en, error: enErr } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: `Authenticator ${Date.now()}` });
+        const { data: en, error: enErr } = await supabase.auth.mfa.enroll({ factorType: 'totp', issuer: 'SKFL', friendlyName: `SKFL ${Date.now()}` });
         if (enErr) throw enErr;
         setFactorId(en.id);
         setSecret(en.totp.secret);

@@ -6,26 +6,26 @@ import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { shadow } from '@/theme/tokens';
 
-import { GOLD_STOPS, SKFL_LETTERS, SKFL_STROKE, SKFL_VIEWBOX } from './skflPaths';
+import { CHARCOAL_STOPS, GOLD_STOPS, SKFL_SHAPES, SKFL_VIEWBOX } from './skflPaths';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 /**
- * The SKFL gold monogram as crisp vector art.
- * With `animated`, each letter draws itself in, one after another.
+ * The official SKFL logo in champagne gold, as crisp vector art.
+ * With `animated`, the shapes appear one after another from left to right.
  */
 export function SkflMark({
   width = 160,
   animated = false,
   delay = 0,
-  letterGap = 260,
-  duration = 900,
+  stagger = 140,
+  duration = 520,
   color,
 }: {
   width?: number;
   animated?: boolean;
   delay?: number;
-  letterGap?: number;
+  stagger?: number;
   duration?: number;
   color?: string;
 }) {
@@ -40,49 +40,36 @@ export function SkflMark({
           ))}
         </LinearGradient>
       </Defs>
-      {SKFL_LETTERS.map((l, i) => (
-        <Letter key={l.key} d={l.d} length={l.length} stroke={color ?? `url(#${gid})`} animated={animated} delay={delay + i * letterGap} duration={duration} />
+      {SKFL_SHAPES.map((d, i) => (
+        <Shape key={i} d={d} fill={color ?? `url(#${gid})`} animated={animated} delay={delay + i * stagger} duration={duration} />
       ))}
     </Svg>
   );
 }
 
-function Letter({ d, length, stroke, animated, delay, duration }: { d: string; length: number; stroke: string; animated: boolean; delay: number; duration: number }) {
+function Shape({ d, fill, animated, delay, duration }: { d: string; fill: string; animated: boolean; delay: number; duration: number }) {
   const p = useSharedValue(animated ? 0 : 1);
   useEffect(() => {
     if (animated) p.set(withDelay(delay, withTiming(1, { duration, easing: Easing.out(Easing.cubic) })));
   }, [animated, delay, duration, p]);
-  return <DrawnPath d={d} length={length} stroke={stroke} progress={p} />;
+  return <FadedPath d={d} fill={fill} progress={p} />;
 }
 
-function DrawnPath({ d, length, stroke, progress }: { d: string; length: number; stroke: string; progress: SharedValue<number> }) {
-  const props = useAnimatedProps(() => ({ strokeDashoffset: length * (1 - progress.get()) }));
-  return (
-    <AnimatedPath
-      d={d}
-      fill="none"
-      stroke={stroke}
-      strokeWidth={SKFL_STROKE}
-      strokeLinecap="butt"
-      strokeLinejoin="miter"
-      strokeDasharray={[length, length]}
-      animatedProps={props}
-    />
-  );
+function FadedPath({ d, fill, progress }: { d: string; fill: string; progress: SharedValue<number> }) {
+  const props = useAnimatedProps(() => ({ fillOpacity: progress.get() }));
+  return <AnimatedPath d={d} fill={fill} animatedProps={props} />;
 }
 
-/** App-icon style tile: charcoal square, gold hairline border, SKFL inside. */
+/** Logo tile: the brushed-charcoal background of the official logo with the gold mark. */
 export function BrandTile({ size = 56, style }: { size?: number; style?: StyleProp<ViewStyle> }) {
   return (
-    <View style={[{ width: size, height: size, borderRadius: size * 0.26 }, styles.tileShadow, style]}>
-      <ViewGradient colors={['#E9CF7A', '#A67C1B', '#F2D27A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.fill, { borderRadius: size * 0.26, padding: 1.2 }]}>
-        <ViewGradient
-          colors={['#26221A', '#141416', '#0B0B0D']}
-          start={{ x: 0.2, y: 0 }}
-          end={{ x: 0.8, y: 1 }}
-          style={[styles.fill, styles.center, { borderRadius: size * 0.26 - 1 }]}>
-          <SkflMark width={size * 0.74} />
-        </ViewGradient>
+    <View style={[{ width: size, height: size, borderRadius: size * 0.24 }, styles.tileShadow, style]}>
+      <ViewGradient
+        colors={CHARCOAL_STOPS}
+        start={{ x: 0, y: 1 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.fill, styles.center, { borderRadius: size * 0.24, borderWidth: 1, borderColor: 'rgba(229,227,172,0.35)' }]}>
+        <SkflMark width={size * 0.8} />
       </ViewGradient>
     </View>
   );

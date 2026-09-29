@@ -24,7 +24,7 @@ let body = fn.error ? await fn.error.context.json() : fn.data;
 ok('edge fn authenticates & validates (400, nothing written)', fn.error && body.error === 'Choose a category', JSON.stringify(body));
 let inv = await emp.functions.invoke('invite-user', { body: { email: 'x@example.com', full_name: 'X Y' } });
 body = inv.error ? await inv.error.context.json() : inv.data;
-ok('employee cannot invite', body.error === 'Only the Boss can invite people', JSON.stringify(body));
+ok('employee cannot invite', body.error === 'Only the Boss can add people', JSON.stringify(body));
 let store = await emp.storage.from('task-files').list('');
 ok('storage bucket reachable (RLS)', !store.error, store.error?.message);
 
@@ -35,15 +35,17 @@ ok('logged-out caller sees no users', (a.data ?? []).length === 0 || !!a.error, 
 let fa = await anon.functions.invoke('submit-complaint', { body: {} });
 ok('logged-out caller rejected by edge fn', !!fa.error, fa.error?.context?.status);
 
-// boss without 2FA
+// boss: one-time activation, no per-login code
 const boss = client();
 await boss.auth.signInWithPassword({ email: 'boss@example.com', password: 'Demo@2026' });
 ctx = await boss.rpc('my_context');
-ok('boss context says 2FA required', ctx.data?.mfa_required === true && ctx.data?.aal === 'aal1');
+ok('boss is active, no per-login code required', ctx.data?.user?.account_status === 'active' && ctx.data?.mfa_required === false);
 let ov = await boss.rpc('complaint_overview');
-ok('boss without 2FA refused complaint overview', !!ov.error, ov.error?.message);
-let aal = await boss.auth.mfa.getAuthenticatorAssuranceLevel();
-ok('client sees aal1 -> app shows 2FA screen', aal.data?.currentLevel === 'aal1');
+ok('boss sees complaint overview (numbers only)', !ov.error, ov.error?.message);
+let people = await boss.rpc('admin_people');
+ok('boss opens admin panel list', !people.error, people.error?.message);
+let np = await emp.rpc('admin_people');
+ok('employee blocked from admin panel', !!np.error, np.error?.message);
 
 // wrong password
 const bad = client();

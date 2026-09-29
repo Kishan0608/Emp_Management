@@ -1,5 +1,6 @@
-// Boss-only: create an invited account with a one-time password.
-// Sign-up is invite-only; the database trigger rejects any account without "invited": true.
+// Boss-only (app or admin panel): add a person and issue their one-time activation key.
+// The account starts as 'invited' with a random password nobody knows; the person
+// sets their own password when they activate with the key.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const ROLES = ["boss", "hr", "manager", "employee"];
@@ -19,11 +20,9 @@ function json(status: number, body: unknown) {
   });
 }
 
-function tempPassword() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-  const bytes = crypto.getRandomValues(new Uint8Array(12));
-  const core = Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
-  return `${core}#9`;
+function unguessablePassword() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("") + "Aa#1";
 }
 
 Deno.serve(async (req) => {
@@ -33,16 +32,17 @@ Deno.serve(async (req) => {
   const url = Deno.env.get("SUPABASE_URL")!;
   const authHeader = req.headers.get("Authorization") ?? "";
 
-  // Check the caller with THEIR token, so the database's own role and 2FA rules apply.
+  // Check the caller with THEIR token so the database's own role rules apply.
   const asCaller = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: authHeader } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data: ctx, error: ctxError } = await asCaller.rpc("my_context");
   if (ctxError || !ctx) return json(401, { error: "Please sign in again" });
-  const caller = (ctx as { user: { id: string; role: string }; mfa_required: boolean; aal: string });
-  if (caller.user.role !== "boss") return json(403, { error: "Only the Boss can invite people" });
-  if (caller.mfa_required && caller.aal !== "aal2") return json(403, { error: "Two-factor verification required" });
+  const caller = ctx as { user: { id: string; role: string; account_status: string; is_active: boolean } };
+  if (caller.user.role !== "boss" || caller.user.account_status !== "active" || !caller.user.is_active) {
+    return json(403, { error: "Only the Boss can add people" });
+  }
 
   let body: Record<string, unknown>;
   try {
@@ -67,26 +67,26 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const password = tempPassword();
   const { data: created, error: createError } = await admin.auth.admin.createUser({
     email,
-    password,
+    password: unguessablePassword(),
     email_confirm: true,
     app_metadata: { invited: true },
     user_metadata: { full_name: fullName },
   });
   if (createError || !created.user) {
-    return json(400, { error: createError?.message ?? "Could not create the account" });
+    const msg = createError?.message ?? "Could not create the account";
+    return json(400, { error: msg.includes("already") ? "Someone with this email already exists" : msg });
   }
 
-  const { error: updateError } = await admin.from("users").update({
-    role,
-    department_id: departmentId,
-    manager_id: managerId,
-    job_title: jobTitle,
-    must_change_password: true,
-  }).eq("id", created.user.id);
+  const { error: updateError } = await admin
+    .from("users")
+    .update({ role, department_id: departmentId, manager_id: managerId, job_title: jobTitle })
+    .eq("id", created.user.id);
   if (updateError) return json(400, { error: updateError.message });
+
+  const { data: key, error: keyError } = await admin.rpc("issue_activation_key_internal", { p_user: created.user.id, p_by: caller.user.id });
+  if (keyError || !key) return json(400, { error: keyError?.message ?? "Could not issue the activation key" });
 
   await admin.from("audit_logs").insert({
     actor_id: caller.user.id,
@@ -95,12 +95,6 @@ Deno.serve(async (req) => {
     entity_id: created.user.id,
     meta: { role, email },
   });
-  await admin.from("notifications").insert({
-    user_id: created.user.id,
-    kind: "welcome",
-    title: "Welcome aboard",
-    body: "Please change your one-time password and read the privacy notice.",
-  });
 
-  return json(200, { ok: true, user_id: created.user.id, temp_password: password });
+  return json(200, { ok: true, user_id: created.user.id, activation_key: key });
 });

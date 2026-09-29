@@ -196,10 +196,10 @@ const styles = StyleSheet.create({
   pageHeaderInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, width: '100%', maxWidth: layout.maxWidth, alignSelf: 'center' },
   back: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   hero: { paddingHorizontal: layout.screenPadding, paddingBottom: spacing.xxl, overflow: 'hidden', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
-  heroSubtitle: { fontFamily: fonts.medium, fontSize: 13, color: '#E9D7A6', marginBottom: 2 },
+  heroSubtitle: { fontFamily: fonts.medium, fontSize: 13, color: '#E5E3AC', marginBottom: 2 },
   heroRule: { position: 'absolute', left: 24, right: 24, bottom: 0, height: 1.5 },
   brandStrip: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.lg },
-  brandText: { flex: 1, fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 1.8, color: 'rgba(246,222,141,0.85)' },
+  brandText: { flex: 1, fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 1.8, color: 'rgba(229,227,172,0.9)' },
   heroTitle: { fontFamily: fonts.bold, fontSize: 24, color: colors.white, letterSpacing: -0.4 },
   skelCard: {
     flexDirection: 'row',

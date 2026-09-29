@@ -118,7 +118,7 @@ export default function More() {
           <BrandTile size={44} />
           <Text style={styles.brandName}>{COMPANY.name}</Text>
           <Text style={styles.version}>
-            {COMPANY.product} · v{Constants.expoConfig?.version ?? '1.0.0'}
+            {COMPANY.short} · v{Constants.expoConfig?.version ?? '1.0.0'}
           </Text>
         </View>
       </Screen>

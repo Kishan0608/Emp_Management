@@ -15,15 +15,15 @@ interface OrbSpec {
 }
 
 const FULL: OrbSpec[] = [
-  { size: 360, colors: ['rgba(212,164,55,0.42)', 'rgba(212,164,55,0)'], top: '-14%', left: '-32%', dx: 60, dy: 40, duration: 9000, delay: 0 },
-  { size: 320, colors: ['rgba(246,222,141,0.22)', 'rgba(246,222,141,0)'], top: '38%', left: '52%', dx: -70, dy: 50, duration: 11000, delay: 400 },
-  { size: 280, colors: ['rgba(176,125,26,0.40)', 'rgba(176,125,26,0)'], top: '72%', left: '-18%', dx: 50, dy: -60, duration: 10000, delay: 800 },
-  { size: 200, colors: ['rgba(231,185,74,0.28)', 'rgba(231,185,74,0)'], top: '8%', left: '66%', dx: -40, dy: 30, duration: 8000, delay: 200 },
+  { size: 360, colors: ['rgba(229,227,172,0.20)', 'rgba(229,227,172,0)'], top: '-14%', left: '-32%', dx: 60, dy: 40, duration: 9000, delay: 0 },
+  { size: 320, colors: ['rgba(255,255,255,0.10)', 'rgba(255,255,255,0)'], top: '38%', left: '52%', dx: -70, dy: 50, duration: 11000, delay: 400 },
+  { size: 280, colors: ['rgba(216,206,137,0.18)', 'rgba(216,206,137,0)'], top: '72%', left: '-18%', dx: 50, dy: -60, duration: 10000, delay: 800 },
+  { size: 200, colors: ['rgba(229,227,172,0.14)', 'rgba(229,227,172,0)'], top: '8%', left: '66%', dx: -40, dy: 30, duration: 8000, delay: 200 },
 ];
 
 const SUBTLE: OrbSpec[] = [
-  { size: 260, colors: ['rgba(212,164,55,0.22)', 'rgba(212,164,55,0)'], top: '-55%', left: '55%', dx: -40, dy: 20, duration: 9000, delay: 0 },
-  { size: 180, colors: ['rgba(246,222,141,0.12)', 'rgba(246,222,141,0)'], top: '35%', left: '-15%', dx: 40, dy: -15, duration: 11000, delay: 500 },
+  { size: 260, colors: ['rgba(229,227,172,0.16)', 'rgba(229,227,172,0)'], top: '-55%', left: '55%', dx: -40, dy: 20, duration: 9000, delay: 0 },
+  { size: 180, colors: ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0)'], top: '35%', left: '-15%', dx: 40, dy: -15, duration: 11000, delay: 500 },
 ];
 
 /**
@@ -77,7 +77,7 @@ function Particle({ left, size, duration, delay }: { left: `${number}%`; size: n
   }));
   return (
     <Animated.View
-      style={[{ position: 'absolute', bottom: -10, left, width: size, height: size, borderRadius: size / 2, backgroundColor: '#F6DE8D' }, style]}
+      style={[{ position: 'absolute', bottom: -10, left, width: size, height: size, borderRadius: size / 2, backgroundColor: '#E5E3AC' }, style]}
     />
   );
 }

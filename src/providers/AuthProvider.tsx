@@ -73,7 +73,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const c = await api.myContext();
         if (!c.user.is_active) {
-          await signOut(false, 'This account is deactivated. Contact HR.');
+          await signOut(false, 'This account is deactivated. Contact your administrator.');
+          return;
+        }
+        if (c.user.account_status && c.user.account_status !== 'active') {
+          await signOut(
+            false,
+            c.user.account_status === 'awaiting_approval'
+              ? 'Your account is waiting for approval from the administrator. Try again once approved.'
+              : 'Your account is not activated yet. Tap "Activate account" and enter your key.',
+          );
           return;
         }
         // Cold start: if the app sat unused past the timeout, require a fresh sign-in.

@@ -76,6 +76,7 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="index" />
         <Stack.Protected guard={status === 'signedOut'}>
           <Stack.Screen name="sign-in" />
+          <Stack.Screen name="activate" options={{ animation: 'slide_from_right' }} />
         </Stack.Protected>
         <Stack.Protected guard={status === 'needsMfa'}>
           <Stack.Screen name="mfa" />

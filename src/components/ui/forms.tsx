@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
   },
   segWrap: { backgroundColor: '#EFECE4', borderRadius: radius.md, padding: 4, gap: 4 },
-  segWrapDark: { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(246,222,141,0.18)' },
+  segWrapDark: { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(229,227,172,0.2)' },
   segActiveDark: { backgroundColor: colors.goldLight, ...shadow.sm },
   segItem: {
     flex: 1,
