@@ -13,7 +13,7 @@ export default function Consent() {
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <AuthShell title="Privacy notice" subtitle="Please read how your data is used before you continue.">
+    <AuthShell icon="document-lock-outline" title="Privacy notice" subtitle="Please read how your data is used before you continue.">
       <PrivacyNotice />
       {error && <Banner tone="danger">{error}</Banner>}
       <SwitchRow label="I have read and understood this notice" value={agree} onChange={setAgree} />

@@ -37,7 +37,7 @@ export default function SignIn() {
   };
 
   return (
-    <AuthShell title="Welcome back" subtitle="Sign in with the work account your administrator created for you.">
+    <AuthShell icon="log-in-outline" title="Welcome back" subtitle="Sign in with the work account your administrator created for you.">
       {notice && <Banner tone="warning">{notice}</Banner>}
       {error && <Banner tone="danger">{error}</Banner>}
       <TextField

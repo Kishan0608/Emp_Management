@@ -43,7 +43,7 @@ export default function ChangePassword() {
   };
 
   return (
-    <AuthShell title="Choose a new password" subtitle="You signed in with a one-time password. Set your own before continuing.">
+    <AuthShell icon="key-outline" title="Choose a new password" subtitle="You signed in with a one-time password. Set your own before continuing.">
       {error && <Banner tone="danger">{error}</Banner>}
       <TextField label="New password" icon="lock-closed-outline" value={pw} onChangeText={setPw} secureToggle autoComplete="new-password" textContentType="newPassword" />
       <View style={{ gap: 6 }}>

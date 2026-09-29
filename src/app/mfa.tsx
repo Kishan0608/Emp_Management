@@ -72,6 +72,7 @@ export default function Mfa() {
 
   return (
     <AuthShell
+      icon="shield-checkmark-outline"
       title={mode === 'enroll' ? 'Set up two-factor' : 'Two-factor check'}
       subtitle={
         mode === 'enroll'

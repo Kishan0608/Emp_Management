@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,6 +13,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
 import { avatarColor, initials, toneColors, type Tone } from '@/lib/format';
 import { colors, fonts, gradients, radius, shadow, spacing, type } from '@/theme/tokens';
@@ -81,12 +82,32 @@ export function Button({ title, variant = 'primary', size = 'md', icon, loading,
       ]}>
       {variant === 'primary' ? (
         <LinearGradient colors={gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.btnGradient}>
+          {!inactive && <Shine />}
           {content}
         </LinearGradient>
       ) : (
         content
       )}
     </Pressable>
+  );
+}
+
+/** A soft light band that sweeps across primary buttons every few seconds. */
+function Shine() {
+  const x = useSharedValue(0);
+  useEffect(() => {
+    x.set(
+      withRepeat(
+        withSequence(withDelay(2600, withTiming(1, { duration: 900, easing: Easing.inOut(Easing.quad) })), withTiming(0, { duration: 0 })),
+        -1,
+      ),
+    );
+  }, [x]);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateX: -120 + x.get() * 620 }, { skewX: '-20deg' }] }));
+  return (
+    <Animated.View pointerEvents="none" style={[styles.shine, style]}>
+      <LinearGradient colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1 }} />
+    </Animated.View>
   );
 }
 
@@ -315,7 +336,8 @@ export function EmptyState({ icon, title, body, action }: { icon: IconName; titl
 
 const styles = StyleSheet.create({
   btn: { borderRadius: radius.md, backgroundColor: 'transparent', overflow: 'hidden' },
-  btnGradient: { borderRadius: radius.md },
+  btnGradient: { borderRadius: radius.md, overflow: 'hidden' },
+  shine: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 80 },
   btnInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   btnText: { fontFamily: fonts.semibold, letterSpacing: 0.1 },
   card: {

@@ -6,6 +6,7 @@ import { KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, 
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AnimatedBackdrop } from '@/components/AnimatedBackdrop';
 import { colors, fonts, gradients, layout, radius, spacing, type } from '@/theme/tokens';
 
 /** Standard scrollable page with a max width (tablet/web) and pull-to-refresh. */
@@ -95,8 +96,7 @@ export function HeroHeader({
   const insets = useSafeAreaInsets();
   return (
     <LinearGradient colors={colorsOverride ?? gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { paddingTop: insets.top + spacing.md }]}>
-      <View style={styles.heroDecorA} />
-      <View style={styles.heroDecorB} />
+      <AnimatedBackdrop variant="subtle" />
       <View style={styles.inner}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <View style={{ flex: 1 }}>
@@ -171,8 +171,6 @@ const styles = StyleSheet.create({
   pageHeaderInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, width: '100%', maxWidth: layout.maxWidth, alignSelf: 'center' },
   back: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   hero: { paddingHorizontal: layout.screenPadding, paddingBottom: spacing.xxl, overflow: 'hidden', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
-  heroDecorA: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(255,255,255,0.07)', top: -80, right: -60 },
-  heroDecorB: { position: 'absolute', width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.05)', bottom: -60, left: -30 },
   heroSubtitle: { fontFamily: fonts.medium, fontSize: 13, color: 'rgba(255,255,255,0.75)', marginBottom: 2 },
   heroTitle: { fontFamily: fonts.bold, fontSize: 24, color: colors.white, letterSpacing: -0.4 },
   skelCard: {
