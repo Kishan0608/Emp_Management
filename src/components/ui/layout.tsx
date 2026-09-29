@@ -1,12 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, type ReactNode } from 'react';
+import { setStatusBarStyle } from 'expo-status-bar';
+import { useCallback, useEffect, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedBackdrop } from '@/components/AnimatedBackdrop';
+import { BrandTile } from '@/components/brand/SkflLogo';
+import { COMPANY } from '@/components/brand/skflPaths';
 import { colors, fonts, gradients, layout, radius, spacing, type } from '@/theme/tokens';
 
 /** Standard scrollable page with a max width (tablet/web) and pull-to-refresh. */
@@ -35,7 +38,9 @@ export function Screen({
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[styles.content, { paddingBottom: (footer ? 16 : insets.bottom) + 96 }, contentStyle]}
         refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={colors.brand} colors={[colors.brand]} /> : undefined}>
-        <View style={styles.inner}>{children}</View>
+        <Animated.View entering={FadeIn.duration(320)} style={styles.inner}>
+          {children}
+        </Animated.View>
       </ScrollView>
       {footer && <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>{footer}</View>}
     </View>
@@ -51,6 +56,7 @@ export function Screen({
 /** Plain header for pushed (detail) screens. */
 export function PageHeader({ title, subtitle, right, back = true }: { title: string; subtitle?: string; right?: ReactNode; back?: boolean }) {
   const insets = useSafeAreaInsets();
+  useFocusEffect(useCallback(() => setStatusBarStyle('dark', true), []));
   return (
     <View style={[styles.pageHeader, { paddingTop: insets.top + spacing.sm }]}>
       <View style={styles.pageHeaderInner}>
@@ -94,11 +100,18 @@ export function HeroHeader({
   colorsOverride?: readonly [string, string, ...string[]];
 }) {
   const insets = useSafeAreaInsets();
+  useFocusEffect(useCallback(() => setStatusBarStyle('light', true), []));
   return (
     <LinearGradient colors={colorsOverride ?? gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { paddingTop: insets.top + spacing.md }]}>
       <AnimatedBackdrop variant="subtle" />
       <View style={styles.inner}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+        <View style={styles.brandStrip}>
+          <BrandTile size={26} />
+          <Text style={styles.brandText} numberOfLines={1}>
+            {COMPANY.name.toUpperCase()}
+          </Text>
+        </View>
+        <Animated.View entering={FadeInDown.duration(420)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <View style={{ flex: 1 }}>
             {subtitle && <Text style={styles.heroSubtitle}>{subtitle}</Text>}
             <Text style={styles.heroTitle} numberOfLines={1}>
@@ -106,21 +119,33 @@ export function HeroHeader({
             </Text>
           </View>
           {right}
-        </View>
+        </Animated.View>
         {children}
       </View>
+      <LinearGradient colors={gradients.goldLine} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.heroRule} />
     </LinearGradient>
   );
 }
 
-/** Shimmering placeholder block used while lists load. */
+/** Placeholder block with a soft gold shimmer, used while content loads. */
 export function Skeleton({ height = 16, width = '100%', radiusSize = 8, style }: { height?: number; width?: number | `${number}%`; radiusSize?: number; style?: ViewStyle }) {
-  const o = useSharedValue(0.45);
+  const x = useSharedValue(0);
   useEffect(() => {
-    o.set(withRepeat(withTiming(1, { duration: 750, easing: Easing.inOut(Easing.ease) }), -1, true));
-  }, [o]);
-  const anim = useAnimatedStyle(() => ({ opacity: o.get() }));
-  return <Animated.View style={[{ height, width, borderRadius: radiusSize, backgroundColor: '#E3E6EF' }, anim, style]} />;
+    x.set(withRepeat(withTiming(1, { duration: 1300, easing: Easing.inOut(Easing.ease) }), -1, false));
+  }, [x]);
+  const anim = useAnimatedStyle(() => ({ transform: [{ translateX: -160 + x.get() * 560 }] }));
+  return (
+    <View style={[{ height, width, borderRadius: radiusSize, backgroundColor: '#EEEAE1', overflow: 'hidden' }, style]}>
+      <Animated.View style={[{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 160 }, anim]}>
+        <LinearGradient
+          colors={['rgba(255,255,255,0)', 'rgba(255,248,230,0.95)', 'rgba(255,255,255,0)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ flex: 1 }}
+        />
+      </Animated.View>
+    </View>
+  );
 }
 
 export function ListSkeleton({ rows = 4 }: { rows?: number }) {
@@ -148,8 +173,8 @@ export function Fab({ icon = 'add', label, onPress }: { icon?: keyof typeof Ioni
       accessibilityLabel={label}
       onPress={onPress}
       style={({ pressed }) => [styles.fab, { bottom: insets.bottom + 84 }, pressed && { transform: [{ scale: 0.96 }] }]}>
-      <LinearGradient colors={gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fabInner}>
-        <Ionicons name={icon} size={22} color={colors.white} />
+      <LinearGradient colors={gradients.gold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fabInner}>
+        <Ionicons name={icon} size={22} color={colors.ink} />
         <Text style={styles.fabText}>{label}</Text>
       </LinearGradient>
     </Pressable>
@@ -171,7 +196,10 @@ const styles = StyleSheet.create({
   pageHeaderInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, width: '100%', maxWidth: layout.maxWidth, alignSelf: 'center' },
   back: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   hero: { paddingHorizontal: layout.screenPadding, paddingBottom: spacing.xxl, overflow: 'hidden', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
-  heroSubtitle: { fontFamily: fonts.medium, fontSize: 13, color: 'rgba(255,255,255,0.75)', marginBottom: 2 },
+  heroSubtitle: { fontFamily: fonts.medium, fontSize: 13, color: '#E9D7A6', marginBottom: 2 },
+  heroRule: { position: 'absolute', left: 24, right: 24, bottom: 0, height: 1.5 },
+  brandStrip: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.lg },
+  brandText: { flex: 1, fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 1.8, color: 'rgba(246,222,141,0.85)' },
   heroTitle: { fontFamily: fonts.bold, fontSize: 24, color: colors.white, letterSpacing: -0.4 },
   skelCard: {
     flexDirection: 'row',
@@ -185,5 +213,5 @@ const styles = StyleSheet.create({
   },
   fab: { position: 'absolute', right: spacing.lg, borderRadius: radius.pill, overflow: 'hidden' },
   fabInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: 20, height: 52, borderRadius: radius.pill },
-  fabText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.white },
+  fabText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
 });

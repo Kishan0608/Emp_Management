@@ -17,7 +17,7 @@ begin
   insert into public.departments (name) values ('Engineering') returning id into v_eng;
   insert into public.departments (name) values ('Operations') returning id into v_ops;
   insert into public.departments (name) values ('Human Resources') returning id into v_hrd;
-  update public.app_settings set company_name = 'Demo Company Pvt Ltd' where id = 1;
+  update public.app_settings set company_name = 'Shree Karni Fabcom Ltd' where id = 1;
 
   for r in select * from (values
       (v_boss, 'boss@example.com',     'Aarav Shah'),

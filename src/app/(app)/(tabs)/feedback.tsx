@@ -51,7 +51,7 @@ export default function Feedback() {
         header={
           <HeroHeader title="Feedback" subtitle="Questions · ideas · blockers" colorsOverride={gradients.feedback}>
             <View style={{ marginTop: spacing.lg }}>
-              <Segmented options={scopes} value={scope} onChange={setScope} />
+              <Segmented dark options={scopes} value={scope} onChange={setScope} />
             </View>
           </HeroHeader>
         }>

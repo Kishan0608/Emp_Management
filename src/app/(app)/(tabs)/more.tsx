@@ -3,6 +3,8 @@ import { router, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, StyleSheet, Text, View } from 'react-native';
 
+import { BrandTile } from '@/components/brand/SkflLogo';
+import { COMPANY } from '@/components/brand/skflPaths';
 import { PrivacyNotice } from '@/components/PrivacyNotice';
 import { Avatar, Badge, Card, Divider, HeroHeader, IconTile, ListRow, Screen, SectionTitle, Sheet, type IconName } from '@/components/ui';
 import { roleLabel } from '@/lib/format';
@@ -112,7 +114,13 @@ export default function More() {
           },
         ])}
 
-        <Text style={styles.version}>Emp Management · v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
+        <View style={styles.brandFoot}>
+          <BrandTile size={44} />
+          <Text style={styles.brandName}>{COMPANY.name}</Text>
+          <Text style={styles.version}>
+            {COMPANY.product} · v{Constants.expoConfig?.version ?? '1.0.0'}
+          </Text>
+        </View>
       </Screen>
 
       <Sheet visible={privacy} onClose={() => setPrivacy(false)} title="Privacy notice">
@@ -126,5 +134,7 @@ export default function More() {
 
 const styles = StyleSheet.create({
   profile: { flexDirection: 'row', gap: spacing.lg, alignItems: 'center' },
-  version: { ...type.small, textAlign: 'center', marginTop: spacing.xxl, color: colors.textMuted },
+  brandFoot: { alignItems: 'center', gap: 6, marginTop: spacing.xxxl },
+  brandName: { ...type.h3, marginTop: spacing.sm },
+  version: { ...type.small, textAlign: 'center', color: colors.textMuted },
 });

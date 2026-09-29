@@ -15,15 +15,15 @@ interface OrbSpec {
 }
 
 const FULL: OrbSpec[] = [
-  { size: 340, colors: ['rgba(124,58,237,0.55)', 'rgba(124,58,237,0)'], top: '-12%', left: '-30%', dx: 60, dy: 40, duration: 9000, delay: 0 },
-  { size: 300, colors: ['rgba(37,99,235,0.45)', 'rgba(37,99,235,0)'], top: '35%', left: '55%', dx: -70, dy: 50, duration: 11000, delay: 400 },
-  { size: 260, colors: ['rgba(13,148,136,0.40)', 'rgba(13,148,136,0)'], top: '70%', left: '-15%', dx: 50, dy: -60, duration: 10000, delay: 800 },
-  { size: 200, colors: ['rgba(225,29,72,0.30)', 'rgba(225,29,72,0)'], top: '10%', left: '65%', dx: -40, dy: 30, duration: 8000, delay: 200 },
+  { size: 360, colors: ['rgba(212,164,55,0.42)', 'rgba(212,164,55,0)'], top: '-14%', left: '-32%', dx: 60, dy: 40, duration: 9000, delay: 0 },
+  { size: 320, colors: ['rgba(246,222,141,0.22)', 'rgba(246,222,141,0)'], top: '38%', left: '52%', dx: -70, dy: 50, duration: 11000, delay: 400 },
+  { size: 280, colors: ['rgba(176,125,26,0.40)', 'rgba(176,125,26,0)'], top: '72%', left: '-18%', dx: 50, dy: -60, duration: 10000, delay: 800 },
+  { size: 200, colors: ['rgba(231,185,74,0.28)', 'rgba(231,185,74,0)'], top: '8%', left: '66%', dx: -40, dy: 30, duration: 8000, delay: 200 },
 ];
 
 const SUBTLE: OrbSpec[] = [
-  { size: 240, colors: ['rgba(255,255,255,0.16)', 'rgba(255,255,255,0)'], top: '-60%', left: '55%', dx: -40, dy: 20, duration: 9000, delay: 0 },
-  { size: 180, colors: ['rgba(255,255,255,0.10)', 'rgba(255,255,255,0)'], top: '30%', left: '-15%', dx: 40, dy: -15, duration: 11000, delay: 500 },
+  { size: 260, colors: ['rgba(212,164,55,0.22)', 'rgba(212,164,55,0)'], top: '-55%', left: '55%', dx: -40, dy: 20, duration: 9000, delay: 0 },
+  { size: 180, colors: ['rgba(246,222,141,0.12)', 'rgba(246,222,141,0)'], top: '35%', left: '-15%', dx: 40, dy: -15, duration: 11000, delay: 500 },
 ];
 
 /**
@@ -77,7 +77,7 @@ function Particle({ left, size, duration, delay }: { left: `${number}%`; size: n
   }));
   return (
     <Animated.View
-      style={[{ position: 'absolute', bottom: -10, left, width: size, height: size, borderRadius: size / 2, backgroundColor: 'rgba(255,255,255,0.9)' }, style]}
+      style={[{ position: 'absolute', bottom: -10, left, width: size, height: size, borderRadius: size / 2, backgroundColor: '#F6DE8D' }, style]}
     />
   );
 }

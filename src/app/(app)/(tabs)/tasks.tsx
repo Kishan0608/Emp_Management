@@ -93,7 +93,7 @@ export default function Tasks() {
             colorsOverride={gradients.task}
             right={<IconButton icon="download-outline" label="Export CSV" color={colors.white} bg="rgba(255,255,255,0.18)" onPress={exportCsv} />}>
             <View style={{ marginTop: spacing.lg }}>
-              <Segmented options={scopes} value={scope} onChange={setScope} />
+              <Segmented dark options={scopes} value={scope} onChange={setScope} />
             </View>
           </HeroHeader>
         }>

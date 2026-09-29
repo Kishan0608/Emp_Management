@@ -7,14 +7,14 @@ import { AppState, Platform } from 'react-native';
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!url || !key) {
-  throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY. Copy .env.example to .env.local.');
-}
+/** Set when the app was built without its Supabase settings; the root layout shows a setup screen instead of crashing. */
+export const configError =
+  !url || !key ? 'The app is missing its server settings (EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY). Copy .env.example to .env.local and restart.' : null;
 
 // Static web rendering runs in Node, where there is no window/localStorage.
 const isServer = Platform.OS === 'web' && typeof window === 'undefined';
 
-export const supabase = createClient(url, key, {
+export const supabase = createClient(url || 'https://placeholder.supabase.co', key || 'placeholder-key', {
   auth: {
     storage: isServer ? undefined : AsyncStorage,
     autoRefreshToken: !isServer,

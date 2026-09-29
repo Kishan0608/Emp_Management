@@ -251,6 +251,6 @@ const styles = StyleSheet.create({
   option: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   counts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   countValue: { fontFamily: fonts.bold, fontSize: 20, color: colors.text },
-  track: { height: 6, borderRadius: radius.pill, backgroundColor: '#EEF1F6', overflow: 'hidden' },
+  track: { height: 6, borderRadius: radius.pill, backgroundColor: '#F0EDE6', overflow: 'hidden' },
   fill: { height: 6, borderRadius: radius.pill },
 });

@@ -41,3 +41,6 @@ example
 # generated native folders
 /ios
 /android
+
+# separate project kept alongside, not part of this app
+SKF App/

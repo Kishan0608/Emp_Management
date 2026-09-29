@@ -8,7 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, gradients, radius, shadow, spacing } from '@/theme/tokens';
 
 import { AnimatedBackdrop } from './AnimatedBackdrop';
-import { Logo } from './Logo';
+import { BrandTile } from './brand/SkflLogo';
+import { COMPANY } from './brand/skflPaths';
 
 /**
  * Shared layout for sign-in, 2FA, password and consent screens:
@@ -28,25 +29,23 @@ export function AuthShell({ title, subtitle, children, icon }: { title: string; 
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           <Animated.View entering={FadeInDown.duration(600)} style={styles.brandRow}>
-            <Logo size={52} />
+            <BrandTile size={64} />
             <View style={{ flexShrink: 1 }}>
               <Text style={styles.brand} numberOfLines={1} adjustsFontSizeToFit>
-                Emp Management
+                {COMPANY.name}
               </Text>
               <View style={styles.tagRow}>
+                <Text style={styles.tag}>{COMPANY.product}</Text>
                 <View style={[styles.dot, { backgroundColor: colors.task }]} />
-                <Text style={styles.tag}>Tasks</Text>
                 <View style={[styles.dot, { backgroundColor: colors.complaint }]} />
-                <Text style={styles.tag}>Complaints</Text>
                 <View style={[styles.dot, { backgroundColor: colors.feedback }]} />
-                <Text style={styles.tag}>Feedback</Text>
               </View>
             </View>
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(150).duration(600).springify().damping(18)} style={styles.card}>
             <LinearGradient
-              colors={[colors.task, colors.feedback, colors.accent, colors.complaint]}
+              colors={gradients.gold}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.accentBar}
@@ -62,8 +61,8 @@ export function AuthShell({ title, subtitle, children, icon }: { title: string; 
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(400).duration(600)} style={styles.footer}>
-            <Ionicons name="shield-checkmark" size={14} color="rgba(255,255,255,0.7)" />
-            <Text style={styles.footerText}>Role-based access · encrypted · audit logged</Text>
+            <Ionicons name="shield-checkmark" size={14} color="rgba(246,222,141,0.8)" />
+            <Text style={styles.footerText}>© {COMPANY.name} · secured & audit logged</Text>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -83,10 +82,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxl,
     paddingHorizontal: spacing.xs,
   },
-  brand: { fontFamily: fonts.extrabold, fontSize: 24, color: colors.white, letterSpacing: -0.5 },
+  brand: { fontFamily: fonts.bold, fontSize: 22, color: colors.goldLight, letterSpacing: -0.3 },
   tagRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' },
-  dot: { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
-  tag: { fontFamily: fonts.medium, fontSize: 12, color: 'rgba(255,255,255,0.75)', marginRight: 10 },
+  dot: { width: 6, height: 6, borderRadius: 3, marginLeft: 6 },
+  tag: { fontFamily: fonts.medium, fontSize: 13, color: 'rgba(255,255,255,0.75)', marginRight: 4 },
   card: {
     width: '100%',
     maxWidth: 460,
@@ -103,6 +102,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: radius.md + 2,
     backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.brandTint,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
@@ -110,5 +111,5 @@ const styles = StyleSheet.create({
   title: { fontFamily: fonts.bold, fontSize: 24, color: colors.text, letterSpacing: -0.4 },
   subtitle: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.textSecondary, marginTop: 6 },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.xl },
-  footerText: { fontFamily: fonts.medium, fontSize: 12, color: 'rgba(255,255,255,0.7)' },
+  footerText: { fontFamily: fonts.medium, fontSize: 12, color: 'rgba(246,222,141,0.7)' },
 });

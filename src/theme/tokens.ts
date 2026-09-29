@@ -1,12 +1,15 @@
 import { Platform, type TextStyle, type ViewStyle } from 'react-native';
 
 export const colors = {
-  // brand
-  brand: '#4338CA',
-  brandDark: '#312E81',
-  brandDeep: '#1E1B4B',
-  brandSoft: '#EEF0FF',
-  brandTint: '#C7D2FE',
+  // brand: Shree Karni Fabcom Ltd (gold on charcoal)
+  brand: '#9C7415', // deep gold, readable on white
+  brandDark: '#6E520E',
+  brandDeep: '#0B0B0D', // charcoal
+  brandSoft: '#FBF5E6',
+  brandTint: '#EFDFB2',
+  gold: '#D4A437',
+  goldLight: '#F6DE8D',
+  ink: '#141416', // text on gold
   accent: '#7C3AED',
 
   // modules
@@ -27,25 +30,27 @@ export const colors = {
   info: '#0284C7',
   infoSoft: '#E6F4FB',
 
-  // neutrals
-  bg: '#F4F5FA',
+  // warm neutrals (pair with gold)
+  bg: '#F6F5F1',
   surface: '#FFFFFF',
-  surfaceAlt: '#F8F9FC',
-  border: '#E4E7EF',
-  borderStrong: '#CDD2DE',
-  text: '#0F172A',
-  textSecondary: '#475569',
-  textMuted: '#94A3B8',
+  surfaceAlt: '#FAF9F6',
+  border: '#E9E6DF',
+  borderStrong: '#D4CFC3',
+  text: '#18181B',
+  textSecondary: '#52525B',
+  textMuted: '#A1A1AA',
   white: '#FFFFFF',
-  overlay: 'rgba(15, 23, 42, 0.45)',
+  overlay: 'rgba(12, 12, 14, 0.55)',
 } as const;
 
 export const gradients = {
-  brand: ['#1E1B4B', '#3730A3', '#6D28D9'] as const,
-  hero: ['#312E81', '#4338CA', '#7C3AED'] as const,
-  task: ['#0F766E', '#14B8A6'] as const,
-  complaint: ['#9F1239', '#E11D48'] as const,
-  feedback: ['#1D4ED8', '#3B82F6'] as const,
+  brand: ['#0B0B0D', '#18171B', '#2A2316'] as const, // splash & sign-in
+  hero: ['#121215', '#1E1D21', '#3A2F18'] as const, // page headers
+  gold: ['#F6DE8D', '#D9A93B', '#B07D1A'] as const, // primary actions
+  goldLine: ['rgba(212,164,55,0)', '#E7B94A', 'rgba(212,164,55,0)'] as const,
+  task: ['#0C1413', '#12302B', '#0F766E'] as const,
+  complaint: ['#150E10', '#3A1520', '#9F1239'] as const,
+  feedback: ['#0E1117', '#172442', '#1D4ED8'] as const,
 };
 
 export const spacing = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32, huge: 48 } as const;

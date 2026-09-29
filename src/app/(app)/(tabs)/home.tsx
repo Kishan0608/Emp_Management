@@ -249,6 +249,6 @@ const styles = StyleSheet.create({
   metricValue: { fontFamily: fonts.bold, fontSize: 22, color: colors.text, letterSpacing: -0.4 },
   flagCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderColor: colors.complaint + '40', backgroundColor: '#FFF8F9' },
   flagIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.complaint, alignItems: 'center', justifyContent: 'center' },
-  track: { height: 8, borderRadius: 4, backgroundColor: '#EEF1F6', flexDirection: 'row', overflow: 'hidden' },
+  track: { height: 8, borderRadius: 4, backgroundColor: '#F0EDE6', flexDirection: 'row', overflow: 'hidden' },
   fill: { height: 8 },
 });

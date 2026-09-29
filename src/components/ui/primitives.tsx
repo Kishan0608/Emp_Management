@@ -41,8 +41,10 @@ interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
 export function Button({ title, variant = 'primary', size = 'md', icon, loading, full, disabled, style, ...rest }: ButtonProps) {
   const height = size === 'sm' ? 38 : size === 'lg' ? 54 : 46;
   const fg =
-    variant === 'primary' || variant === 'danger'
-      ? colors.white
+    variant === 'primary'
+      ? colors.ink
+      : variant === 'danger'
+        ? colors.white
       : variant === 'secondary'
         ? colors.brand
         : variant === 'outline'
@@ -81,7 +83,7 @@ export function Button({ title, variant = 'primary', size = 'md', icon, loading,
         style,
       ]}>
       {variant === 'primary' ? (
-        <LinearGradient colors={gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.btnGradient}>
+        <LinearGradient colors={gradients.gold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.btnGradient}>
           {!inactive && <Shine />}
           {content}
         </LinearGradient>
@@ -106,7 +108,7 @@ function Shine() {
   const style = useAnimatedStyle(() => ({ transform: [{ translateX: -120 + x.get() * 620 }, { skewX: '-20deg' }] }));
   return (
     <Animated.View pointerEvents="none" style={[styles.shine, style]}>
-      <LinearGradient colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1 }} />
+      <LinearGradient colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1 }} />
     </Animated.View>
   );
 }

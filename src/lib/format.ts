@@ -125,7 +125,7 @@ export const fieldLabel: Record<VisibilityField, string> = {
 export type Tone = 'neutral' | 'brand' | 'info' | 'success' | 'warning' | 'danger';
 
 export const toneColors: Record<Tone, { fg: string; bg: string }> = {
-  neutral: { fg: colors.textSecondary, bg: '#EEF1F6' },
+  neutral: { fg: colors.textSecondary, bg: '#F0EDE6' },
   brand: { fg: colors.brand, bg: colors.brandSoft },
   info: { fg: colors.info, bg: colors.infoSoft },
   success: { fg: colors.success, bg: colors.successSoft },
@@ -183,7 +183,7 @@ export function initials(name: string | null | undefined): string {
   return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
 }
 
-const AVATAR_COLORS = ['#4338CA', '#0D9488', '#DB2777', '#D97706', '#2563EB', '#7C3AED', '#059669', '#DC2626'];
+const AVATAR_COLORS = ['#9C7415', '#0D9488', '#DB2777', '#D97706', '#2563EB', '#7C3AED', '#059669', '#DC2626'];
 export function avatarColor(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;

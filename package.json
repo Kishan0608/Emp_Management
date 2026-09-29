@@ -45,6 +45,7 @@
     "@types/react": "~19.2.2",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.2",
+    "sharp": "^0.35.5",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -54,7 +55,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test:smoke": "node --env-file=.env.local scripts/smoke-test.mjs"
+    "test:smoke": "node --env-file=.env.local scripts/smoke-test.mjs",
+    "brand:assets": "node scripts/generate-brand-assets.mjs"
   },
   "private": true
 }

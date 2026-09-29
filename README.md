@@ -1,6 +1,8 @@
-# Emp Management
+# SKFL · Shree Karni Fabcom Ltd: Employee Management
 
-Employee management app with three modules: **Tasks**, **Complaints** (anonymous), and **Feedback** (questions, ideas, blockers).
+![SKFL](assets/brand/skfl-logo-transparent.png)
+
+Employee management app for **Shree Karni Fabcom Ltd (SKFL)** with three modules: **Tasks**, **Complaints** (anonymous), and **Feedback** (questions, ideas, blockers).
 Built with React Native + Expo (SDK 57, Expo Router) on Supabase (Postgres, Auth, Storage, Edge Functions).
 
 Every permission is enforced in the database (row-level security and checked functions). The app screens only reflect what the server allows.
@@ -37,7 +39,7 @@ In development the sign-in screen has one-tap buttons for these. **Delete these 
 
 ## How the app flows
 
-1. **Loading screen**: animated brand splash while fonts load and the session is restored.
+1. **Loading screen**: the SKFL letters draw themselves in gold, then the company name and a progress bar appear while fonts load and the session is restored.
 2. **Sign in**: email + password. Accounts are invite-only (the database rejects any sign-up without an invite).
 3. **2FA**: Boss and HR enrol a TOTP authenticator and must verify each sign-in. The database refuses their actions on a non-2FA session.
 4. **New password**: invited people replace their one-time password.
@@ -64,6 +66,12 @@ In development the sign-in screen has one-tap buttons for these. **Delete these 
 - Sexual harassment goes to a separate **confidential** (named) POSH form, readable only by Internal Committee members.
 
 ---
+
+## Brand
+
+- The SKFL monogram is vector artwork in `src/components/brand/skflPaths.ts` (gold gradient, charcoal backgrounds).
+- `npm run brand:assets` regenerates every image from it: app icon, Android adaptive icon layers, splash image, favicon, and Full HD logos in `assets/brand/` (`skfl-logo-fullhd.png` 1920×1080, `skfl-logo-transparent.png`, `skfl-logo.svg`).
+- Theme colours live in `src/theme/tokens.ts`.
 
 ## Project structure
 

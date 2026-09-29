@@ -1,6 +1,12 @@
-import { Stack } from 'expo-router';
+import { Stack, type ErrorBoundaryProps } from 'expo-router';
 
+import { ErrorScreen } from '@/components/ErrorScreen';
 import { colors } from '@/theme/tokens';
+
+/** If any signed-in screen fails, show a branded recovery screen; tabs and session stay intact. */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return <ErrorScreen error={error} onRetry={retry} />;
+}
 
 export default function AppLayout() {
   return (

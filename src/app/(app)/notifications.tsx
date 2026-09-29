@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  unread: { backgroundColor: '#F7F7FF', borderColor: colors.brandTint },
+  unread: { backgroundColor: '#FFFBF0', borderColor: colors.brandTint },
   icon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.brand },
 });

@@ -101,11 +101,14 @@ export function Segmented<T extends string>({
   value,
   onChange,
   scroll,
+  dark,
 }: {
   options: { value: T; label: string; count?: number }[];
   value: T;
   onChange: (v: T) => void;
   scroll?: boolean;
+  /** Use on dark (header) backgrounds: translucent track, gold active pill. */
+  dark?: boolean;
 }) {
   const body = options.map((o) => {
     const active = o.value === value;
@@ -115,8 +118,8 @@ export function Segmented<T extends string>({
         accessibilityRole="tab"
         accessibilityState={{ selected: active }}
         onPress={() => onChange(o.value)}
-        style={[styles.segItem, scroll && { flex: 0, paddingHorizontal: 14 }, active && styles.segActive]}>
-        <Text style={[styles.segText, active && { color: colors.brand }]} numberOfLines={1}>
+        style={[styles.segItem, scroll && { flex: 0, paddingHorizontal: 14 }, active && (dark ? styles.segActiveDark : styles.segActive)]}>
+        <Text style={[styles.segText, dark && { color: 'rgba(255,255,255,0.72)' }, active && { color: dark ? colors.ink : colors.brand }]} numberOfLines={1}>
           {o.label}
         </Text>
         {!!o.count && (
@@ -129,7 +132,7 @@ export function Segmented<T extends string>({
   });
   if (scroll) {
     return (
-      <View style={styles.segWrap}>
+      <View style={[styles.segWrap, dark && styles.segWrapDark]}>
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -140,7 +143,7 @@ export function Segmented<T extends string>({
       </View>
     );
   }
-  return <View style={[styles.segWrap, { flexDirection: 'row' }]}>{body}</View>;
+  return <View style={[styles.segWrap, dark && styles.segWrapDark, { flexDirection: 'row' }]}>{body}</View>;
 }
 
 // ---------- chips (single choice) ----------
@@ -439,7 +442,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  inputFocused: { borderColor: colors.brand, backgroundColor: '#FBFBFF' },
+  inputFocused: { borderColor: colors.brand, backgroundColor: '#FFFDF7' },
   input: {
     flex: 1,
     fontFamily: fonts.regular,
@@ -448,7 +451,9 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === 'web' ? 12 : 10,
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
   },
-  segWrap: { backgroundColor: '#EBEDF4', borderRadius: radius.md, padding: 4, gap: 4 },
+  segWrap: { backgroundColor: '#EFECE4', borderRadius: radius.md, padding: 4, gap: 4 },
+  segWrapDark: { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(246,222,141,0.18)' },
+  segActiveDark: { backgroundColor: colors.goldLight, ...shadow.sm },
   segItem: {
     flex: 1,
     flexDirection: 'row',
@@ -460,7 +465,7 @@ const styles = StyleSheet.create({
   },
   segActive: { backgroundColor: colors.surface, ...shadow.sm },
   segText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.textSecondary },
-  segCount: { minWidth: 20, height: 18, borderRadius: 9, paddingHorizontal: 5, backgroundColor: '#D9DCE6', alignItems: 'center', justifyContent: 'center' },
+  segCount: { minWidth: 20, height: 18, borderRadius: 9, paddingHorizontal: 5, backgroundColor: '#E2DDD0', alignItems: 'center', justifyContent: 'center' },
   segCountText: { fontFamily: fonts.bold, fontSize: 10.5, color: colors.textSecondary },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: {
