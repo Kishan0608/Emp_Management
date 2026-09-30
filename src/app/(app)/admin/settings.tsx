@@ -19,7 +19,6 @@ const NUMBERS: { key: NumKey; label: string; hint: string }[] = [
   { key: 'min_group_size', label: 'Small-team warning below', hint: 'Warn about anonymity in small teams' },
   { key: 'blocker_hr_hours', label: 'Escalate blockers to HR after (hours)', hint: '' },
   { key: 'blocker_boss_hours', label: 'Escalate blockers to Boss after (hours)', hint: '' },
-  { key: 'session_timeout_minutes', label: 'Sign out after inactivity (minutes)', hint: '' },
   { key: 'retention_complaint_days', label: 'Keep complaints for (days)', hint: 'Then deleted automatically' },
   { key: 'retention_audit_days', label: 'Keep audit logs for (days)', hint: '' },
 ];

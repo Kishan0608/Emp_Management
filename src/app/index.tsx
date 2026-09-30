@@ -17,6 +17,8 @@ export default function Index() {
       return <Redirect href="/change-password" />;
     case 'needsConsent':
       return <Redirect href="/consent" />;
+    case 'needsPasscode':
+      return <Redirect href="/set-passcode" />;
     case 'ready':
       return <Redirect href="/home" />;
     default:

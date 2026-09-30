@@ -60,16 +60,11 @@ export default function RootLayout() {
 }
 
 function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
-  const { status, touch, locked } = useAuth();
+  const { status, locked } = useAuth();
   const [splashDone, setSplashDone] = useState(false);
 
   return (
-    <View
-      style={{ flex: 1 }}
-      onStartShouldSetResponderCapture={() => {
-        touch(); // any tap resets the inactivity timer
-        return false;
-      }}>
+    <View style={{ flex: 1 }}>
       <StatusBar style="light" />
       {/* Each auth state unlocks exactly one group of screens. Leaving a state
           sends the user back to "index", which redirects to the right place. */}
@@ -80,7 +75,6 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
           <Stack.Screen name="sign-in" />
           <Stack.Screen name="sign-up" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="forgot-password" options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="activate" options={{ animation: 'slide_from_right' }} />
         </Stack.Protected>
         <Stack.Protected guard={status === 'needsOnboarding'}>
           <Stack.Screen name="onboarding" />
@@ -93,6 +87,9 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
         </Stack.Protected>
         <Stack.Protected guard={status === 'needsConsent'}>
           <Stack.Screen name="consent" />
+        </Stack.Protected>
+        <Stack.Protected guard={status === 'needsPasscode'}>
+          <Stack.Screen name="set-passcode" />
         </Stack.Protected>
         <Stack.Protected guard={status === 'ready'}>
           <Stack.Screen name="(app)" />

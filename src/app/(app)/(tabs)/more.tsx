@@ -7,7 +7,7 @@ import { BrandTile } from '@/components/brand/SkflLogo';
 import { COMPANY } from '@/components/brand/skflPaths';
 import { PrivacyNotice } from '@/components/PrivacyNotice';
 import { Avatar, Badge, Card, Divider, HeroHeader, IconTile, ListRow, Screen, SectionTitle, Sheet, type IconName } from '@/components/ui';
-import { getAppLockSupport, type AppLockSupport } from '@/lib/appLock';
+import { getAppLockSupport, lockSupported, type AppLockSupport } from '@/lib/appLock';
 import { roleLabel } from '@/lib/format';
 import { useAuth, useMe } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
@@ -44,7 +44,6 @@ export default function More() {
     { icon: 'people-outline', label: 'People directory', href: '/people' },
   ];
   const admin: Item[] = [
-    ...(isBoss ? [{ icon: 'person-add-outline' as const, label: 'Invite a person', hint: 'Invite-only accounts', href: '/people/invite' as Href }] : []),
     ...(isBoss ? [{ icon: 'eye-outline' as const, label: 'Visibility settings', hint: 'Who sees which employee details', href: '/admin/visibility' as Href }] : []),
     ...(isBoss || isHR ? [{ icon: 'bar-chart-outline' as const, label: 'Analytics & exports', href: '/admin/analytics' as Href }] : []),
     ...(isBoss ? [{ icon: 'settings-outline' as const, label: 'Company settings', hint: 'Thresholds, retention, security', href: '/admin/settings' as Href }] : []),
@@ -96,9 +95,14 @@ export default function More() {
         )}
 
         <SectionTitle title="Privacy & security" />
-        <AppLockRow />
-        <View style={{ height: spacing.md }} />
+        {lockSupported && (
+          <>
+            <AppLockRow />
+            <View style={{ height: spacing.md }} />
+          </>
+        )}
         {renderItems([
+          ...(lockSupported ? [{ icon: 'keypad-outline' as const, label: 'Change passcode', hint: 'The 4-digit code that opens SKFL', href: '/change-passcode' as Href }] : []),
           { icon: 'document-lock-outline', label: 'Privacy notice', hint: 'DPDP Act, 2023', onPress: () => setPrivacy(true) },
           {
             icon: 'log-out-outline',
@@ -106,7 +110,7 @@ export default function More() {
             hint: 'Signs out this phone only',
             tint: colors.warning,
             bg: colors.warningSoft,
-            onPress: () => confirm('Sign out?', 'You will need your password to sign in again on this phone.', () => signOut(false)),
+            onPress: () => confirm('Sign out?', 'You will need your email and password to sign in again, and your passcode will be removed from this phone.', () => signOut(false)),
           },
         ])}
 
@@ -128,7 +132,7 @@ export default function More() {
   );
 }
 
-/** App lock switch: fingerprint / face / phone PIN instead of the password when opening the app. */
+/** Fingerprint / face switch; the passcode always works as a backup. */
 function AppLockRow() {
   const { appLockEnabled, setAppLock } = useAuth();
   const toast = useToast();
@@ -144,13 +148,13 @@ function AppLockRow() {
     <Card style={styles.lockRow}>
       <IconTile icon={support?.icon ?? 'finger-print'} color={colors.brand} bg={colors.brandSoft} size={36} />
       <View style={{ flex: 1, gap: 2 }}>
-        <Text style={type.bodyMedium}>App lock</Text>
+        <Text style={type.bodyMedium}>{support?.method ?? 'Fingerprint'} unlock</Text>
         <Text style={type.small}>
           {unavailable
             ? support?.reason
             : appLockEnabled
-              ? `On · unlock with ${(support?.method ?? 'fingerprint').toLowerCase()}`
-              : `Open SKFL with ${(support?.method ?? 'fingerprint').toLowerCase()} instead of your password`}
+              ? 'On · passcode works as a backup'
+              : `Open SKFL with ${(support?.method ?? 'fingerprint').toLowerCase()} instead of your passcode`}
         </Text>
       </View>
       <Switch
@@ -161,7 +165,7 @@ function AppLockRow() {
           try {
             const err = await setAppLock(on);
             if (err) toast(err, 'error');
-            else toast(on ? 'App lock is on' : 'App lock is off');
+            else toast(on ? `${support?.method ?? 'Fingerprint'} unlock is on` : `${support?.method ?? 'Fingerprint'} unlock is off`);
           } finally {
             setBusy(false);
           }

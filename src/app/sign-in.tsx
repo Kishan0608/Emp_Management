@@ -7,7 +7,7 @@ import { AuthShell } from '@/components/AuthShell';
 import { Banner, Button, TextField } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/providers/AuthProvider';
-import { colors, fonts, spacing } from '@/theme/tokens';
+import { colors, fonts } from '@/theme/tokens';
 
 export default function SignIn() {
   const { signIn, signInWithGoogle, notice, clearNotice } = useAuth();
@@ -80,9 +80,6 @@ export default function SignIn() {
       </Pressable>
       <OrDivider />
       <GoogleButton onPress={google} loading={busy === 'google'} />
-      <Pressable onPress={() => router.push('/activate')} hitSlop={8} style={{ alignSelf: 'center', marginTop: spacing.xs }}>
-        <Text style={{ fontFamily: fonts.medium, fontSize: 12.5, color: colors.textMuted }}>Invited by your administrator? Activate with key</Text>
-      </Pressable>
     </AuthShell>
   );
 }

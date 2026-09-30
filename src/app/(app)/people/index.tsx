@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
-import { Avatar, Badge, Button, Card, Divider, EmptyState, ListRow, ListSkeleton, PageHeader, Screen, Segmented, TextField } from '@/components/ui';
+import { Avatar, Badge, Card, Divider, EmptyState, ListRow, ListSkeleton, PageHeader, Screen, Segmented, TextField } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
 import { api } from '@/lib/api';
 import { roleLabel } from '@/lib/format';
@@ -45,7 +45,6 @@ export default function People() {
         <PageHeader
           title="People"
           subtitle={`${list.length} ${list.length === 1 ? 'person' : 'people'}`}
-          right={isBoss ? <Button title="Invite" size="sm" icon="person-add-outline" onPress={() => router.push('/people/invite')} /> : undefined}
         />
       }>
       <View style={{ gap: spacing.md }}>
