@@ -73,11 +73,11 @@ function TabButton({
   }));
 
   const handlePressIn = () => {
-    pressScale.value = withTiming(0.92, { duration: 80 });
+    pressScale.set(withTiming(0.92, { duration: 80 }));
   };
 
   const handlePressOut = () => {
-    pressScale.value = withSpring(1, { damping: 14, stiffness: 260 });
+    pressScale.set(withSpring(1, { damping: 14, stiffness: 260 }));
   };
 
   return (

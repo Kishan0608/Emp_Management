@@ -9,10 +9,12 @@ import { useLoad } from '@/hooks/useLoad';
 import { api } from '@/lib/api';
 import { greeting, roleLabel } from '@/lib/format';
 import { useMe } from '@/providers/AuthProvider';
+import { useNotifications } from '@/providers/NotificationsProvider';
 import { colors, fonts, radius, shadow, spacing, type } from '@/theme/tokens';
 
 export default function Home() {
   const { me, isBoss, isHR, isManager, isCaseHandler, isEmployee } = useMe();
+  const { unread } = useNotifications();
   const stats = useLoad(() => api.dashboard());
   const myTasks = useLoad(() => api.tasks('mine', me.id));
   const s = stats.data;
@@ -37,7 +39,7 @@ export default function Home() {
               label="Notifications"
               color={colors.white}
               bg="rgba(255,255,255,0.16)"
-              badge={s?.unread_notifications}
+              badge={unread}
               onPress={() => router.push('/notifications')}
             />
           }>

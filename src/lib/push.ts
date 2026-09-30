@@ -21,9 +21,10 @@ export async function registerForPush(): Promise<string | null> {
 
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldPlaySound: true,
+      // While the app is open the live in-app banner shows it instead.
+      shouldPlaySound: false,
       shouldSetBadge: true,
-      shouldShowBanner: true,
+      shouldShowBanner: false,
       shouldShowList: true,
     }),
   });
@@ -42,4 +43,27 @@ export async function registerForPush(): Promise<string | null> {
 
   const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
   return data;
+}
+
+function pushAvailable() {
+  return Platform.OS !== 'web' && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
+}
+
+/**
+ * Calls onTap with the push payload ({ kind, ref_table, ref_id }) when the person
+ * taps a phone notification, including the one that launched the app.
+ * Returns a function that stops listening.
+ */
+export async function listenForPushTaps(onTap: (data: Record<string, unknown>) => void): Promise<() => void> {
+  if (!pushAvailable()) return () => {};
+  const Notifications = await import('expo-notifications');
+  const seen = new Set<string>();
+  const handle = (r: { notification: { request: { identifier: string; content: { data?: Record<string, unknown> | null } } } } | null) => {
+    if (!r || seen.has(r.notification.request.identifier)) return;
+    seen.add(r.notification.request.identifier);
+    onTap(r.notification.request.content.data ?? {});
+  };
+  handle(await Notifications.getLastNotificationResponseAsync());
+  const sub = Notifications.addNotificationResponseReceivedListener(handle);
+  return () => sub.remove();
 }

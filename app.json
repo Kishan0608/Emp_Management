@@ -42,6 +42,12 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "SKFL uses Face ID to unlock the app."
+        }
+      ],
       "expo-sharing",
       [
         "expo-notifications",
