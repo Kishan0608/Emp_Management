@@ -32,6 +32,8 @@ import type {
   TriageStatus,
   VisibilityField,
   VisibilityRule,
+  TeamMemberReport,
+  TeamMemberSummary,
 } from './types';
 
 export type OnboardingStatus = 'invited' | 'email_pending' | 'email_verified' | 'key_verified' | 'approver_pending' | 'awaiting_approval' | 'active';
@@ -113,6 +115,8 @@ export const api = {
   departments: async () => check<Department[]>(await supabase.from('departments').select('id, name').order('name')),
   createDepartment: async (name: string) => check(await supabase.from('departments').insert({ name: name.trim() })),
   profile: async (id: string) => check<EmployeeProfile>(await supabase.rpc('get_employee_profile', { p_target: id })),
+  teamOverview: async () => check<TeamMemberSummary[]>(await supabase.rpc('team_overview')),
+  teamMemberReport: async (id: string) => check<TeamMemberReport>(await supabase.rpc('team_member_report', { p_target: id })),
   updateUser: async (p: {
     id: string;
     role: Role;

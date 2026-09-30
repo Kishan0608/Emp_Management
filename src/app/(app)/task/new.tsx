@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   FlatList,
@@ -66,7 +66,8 @@ export default function NewTask() {
   // Task form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [assigneeId, setAssigneeId] = useState<string | null>(null);
+  const { assignee } = useLocalSearchParams<{ assignee?: string }>();
+  const [assigneeId, setAssigneeId] = useState<string | null>(assignee ?? null);
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [due, setDue] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

@@ -95,12 +95,19 @@ export default function Home() {
       {isManager && s?.team && (
         <>
           <SectionTitle title="My team" action="Team tasks" onAction={() => router.push({ pathname: '/tasks', params: { scope: 'team' } })} />
-          <Card style={styles.teamCard}>
-            <Metric label="Members" value={s.team.members} />
-            <Metric label="Open" value={s.team.open} />
-            <Metric label="Blocked" value={s.team.blocked} tone={s.team.blocked ? colors.danger : undefined} />
-            <Metric label="Overdue" value={s.team.overdue} tone={s.team.overdue ? colors.warning : undefined} />
-            <Metric label="Feedback" value={s.team.feedback_open} />
+          <Card style={{ gap: spacing.md }} onPress={() => router.push('/team')}>
+            <View style={styles.teamCard}>
+              <Metric label="Members" value={s.team.members} tone={colors.brand} />
+              <Metric label="Open" value={s.team.open} />
+              <Metric label="Blocked" value={s.team.blocked} tone={s.team.blocked ? colors.danger : undefined} />
+              <Metric label="Overdue" value={s.team.overdue} tone={s.team.overdue ? colors.warning : undefined} />
+              <Metric label="Feedback" value={s.team.feedback_open} />
+            </View>
+            <View style={styles.teamCta}>
+              <Ionicons name="people" size={16} color={colors.brand} />
+              <Text style={styles.teamCtaText}>View members & their reports</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.brand} />
+            </View>
           </Card>
         </>
       )}
@@ -252,6 +259,15 @@ const styles = StyleSheet.create({
   quickText: { fontFamily: fonts.semibold, fontSize: 12.5, color: colors.text },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   teamCard: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  teamCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  teamCtaText: { flex: 1, fontFamily: fonts.semibold, fontSize: 13.5, color: colors.brand },
   metricValue: { fontFamily: fonts.bold, fontSize: 22, color: colors.text, letterSpacing: -0.4 },
   flagCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderColor: colors.complaint + '40', backgroundColor: '#FFF8F9' },
   flagIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.complaint, alignItems: 'center', justifyContent: 'center' },

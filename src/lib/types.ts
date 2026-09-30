@@ -284,3 +284,64 @@ export interface AuditLog {
   created_at: string;
   actor?: { full_name: string } | null;
 }
+
+export interface TeamMemberSummary {
+  id: string;
+  full_name: string;
+  job_title: string | null;
+  role: Role;
+  email: string;
+  department: string | null;
+  total: number;
+  done: number;
+  open: number;
+  blocked: number;
+  awaiting_review: number;
+  overdue: number;
+  on_time_pct: number | null;
+  last_active: string | null;
+}
+
+export interface TeamMemberReport {
+  person: {
+    id: string;
+    full_name: string;
+    email: string;
+    role: Role;
+    job_title: string | null;
+    department: string | null;
+    manager: string | null;
+    is_active: boolean;
+    member_since: string;
+    joined_on: string | null;
+  };
+  attendance_pct: number | null;
+  performance_rating: number | null;
+  tasks: {
+    total: number;
+    done: number;
+    open: number;
+    not_started: number;
+    in_progress: number;
+    blocked: number;
+    awaiting_review: number;
+    returned: number;
+    overdue: number;
+    due_7d: number;
+    done_30d: number;
+  };
+  priority_open: Record<TaskPriority, number>;
+  quality: { on_time: number; late: number; reworked: number; avg_days_to_complete: number | null };
+  habits: {
+    avg_hours_to_accept: number | null;
+    updates_30d: number;
+    active_days_30d: number;
+    last_active: string | null;
+    blocked_times: number;
+    feedback_to_me: number;
+    blockers_to_me: number;
+  };
+  monthly: { month: string; done: number }[];
+  recent_tasks: { id: string; title: string; status: TaskStatus; priority: TaskPriority; due_date: string | null; sort_key: string; overdue: boolean }[];
+  timeline: { created_at: string; to_status: TaskStatus; note: string | null; title: string; task_id: string; actor: string | null }[];
+}
