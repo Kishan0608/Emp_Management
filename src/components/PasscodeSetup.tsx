@@ -96,30 +96,33 @@ export function PasscodeSetup({ offerBiometrics = true, onDone }: { offerBiometr
   }
 
   return (
-    <Animated.View key={step} entering={FadeInRight.duration(300)} style={{ gap: spacing.lg, alignItems: 'center' }}>
-      <View style={styles.stepRow}>
-        {(['create', 'confirm'] as const).map((s, i) => (
-          <View key={s} style={[styles.stepPill, step === s && styles.stepPillOn]}>
-            <Text style={[styles.stepText, step === s && styles.stepTextOn]}>
-              {i + 1}. {s === 'create' ? 'Create' : 'Confirm'}
-            </Text>
-          </View>
-        ))}
+    <View style={{ alignItems: 'center', gap: spacing.md }}>
+      <View style={styles.progress}>
+        <View style={[styles.seg, styles.segOn]} />
+        <View style={[styles.seg, step === 'confirm' && styles.segOn]} />
       </View>
-      <Text style={styles.sub}>{step === 'create' ? `Choose a ${PASSCODE_LENGTH}-digit passcode to open SKFL quickly and securely.` : 'Enter the same passcode again.'}</Text>
-      <PasscodeDots length={pin.length} tone="light" errorKey={errorKey} />
+      <Animated.View key={step} entering={FadeInRight.duration(300)} style={{ alignItems: 'center', gap: spacing.xs }}>
+        <View style={styles.badge}>
+          <Ionicons name={step === 'create' ? 'keypad' : 'shield-checkmark'} size={20} color={colors.brand} />
+        </View>
+        <Text style={styles.title}>{step === 'create' ? 'Create your passcode' : 'Confirm your passcode'}</Text>
+        <Text style={styles.sub}>{step === 'create' ? `Choose ${PASSCODE_LENGTH} digits you will remember` : 'Enter the same digits again'}</Text>
+      </Animated.View>
+      <View style={styles.dotsBox}>
+        <PasscodeDots length={pin.length} tone="light" errorKey={errorKey} />
+      </View>
       <Text style={[styles.error, !error && { opacity: 0 }]}>{error ?? ' '}</Text>
       <Keypad value={pin} onChange={onChange} tone="light" disabled={busy} />
-    </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  stepRow: { flexDirection: 'row', gap: spacing.sm },
-  stepPill: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
-  stepPillOn: { backgroundColor: colors.brandSoft, borderColor: colors.brandTint },
-  stepText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.textMuted },
-  stepTextOn: { color: colors.brand },
+  progress: { flexDirection: 'row', gap: 6, alignSelf: 'stretch' },
+  seg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.border },
+  segOn: { backgroundColor: colors.gold },
+  badge: { width: 42, height: 42, borderRadius: 14, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.brandTint, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  dotsBox: { paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
   title: { fontFamily: fonts.bold, fontSize: 19, color: colors.text, textAlign: 'center' },
   sub: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: colors.textSecondary, textAlign: 'center', maxWidth: 300 },
   error: { fontFamily: fonts.semibold, fontSize: 13, color: colors.danger, textAlign: 'center', minHeight: 18 },

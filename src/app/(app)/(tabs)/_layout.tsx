@@ -1,14 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Tabs, type BottomTabBarProps } from 'expo-router/js-tabs';
-import { useEffect } from 'react';
-import {
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Easing, Platform, Pressable, Animated as RNAnimated, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -30,15 +24,27 @@ const TAB_ICONS: Record<string, { active: IconName; inactive: IconName }> = {
   more: { active: 'menu', inactive: 'menu-outline' },
 };
 
+/** Scene transition between tabs: a short directional slide + fade (runs on the native driver). */
+const TAB_TRANSITION = {
+  transitionSpec: { animation: 'timing' as const, config: { duration: 220, easing: Easing.bezier(0.2, 0, 0, 1) } },
+  sceneStyleInterpolator: ({ current }: { current: { progress: RNAnimated.AnimatedInterpolation<number> } }) => ({
+    sceneStyle: {
+      opacity: current.progress.interpolate({ inputRange: [-1, -0.5, 0, 0.5, 1], outputRange: [0, 0.4, 1, 0.4, 0] }),
+      transform: [{ translateX: current.progress.interpolate({ inputRange: [-1, 0, 1], outputRange: [-28, 0, 28] }) }],
+    },
+  }),
+};
+
+const PILL_W = 52;
+const SPRING = { damping: 20, stiffness: 260, mass: 0.8 };
+
 function TabButton({
-  routeKey,
   routeName,
   label,
   isFocused,
   onPress,
   onLongPress,
 }: {
-  routeKey: string;
   routeName: string;
   label: string;
   isFocused: boolean;
@@ -47,73 +53,32 @@ function TabButton({
 }) {
   const icons = TAB_ICONS[routeName] ?? { active: 'ellipse', inactive: 'ellipse-outline' };
   const pressScale = useSharedValue(1);
-  const activeAnim = useSharedValue(isFocused ? 1 : 0);
+  const active = useSharedValue(isFocused ? 1 : 0);
 
   useEffect(() => {
-    activeAnim.value = withSpring(isFocused ? 1 : 0, {
-      damping: 18,
-      stiffness: 240,
-    });
-  }, [isFocused, activeAnim]);
+    active.set(withSpring(isFocused ? 1 : 0, SPRING));
+  }, [isFocused, active]);
 
-  const animatedPressStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pressScale.value }],
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.get() * interpolate(active.get(), [0, 1], [1, 1.08]) }, { translateY: interpolate(active.get(), [0, 1], [0, -1]) }],
   }));
-
-  const animatedIconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(activeAnim.value, [0, 1], [1, 1.1]) }],
-  }));
-
-  const animatedPillStyle = useAnimatedStyle(() => ({
-    opacity: activeAnim.value,
-    transform: [
-      { scaleX: interpolate(activeAnim.value, [0, 1], [0.8, 1]) },
-      { scaleY: interpolate(activeAnim.value, [0, 1], [0.8, 1]) },
-    ],
-  }));
-
-  const handlePressIn = () => {
-    pressScale.set(withTiming(0.92, { duration: 80 }));
-  };
-
-  const handlePressOut = () => {
-    pressScale.set(withSpring(1, { damping: 14, stiffness: 260 }));
-  };
 
   return (
     <Pressable
-      key={routeKey}
       onPress={onPress}
       onLongPress={onLongPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
+      onPressIn={() => pressScale.set(withTiming(0.88, { duration: 90 }))}
+      onPressOut={() => pressScale.set(withSpring(1, { damping: 12, stiffness: 300 }))}
       unstable_pressDelay={0}
-      accessibilityRole="button"
+      android_disableSound
+      accessibilityRole="tab"
       accessibilityState={isFocused ? { selected: true } : {}}
       accessibilityLabel={label}
       style={styles.tabItem}>
-      {/* Icon + Active pill container */}
-      <Animated.View style={[styles.iconWrap, animatedPressStyle]}>
-        {/* Soft champagne-gold pill */}
-        <Animated.View style={[styles.activePill, animatedPillStyle]} />
-
-        {/* Scaled Icon */}
-        <Animated.View style={animatedIconStyle}>
-          <Ionicons
-            name={isFocused ? icons.active : icons.inactive}
-            size={22}
-            color={isFocused ? colors.brand : colors.textMuted}
-          />
-        </Animated.View>
+      <Animated.View style={[styles.iconWrap, iconStyle]}>
+        <Ionicons name={isFocused ? icons.active : icons.inactive} size={22} color={isFocused ? colors.brand : colors.textMuted} />
       </Animated.View>
-
-      {/* Label */}
-      <Text
-        numberOfLines={1}
-        style={[
-          styles.tabLabel,
-          isFocused ? styles.tabLabelActive : styles.tabLabelInactive,
-        ]}>
+      <Text numberOfLines={1} style={[styles.tabLabel, isFocused ? styles.tabLabelActive : styles.tabLabelInactive]}>
         {label}
       </Text>
     </Pressable>
@@ -122,49 +87,58 @@ function TabButton({
 
 function CustomTabBar({ state, descriptors, navigation, insets }: BottomTabBarProps) {
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'web' ? 10 : 8);
+  const count = state.routes.length;
+  const [width, setWidth] = useState(0);
+  const x = useSharedValue(0);
+  const tabW = width / count;
+
+  // One pill that glides to the selected tab.
+  useEffect(() => {
+    if (!width) return;
+    const target = state.index * tabW + (tabW - PILL_W) / 2;
+    x.set(x.get() === 0 && state.index !== 0 ? target : withSpring(target, SPRING));
+  }, [state.index, tabW, width, x]);
+
+  // Mount the other tabs quietly once the app has settled, so the first visit is instant.
+  const preloaded = useRef(false);
+  useEffect(() => {
+    if (preloaded.current) return;
+    preloaded.current = true;
+    const t = setTimeout(() => {
+      state.routes.forEach((r, i) => {
+        if (i !== state.index) navigation.dispatch({ type: 'PRELOAD', payload: { name: r.name }, target: state.key });
+      });
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [navigation, state]);
+
+  const pillStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
 
   return (
     <View style={[styles.barContainer, { paddingBottom: bottomInset }]}>
-      <View style={styles.barInner}>
+      <View style={styles.barInner} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+        {width > 0 && <Animated.View pointerEvents="none" style={[styles.activePill, pillStyle]} />}
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
-
-          const label =
-            typeof options.tabBarLabel === 'string'
-              ? options.tabBarLabel
-              : options.title !== undefined
-              ? options.title
-              : route.name;
+          const label = typeof options.tabBarLabel === 'string' ? options.tabBarLabel : (options.title ?? route.name);
 
           const handlePress = () => {
-            if (!isFocused) {
+            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!isFocused && !event.defaultPrevented) {
+              Haptics.selectionAsync().catch(() => {});
               navigation.navigate(route.name, route.params);
             }
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-            navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-          };
-
-          const handleLongPress = () => {
-            navigation.emit({
-              type: 'tabLongPress',
-              target: route.key,
-            });
           };
 
           return (
             <TabButton
               key={route.key}
-              routeKey={route.key}
               routeName={route.name}
               label={label}
               isFocused={isFocused}
               onPress={handlePress}
-              onLongPress={handleLongPress}
+              onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
             />
           );
         })}
@@ -182,7 +156,9 @@ export default function TabsLayout() {
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        animation: 'none',
+        freezeOnBlur: true,
+        sceneStyle: { backgroundColor: colors.bg },
+        ...TAB_TRANSITION,
       }}>
       <Tabs.Screen name="home" options={{ title: 'Home' }} />
       <Tabs.Screen name="tasks" options={{ title: 'Tasks' }} />
@@ -232,7 +208,9 @@ const styles = StyleSheet.create({
   },
   activePill: {
     position: 'absolute',
-    width: 48,
+    left: 0,
+    top: 2,
+    width: PILL_W,
     height: 30,
     borderRadius: 15,
     backgroundColor: colors.brandSoft,

@@ -21,10 +21,12 @@ import { KeyboardScrollProvider, useKeyboardScroll } from '@/providers/KeyboardS
 
 export function AuthShell(props: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   children: ReactNode;
   below?: ReactNode;
   compactLogo?: boolean;
+  /** Smaller card, for short content like the passcode pad. */
+  narrow?: boolean;
   /** @deprecated kept for older screens; no longer shown */
   icon?: string;
 }) {
@@ -41,12 +43,15 @@ function AuthShellContent({
   children,
   below,
   compactLogo,
+  narrow,
 }: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   children: ReactNode;
   below?: ReactNode;
   compactLogo?: boolean;
+  /** Smaller card, for short content like the passcode pad. */
+  narrow?: boolean;
   /** @deprecated kept for older screens; no longer shown */
   icon?: string;
 }) {
@@ -86,11 +91,11 @@ function AuthShellContent({
             </Text>
           </Animated.View>
 
-          <Animated.View entering={FadeInUp.delay(150).duration(600).springify().damping(18)} style={styles.card}>
+          <Animated.View entering={FadeInUp.delay(150).duration(600).springify().damping(18)} style={[styles.card, narrow && styles.cardNarrow]}>
             <LinearGradient colors={gradients.gold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.accentBar} />
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.subtitle}>{subtitle}</Text>
-            <View style={{ gap: spacing.lg, marginTop: spacing.xl }}>{children}</View>
+            <Text style={[styles.title, narrow && { fontSize: 22 }]}>{title}</Text>
+            {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+            <View style={{ gap: spacing.lg, marginTop: narrow ? spacing.lg : spacing.xl }}>{children}</View>
           </Animated.View>
 
           {below && (
@@ -119,6 +124,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...shadow.lg,
   },
+  cardNarrow: { maxWidth: 360, padding: spacing.lg, paddingTop: spacing.xl, borderRadius: 24 },
   accentBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 4 },
   title: { fontFamily: fonts.extrabold, fontSize: 26, color: colors.text, letterSpacing: -0.5, textAlign: 'center' },
   subtitle: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.textSecondary, marginTop: 6, textAlign: 'center' },

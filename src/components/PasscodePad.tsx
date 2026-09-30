@@ -56,6 +56,7 @@ export function Keypad({
   leftKey?: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void };
 }) {
   const t = tone === 'dark' ? dark : light;
+  const sm = tone === 'light';
   const press = (d: string) => {
     if (disabled || value.length >= PASSCODE_LENGTH) return;
     tap();
@@ -72,39 +73,39 @@ export function Keypad({
     ['7', '8', '9'],
   ];
   return (
-    <View style={styles.pad}>
+    <View style={[styles.pad, sm && styles.padSm]}>
       {rows.map((r) => (
-        <View key={r[0]} style={styles.row}>
+        <View key={r[0]} style={[styles.row, sm && styles.rowSm]}>
           {r.map((d) => (
-            <Key key={d} label={d} t={t} onPress={() => press(d)} />
+            <Key key={d} label={d} t={t} sm={sm} onPress={() => press(d)} />
           ))}
         </View>
       ))}
-      <View style={styles.row}>
+      <View style={[styles.row, sm && styles.rowSm]}>
         {leftKey ? (
-          <Pressable onPress={leftKey.onPress} accessibilityLabel={leftKey.label} style={({ pressed }) => [styles.key, styles.ghost, pressed && { backgroundColor: t.keyPressed }]}>
-            <Ionicons name={leftKey.icon} size={30} color={t.accent} />
+          <Pressable onPress={leftKey.onPress} accessibilityLabel={leftKey.label} style={({ pressed }) => [styles.key, sm && styles.keySm, styles.ghost, pressed && { backgroundColor: t.keyPressed }]}>
+            <Ionicons name={leftKey.icon} size={sm ? 24 : 30} color={t.accent} />
           </Pressable>
         ) : (
-          <View style={styles.key} />
+          <View style={[styles.key, sm && styles.keySm]} />
         )}
-        <Key label="0" t={t} onPress={() => press('0')} />
-        <Pressable onPress={back} accessibilityLabel="Delete digit" style={({ pressed }) => [styles.key, styles.ghost, pressed && { backgroundColor: t.keyPressed }]}>
-          <Ionicons name="backspace-outline" size={26} color={t.text} />
+        <Key label="0" t={t} sm={sm} onPress={() => press('0')} />
+        <Pressable onPress={back} accessibilityLabel="Delete digit" style={({ pressed }) => [styles.key, sm && styles.keySm, styles.ghost, pressed && { backgroundColor: t.keyPressed }]}>
+          <Ionicons name="backspace-outline" size={sm ? 22 : 26} color={t.text} />
         </Pressable>
       </View>
     </View>
   );
 }
 
-function Key({ label, onPress, t }: { label: string; onPress: () => void; t: Palette }) {
+function Key({ label, onPress, t, sm }: { label: string; onPress: () => void; t: Palette; sm: boolean }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => [styles.key, { backgroundColor: pressed ? t.keyPressed : t.key, borderColor: t.keyBorder }]}>
-      <Text style={[styles.keyText, { color: t.text }]}>{label}</Text>
+      style={({ pressed }) => [styles.key, sm && styles.keySm, { backgroundColor: pressed ? t.keyPressed : t.key, borderColor: t.keyBorder }]}>
+      <Text style={[styles.keyText, sm && styles.keyTextSm, { color: t.text }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -146,4 +147,8 @@ const styles = StyleSheet.create({
   key: { width: 74, height: 74, borderRadius: 37, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'transparent' },
   ghost: { backgroundColor: 'transparent' },
   keyText: { fontFamily: fonts.semibold, fontSize: 28 },
+  padSm: { gap: 10 },
+  rowSm: { gap: 16 },
+  keySm: { width: 58, height: 58, borderRadius: 29 },
+  keyTextSm: { fontSize: 22 },
 });

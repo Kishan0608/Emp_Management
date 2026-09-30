@@ -10,7 +10,7 @@ import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -32,6 +32,8 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
     </SafeAreaProvider>
   );
 }
+
+const PUSH = Platform.OS === 'android' ? ('ios_from_right' as const) : ('default' as const);
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -73,8 +75,8 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="auth-callback" />
         <Stack.Protected guard={status === 'signedOut'}>
           <Stack.Screen name="sign-in" />
-          <Stack.Screen name="sign-up" options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="forgot-password" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="sign-up" options={{ animation: PUSH }} />
+          <Stack.Screen name="forgot-password" options={{ animation: PUSH }} />
         </Stack.Protected>
         <Stack.Protected guard={status === 'needsOnboarding'}>
           <Stack.Screen name="onboarding" />

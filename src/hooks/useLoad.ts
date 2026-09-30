@@ -7,7 +7,13 @@ import { errorMessage } from '@/lib/api';
  * Loads data when the screen gains focus, with pull-to-refresh support.
  * Shows the skeleton on first load and whenever `deps` change (e.g. a new filter);
  * later refocuses refresh silently so lists don't flash.
+ *
+ * Silent refreshes wait for the screen transition to finish and are skipped if
+ * the data is only a few seconds old, so navigating never re-renders mid-animation.
  */
+const SETTLE_MS = 350;
+const FRESH_MS = 2_000;
+
 export function useLoad<T>(fn: () => Promise<T>, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
@@ -15,6 +21,7 @@ export function useLoad<T>(fn: () => Promise<T>, deps: unknown[] = []) {
   const [error, setError] = useState<string | null>(null);
   const fnRef = useRef(fn);
   const loadedKey = useRef<string | null>(null);
+  const loadedAt = useRef(0);
   const key = JSON.stringify(deps);
 
   useEffect(() => {
@@ -28,6 +35,7 @@ export function useLoad<T>(fn: () => Promise<T>, deps: unknown[] = []) {
       const result = await fnRef.current();
       setData(result);
       setError(null);
+      loadedAt.current = Date.now();
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -40,7 +48,13 @@ export function useLoad<T>(fn: () => Promise<T>, deps: unknown[] = []) {
     useCallback(() => {
       const first = loadedKey.current !== key;
       loadedKey.current = key;
-      run(first ? 'initial' : 'silent');
+      if (first) {
+        run('initial');
+        return;
+      }
+      if (Date.now() - loadedAt.current < FRESH_MS) return;
+      const t = setTimeout(() => run('silent'), SETTLE_MS);
+      return () => clearTimeout(t);
     }, [run, key]),
   );
 
