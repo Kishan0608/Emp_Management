@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, type Href } from 'expo-router';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -7,45 +7,25 @@ import { Banner, Button, Card, EmptyState, ListSkeleton, PageHeader, Screen } fr
 import { useLoad } from '@/hooks/useLoad';
 import { api } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
+import { notificationHref, notificationIcon } from '@/lib/notificationLinks';
 import type { NotificationRow } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
+import { useNotifications } from '@/providers/NotificationsProvider';
 import { colors, radius, spacing, type } from '@/theme/tokens';
 
-function target(n: NotificationRow): Href | null {
-  if (!n.ref_id) return null;
-  switch (n.ref_table) {
-    case 'tasks':
-      return `/task/${n.ref_id}`;
-    case 'feedback_items':
-      return `/feedback/${n.ref_id}`;
-    case 'disciplinary_cases':
-      return `/case/${n.ref_id}`;
-    case 'confidential_reports':
-      return '/complaints';
-    case 'users':
-      return n.kind === 'complaint_flag' ? '/complaints' : `/people/${n.ref_id}`;
-    default:
-      return null;
-  }
-}
-
-function icon(kind: string): { name: keyof typeof Ionicons.glyphMap; color: string; bg: string } {
-  if (kind.startsWith('task')) return { name: 'checkbox', color: colors.task, bg: colors.taskSoft };
-  if (kind.includes('blocker')) return { name: 'hand-left', color: colors.danger, bg: colors.dangerSoft };
-  if (kind.startsWith('feedback')) return { name: 'chatbubbles', color: colors.feedback, bg: colors.feedbackSoft };
-  if (kind.startsWith('case') || kind.startsWith('complaint') || kind.startsWith('confidential')) return { name: 'shield', color: colors.complaint, bg: colors.complaintSoft };
-  return { name: 'notifications', color: colors.brand, bg: colors.brandSoft };
-}
+const target = notificationHref;
+const icon = notificationIcon;
 
 export default function Notifications() {
   const { me } = useMe();
-  const list = useLoad(() => api.notifications());
+  const { refresh: refreshUnread, lastArrival } = useNotifications();
+  const list = useLoad(() => api.notifications(), [lastArrival]);
   const unread = (list.data ?? []).filter((n) => !n.is_read).length;
 
   const open = async (n: NotificationRow) => {
     if (!n.is_read) {
       list.setData((list.data ?? []).map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
-      api.markRead(n.id).catch(() => {});
+      api.markRead(n.id).then(refreshUnread).catch(() => {});
     }
     const href = target(n);
     if (href) router.push(href);
@@ -68,6 +48,7 @@ export default function Notifications() {
                 onPress={async () => {
                   await api.markAllRead(me.id);
                   list.reload();
+                  refreshUnread();
                 }}
               />
             ) : undefined

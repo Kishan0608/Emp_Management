@@ -1,14 +1,16 @@
 import Constants from 'expo-constants';
 import { router, type Href } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Platform, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Platform, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { BrandTile } from '@/components/brand/SkflLogo';
 import { COMPANY } from '@/components/brand/skflPaths';
 import { PrivacyNotice } from '@/components/PrivacyNotice';
 import { Avatar, Badge, Card, Divider, HeroHeader, IconTile, ListRow, Screen, SectionTitle, Sheet, type IconName } from '@/components/ui';
+import { getAppLockSupport, type AppLockSupport } from '@/lib/appLock';
 import { roleLabel } from '@/lib/format';
 import { useAuth, useMe } from '@/providers/AuthProvider';
+import { useToast } from '@/providers/ToastProvider';
 import { colors, spacing, type } from '@/theme/tokens';
 
 interface Item {
@@ -38,9 +40,8 @@ export default function More() {
   };
 
   const general: Item[] = [
-    { icon: 'person-circle-outline', label: 'My profile', href: `/people/${me.id}` },
+    { icon: 'person-circle-outline', label: 'My profile', hint: 'Phone, email, address, joining date', href: `/people/${me.id}` },
     { icon: 'people-outline', label: 'People directory', href: '/people' },
-    { icon: 'notifications-outline', label: 'Notifications', href: '/notifications' },
   ];
   const admin: Item[] = [
     ...(isBoss ? [{ icon: 'person-add-outline' as const, label: 'Invite a person', hint: 'Invite-only accounts', href: '/people/invite' as Href }] : []),
@@ -95,22 +96,17 @@ export default function More() {
         )}
 
         <SectionTitle title="Privacy & security" />
+        <AppLockRow />
+        <View style={{ height: spacing.md }} />
         {renderItems([
           { icon: 'document-lock-outline', label: 'Privacy notice', hint: 'DPDP Act, 2023', onPress: () => setPrivacy(true) },
           {
             icon: 'log-out-outline',
             label: 'Sign out',
+            hint: 'Signs out this phone only',
             tint: colors.warning,
             bg: colors.warningSoft,
-            onPress: () => confirm('Sign out?', 'You will need your password to sign in again.', () => signOut(false)),
-          },
-          {
-            icon: 'phone-portrait-outline',
-            label: 'Sign out of all devices',
-            hint: 'Ends every session on every device',
-            tint: colors.danger,
-            bg: colors.dangerSoft,
-            onPress: () => confirm('Sign out everywhere?', 'Every device signed in to your account will be signed out.', () => signOut(true)),
+            onPress: () => confirm('Sign out?', 'You will need your password to sign in again on this phone.', () => signOut(false)),
           },
         ])}
 
@@ -132,7 +128,54 @@ export default function More() {
   );
 }
 
+/** App lock switch: fingerprint / face / phone PIN instead of the password when opening the app. */
+function AppLockRow() {
+  const { appLockEnabled, setAppLock } = useAuth();
+  const toast = useToast();
+  const [support, setSupport] = useState<AppLockSupport | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    getAppLockSupport().then(setSupport).catch(() => {});
+  }, []);
+
+  const unavailable = support != null && !support.available;
+  return (
+    <Card style={styles.lockRow}>
+      <IconTile icon={support?.icon ?? 'finger-print'} color={colors.brand} bg={colors.brandSoft} size={36} />
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={type.bodyMedium}>App lock</Text>
+        <Text style={type.small}>
+          {unavailable
+            ? support?.reason
+            : appLockEnabled
+              ? `On · unlock with ${(support?.method ?? 'fingerprint').toLowerCase()}`
+              : `Open SKFL with ${(support?.method ?? 'fingerprint').toLowerCase()} instead of your password`}
+        </Text>
+      </View>
+      <Switch
+        value={appLockEnabled}
+        disabled={busy || unavailable}
+        onValueChange={async (on) => {
+          setBusy(true);
+          try {
+            const err = await setAppLock(on);
+            if (err) toast(err, 'error');
+            else toast(on ? 'App lock is on' : 'App lock is off');
+          } finally {
+            setBusy(false);
+          }
+        }}
+        trackColor={{ true: colors.brand, false: colors.borderStrong }}
+        thumbColor={colors.white}
+        accessibilityLabel="App lock"
+      />
+    </Card>
+  );
+}
+
 const styles = StyleSheet.create({
+  lockRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md },
   profile: { flexDirection: 'row', gap: spacing.lg, alignItems: 'center' },
   brandFoot: { alignItems: 'center', gap: 6, marginTop: spacing.xxxl },
   brandName: { ...type.h3, marginTop: spacing.sm },

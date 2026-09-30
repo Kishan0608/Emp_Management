@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState } from 'react-native';
 
 import { api, errorMessage } from '@/lib/api';
+import { authenticate, getAppLockSupport, isAppLockEnabled, setAppLockEnabled } from '@/lib/appLock';
 import { googleSignIn } from '@/lib/oauth';
 import { registerForPush } from '@/lib/push';
 import { supabase } from '@/lib/supabase';
@@ -27,7 +28,15 @@ interface AuthValue {
   refresh: () => Promise<void>;
   touch: () => void;
   clearNotice: () => void;
+  /** App lock (fingerprint / face / phone PIN). When `locked`, the app shows the unlock screen. */
+  locked: boolean;
+  appLockEnabled: boolean;
+  unlock: () => Promise<string | null>;
+  setAppLock: (on: boolean) => Promise<string | null>;
 }
+
+// After this long in the background, returning to the app asks to unlock again.
+const BACKGROUND_LOCK_MS = 15_000;
 
 const AuthContext = createContext<AuthValue | null>(null);
 
@@ -46,6 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ctx, setCtx] = useState<MyContext | null>(null);
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [notice, setNotice] = useState<string | null>(null);
+  const [locked, setLocked] = useState(false);
+  const [appLockEnabled, setAppLockState] = useState(false);
+  const appLockRef = useRef(false); // sync copy for use inside callbacks
+  const freshSignIn = useRef(false); // true right after typing the password: no need to unlock again
   const lastActive = useRef(0);
   const pushRegistered = useRef(false);
 
@@ -59,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.removeItem(LAST_ACTIVE_KEY).catch(() => {});
     lastActive.current = 0;
     pushRegistered.current = false;
+    setLocked(false);
     setCtx(null);
     setSession(null);
     setStatus('signedOut');
@@ -88,10 +102,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setStatus('needsOnboarding');
           return;
         }
-        // Cold start: if the app sat unused past the timeout, require a fresh sign-in.
+        // Cold start: if the app sat unused past the timeout, require a fresh sign-in
+        // (or, with App lock on, just the fingerprint / PIN — the lock below covers it).
         const stored = Number((await AsyncStorage.getItem(LAST_ACTIVE_KEY)) ?? 0);
         const limitMs = c.settings.session_timeout_minutes * 60_000;
-        if (lastActive.current === 0 && stored > 0 && Date.now() - stored > limitMs) {
+        if (!appLockRef.current && lastActive.current === 0 && stored > 0 && Date.now() - stored > limitMs) {
           await signOut(false, 'You were signed out after a period of inactivity.');
           return;
         }
@@ -101,7 +116,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (c.mfa_required && aal?.currentLevel !== 'aal2') setStatus('needsMfa');
         else if (c.user.must_change_password) setStatus('needsPassword');
         else if ((c.user.consent_version ?? 0) < c.settings.privacy_notice_version) setStatus('needsConsent');
-        else setStatus('ready');
+        else {
+          // Session restored from the phone (not typed just now) → ask for fingerprint / PIN.
+          if (appLockRef.current && !freshSignIn.current) setLocked(true);
+          freshSignIn.current = false;
+          setStatus('ready');
+        }
       } catch (e) {
         await signOut(false, errorMessage(e));
       }
@@ -110,7 +130,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    // Read the App lock preference first so a restored session opens locked.
+    Promise.all([isAppLockEnabled(), supabase.auth.getSession()]).then(([lockOn, { data }]) => {
+      appLockRef.current = lockOn;
+      setAppLockState(lockOn);
       setSession(data.session);
       resolve(data.session);
     });
@@ -135,24 +158,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, [status, ctx]);
 
-  // Session timeout after inactivity (also checked when the app returns to the foreground).
+  // Inactivity: with App lock on, lock the app; otherwise sign out.
+  // Also re-lock when the app comes back after a while in the background.
   useEffect(() => {
     if (!ctx || status === 'signedOut') return;
     const limitMs = ctx.settings.session_timeout_minutes * 60_000;
+    let backgroundAt = 0;
     const check = () => {
       if (lastActive.current > 0 && Date.now() - lastActive.current > limitMs) {
-        signOut(false, 'You were signed out after a period of inactivity.');
+        if (appLockRef.current && status === 'ready') setLocked(true);
+        else signOut(false, 'You were signed out after a period of inactivity.');
       }
     };
     const timer = setInterval(check, 30_000);
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') check();
+      if (state === 'background') backgroundAt = Date.now();
+      if (state === 'active') {
+        if (appLockRef.current && status === 'ready' && backgroundAt > 0 && Date.now() - backgroundAt > BACKGROUND_LOCK_MS) setLocked(true);
+        backgroundAt = 0;
+        check();
+      }
     });
     return () => {
       clearInterval(timer);
       sub.remove();
     };
   }, [ctx, status, signOut]);
+
+  const unlock = useCallback(async () => {
+    const r = await authenticate('Unlock SKFL');
+    if (r.ok) {
+      markActive(lastActive, true);
+      setLocked(false);
+      return null;
+    }
+    return r.error ?? null;
+  }, []);
+
+  const setAppLock = useCallback(async (on: boolean) => {
+    if (on) {
+      const support = await getAppLockSupport();
+      if (!support.available) return support.reason ?? 'App lock is not available on this phone.';
+      const r = await authenticate(`Turn on ${support.method} unlock`);
+      if (!r.ok) return r.error ?? 'App lock was not turned on.';
+    }
+    await setAppLockEnabled(on);
+    appLockRef.current = on;
+    setAppLockState(on);
+    if (!on) setLocked(false);
+    return null;
+  }, []);
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -163,6 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(error.message === 'Invalid login credentials' ? 'Incorrect email or password.' : error.message);
       }
       markActive(lastActive, true);
+      freshSignIn.current = true;
       setSession(data.session);
       await resolve(data.session);
     },
@@ -174,6 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const session = await googleSignIn();
     if (!session) return; // cancelled
     markActive(lastActive, true);
+    freshSignIn.current = true;
     setSession(session);
     await resolve(session);
   }, [resolve]);
@@ -196,8 +253,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refresh,
       touch: () => markActive(lastActive),
       clearNotice: () => setNotice(null),
+      locked,
+      appLockEnabled,
+      unlock,
+      setAppLock,
     }),
-    [status, session, ctx, notice, signIn, signInWithGoogle, signOut, refresh],
+    [status, session, ctx, notice, signIn, signInWithGoogle, signOut, refresh, locked, appLockEnabled, unlock, setAppLock],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

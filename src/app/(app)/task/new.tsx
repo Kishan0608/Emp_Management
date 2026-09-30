@@ -1184,7 +1184,7 @@ const styles = StyleSheet.create({
   },
   modalCloseBtn: {
     padding: spacing.xs,
-    borderRadius: radius.full,
+    borderRadius: radius.pill,
   },
   modalSearchPadding: {
     paddingHorizontal: spacing.lg,

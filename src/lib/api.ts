@@ -155,6 +155,16 @@ export const api = {
         p_joined_on: p.joined_on,
       }),
     ),
+  /** Self-service: phone, personal email, address, joining date only. Salary/attendance/performance stay admin-managed. */
+  updateMyContactDetails: async (p: { phone: string | null; personal_email: string | null; address: string | null; joined_on: string | null }) =>
+    check(
+      await supabase.rpc('update_my_contact_details', {
+        p_phone: p.phone,
+        p_personal_email: p.personal_email,
+        p_address: p.address,
+        p_joined_on: p.joined_on,
+      }),
+    ),
   invite: async (p: { email: string; full_name: string; role: Role; department_id: string | null; manager_id: string | null; job_title: string }) =>
     invokeFn<{ ok: true; user_id: string; activation_key: string }>('invite-user', p),
   setCommittee: async (userId: string, member: boolean) =>

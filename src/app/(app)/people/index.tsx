@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
-import { Avatar, Badge, Button, Card, ChoiceChips, Divider, EmptyState, ListRow, ListSkeleton, PageHeader, Screen, TextField } from '@/components/ui';
+import { Avatar, Badge, Button, Card, Divider, EmptyState, ListRow, ListSkeleton, PageHeader, Screen, Segmented, TextField } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
 import { api } from '@/lib/api';
 import { roleLabel } from '@/lib/format';
@@ -18,6 +18,15 @@ export default function People() {
   const [role, setRole] = useState<Role | 'all'>('all');
 
   const deptName = useMemo(() => new Map((depts.data ?? []).map((d) => [d.id, d.name])), [depts.data]);
+  const counts = useMemo(() => {
+    const c = { all: 0, boss: 0, hr: 0, manager: 0, employee: 0 };
+    for (const p of people.data ?? []) {
+      if (!isBoss && !p.is_active) continue;
+      c.all++;
+      c[p.role]++;
+    }
+    return c;
+  }, [people.data, isBoss]);
   const list = useMemo(() => {
     const term = q.trim().toLowerCase();
     return (people.data ?? []).filter(
@@ -41,15 +50,16 @@ export default function People() {
       }>
       <View style={{ gap: spacing.md }}>
         <TextField icon="search" placeholder="Search by name, title or email" value={q} onChangeText={setQ} autoCapitalize="none" />
-        <ChoiceChips
+        <Segmented
+          scroll
           value={role}
           onChange={setRole}
           options={[
-            { value: 'all', label: 'All' },
-            { value: 'boss', label: 'Boss' },
-            { value: 'hr', label: 'HR' },
-            { value: 'manager', label: 'Managers' },
-            { value: 'employee', label: 'Employees' },
+            { value: 'all', label: 'All', count: counts.all },
+            { value: 'boss', label: 'Boss', count: counts.boss },
+            { value: 'hr', label: 'HR', count: counts.hr },
+            { value: 'manager', label: 'Managers', count: counts.manager },
+            { value: 'employee', label: 'Employees', count: counts.employee },
           ]}
         />
         {people.loading ? (

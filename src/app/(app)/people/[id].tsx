@@ -39,6 +39,7 @@ export default function PersonProfile() {
   const depts = useLoad(() => api.departments());
   const [editing, setEditing] = useState(false);
   const [editingRecord, setEditingRecord] = useState(false);
+  const [editingContact, setEditingContact] = useState(false);
 
   const p = profile.data;
   if (!p) {
@@ -74,6 +75,9 @@ export default function PersonProfile() {
             )}
             {isHR && !isMe && !isBoss && p.role !== 'boss' && (
               <Button title="Edit records" size="sm" variant="outline" icon="document-text-outline" style={{ marginTop: spacing.md }} onPress={() => setEditingRecord(true)} />
+            )}
+            {isMe && (
+              <Button title="Edit my details" size="sm" variant="secondary" icon="create-outline" style={{ marginTop: spacing.md }} onPress={() => setEditingContact(true)} />
             )}
           </Card>
 
@@ -181,6 +185,17 @@ export default function PersonProfile() {
             setEditingRecord(false);
             profile.reload();
             toast('Records updated');
+          }}
+        />
+      )}
+      {editingContact && (
+        <EditMyContactSheet
+          initial={p}
+          onClose={() => setEditingContact(false)}
+          onSaved={() => {
+            setEditingContact(false);
+            profile.reload();
+            toast('Your details are updated');
           }}
         />
       )}
@@ -310,6 +325,56 @@ function EditRecordSheet({
                 attendance: num(attendance),
                 performance: num(perf),
                 joined_on: joined || null,
+              });
+              onSaved();
+            } catch (e) {
+              toast(errorMessage(e), 'error');
+            } finally {
+              setBusy(false);
+            }
+          }}
+        />
+      </View>
+    </Sheet>
+  );
+}
+
+/** Self-service: the employee's own phone, personal email, address and joining date. Never salary/attendance/performance. */
+function EditMyContactSheet({
+  initial,
+  onClose,
+  onSaved,
+}: {
+  initial: { phone?: string | null; personal_email?: string | null; address?: string | null; joined_on?: string | null };
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const toast = useToast();
+  const [phone, setPhone] = useState(initial.phone ?? '');
+  const [email, setEmail] = useState(initial.personal_email ?? '');
+  const [address, setAddress] = useState(initial.address ?? '');
+  const [joined, setJoined] = useState(initial.joined_on ?? '');
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <Sheet visible onClose={onClose} title="Edit my details">
+      <View style={{ paddingHorizontal: spacing.lg, gap: spacing.md }}>
+        <Banner tone="info">Your phone, personal email, address and joining date. Salary, attendance and performance are managed by HR.</Banner>
+        <TextField label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" icon="call-outline" />
+        <TextField label="Personal email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" icon="at-outline" />
+        <TextField label="Address" value={address} onChangeText={setAddress} icon="home-outline" multiline />
+        <TextField label="Joined (YYYY-MM-DD)" value={joined} onChangeText={setJoined} icon="calendar-outline" placeholder="YYYY-MM-DD" />
+        <Button
+          title="Save my details"
+          loading={busy}
+          onPress={async () => {
+            setBusy(true);
+            try {
+              await api.updateMyContactDetails({
+                phone: phone.trim() || null,
+                personal_email: email.trim() || null,
+                address: address.trim() || null,
+                joined_on: joined.trim() || null,
               });
               onSaved();
             } catch (e) {

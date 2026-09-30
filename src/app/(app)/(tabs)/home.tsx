@@ -12,7 +12,7 @@ import { useMe } from '@/providers/AuthProvider';
 import { colors, fonts, radius, shadow, spacing, type } from '@/theme/tokens';
 
 export default function Home() {
-  const { me, settings, department, isBoss, isHR, isManager, isCaseHandler, isEmployee } = useMe();
+  const { me, isBoss, isHR, isManager, isCaseHandler, isEmployee } = useMe();
   const stats = useLoad(() => api.dashboard());
   const myTasks = useLoad(() => api.tasks('mine', me.id));
   const s = stats.data;
@@ -46,9 +46,11 @@ export default function Home() {
               <Ionicons name="shield-half-outline" size={13} color={colors.white} />
               <Text style={styles.rolePillText}>{roleLabel[me.role]}</Text>
             </View>
-            <Text style={styles.heroMetaText} numberOfLines={1}>
-              {[me.job_title, department, settings.company_name].filter(Boolean).join(' · ')}
-            </Text>
+            {!!me.job_title && (
+              <Text style={styles.heroMetaText} numberOfLines={1}>
+                {me.job_title}
+              </Text>
+            )}
           </View>
         </HeroHeader>
       }>

@@ -15,6 +15,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AnimatedSplash } from '@/components/AnimatedSplash';
+import { AppLockScreen } from '@/components/AppLockScreen';
 import { ErrorScreen } from '@/components/ErrorScreen';
 import { configError } from '@/lib/supabase';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
@@ -59,7 +60,7 @@ export default function RootLayout() {
 }
 
 function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
-  const { status, touch } = useAuth();
+  const { status, touch, locked } = useAuth();
   const [splashDone, setSplashDone] = useState(false);
 
   return (
@@ -97,6 +98,7 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
           <Stack.Screen name="(app)" />
         </Stack.Protected>
       </Stack>
+      {status === 'ready' && locked && <AppLockScreen autoPrompt={splashDone} />}
       {fontsReady && !splashDone && <AnimatedSplash ready={status !== 'loading'} onFinish={() => setSplashDone(true)} />}
     </View>
   );

@@ -69,9 +69,9 @@ function ScreenContent({
           contentStyle,
         ]}
         refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={colors.brand} colors={[colors.brand]} /> : undefined}>
-        <Animated.View entering={FadeIn.duration(320)} style={styles.inner}>
+        <View style={styles.inner}>
           {children}
-        </Animated.View>
+        </View>
       </ScrollView>
       {footer && <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>{footer}</View>}
     </View>
