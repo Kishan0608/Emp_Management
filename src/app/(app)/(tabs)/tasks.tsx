@@ -12,7 +12,7 @@ import { useMe } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, gradients, spacing } from '@/theme/tokens';
 
-type Scope = 'mine' | 'assigned' | 'review' | 'team';
+type Scope = 'mine' | 'assigned' | 'team';
 type Filter = 'active' | 'done' | 'all';
 
 export default function Tasks() {
@@ -47,7 +47,6 @@ export default function Tasks() {
     : [
         { value: 'mine' as const, label: 'Mine' },
         { value: 'assigned' as const, label: 'Assigned' },
-        { value: 'review' as const, label: 'Review' },
         { value: 'team' as const, label: isBoss ? 'All People' : 'My Team' },
       ];
 
@@ -115,7 +114,7 @@ export default function Tasks() {
             <Card>
               <EmptyState
                 icon="checkbox-outline"
-                title={scope === 'review' ? 'Nothing to review' : 'No tasks here'}
+                title="No tasks here"
                 body={scope === 'mine' ? 'Tasks assigned to you will appear here. You can also add personal to-dos.' : 'Try another filter.'}
               />
             </Card>

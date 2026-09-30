@@ -14,8 +14,7 @@ import { colors, fonts, radius, spacing, type } from '@/theme/tokens';
 type Health = { label: string; fg: string; bg: string; icon: keyof typeof Ionicons.glyphMap };
 
 function health(m: TeamMemberSummary): Health {
-  if (m.overdue > 0 || m.blocked > 0) return { label: 'Needs attention', fg: colors.danger, bg: colors.dangerSoft, icon: 'alert-circle' };
-  if (m.awaiting_review > 0) return { label: 'Waiting on you', fg: colors.warning, bg: colors.warningSoft, icon: 'hourglass' };
+  if (m.overdue > 0) return { label: 'Needs attention', fg: colors.danger, bg: colors.dangerSoft, icon: 'alert-circle' };
   if (m.open === 0) return { label: 'No open tasks', fg: colors.textSecondary, bg: '#F0EDE6', icon: 'remove-circle' };
   return { label: 'On track', fg: colors.success, bg: colors.successSoft, icon: 'checkmark-circle' };
 }
@@ -31,8 +30,8 @@ export default function Team() {
   }, [members, q]);
 
   const sum = members.reduce(
-    (a, m) => ({ open: a.open + m.open, overdue: a.overdue + m.overdue, blocked: a.blocked + m.blocked, review: a.review + m.awaiting_review }),
-    { open: 0, overdue: 0, blocked: 0, review: 0 },
+    (a, m) => ({ open: a.open + m.open, overdue: a.overdue + m.overdue, done: a.done + m.done }),
+    { open: 0, overdue: 0, done: 0 },
   );
 
   return (
@@ -47,8 +46,7 @@ export default function Team() {
           <View style={styles.summary}>
             <Summary label="Open" value={sum.open} color={colors.brand} />
             <Summary label="Overdue" value={sum.overdue} color={sum.overdue ? colors.danger : colors.textMuted} />
-            <Summary label="Blocked" value={sum.blocked} color={sum.blocked ? colors.danger : colors.textMuted} />
-            <Summary label="To review" value={sum.review} color={sum.review ? colors.warning : colors.textMuted} />
+            <Summary label="Done" value={sum.done} color={colors.success} />
           </View>
         )}
 

@@ -80,14 +80,7 @@ export default function Home() {
           <StatCard label="Open tasks" value={s.my_tasks.open} icon="layers-outline" tint={colors.brand} soft={colors.brandSoft} onPress={() => router.push('/tasks')} />
           <StatCard label="Due today" value={s.my_tasks.due_today} icon="today-outline" tint={colors.warning} soft={colors.warningSoft} />
           <StatCard label="Overdue" value={s.my_tasks.overdue} icon="alarm-outline" tint={colors.danger} soft={colors.dangerSoft} />
-          <StatCard
-            label="Waiting for my review"
-            value={s.my_tasks.to_review}
-            icon="checkmark-done-outline"
-            tint={colors.task}
-            soft={colors.taskSoft}
-            onPress={() => router.push({ pathname: '/tasks', params: { scope: 'review' } })}
-          />
+          <StatCard label="Done (30 days)" value={s.my_tasks.done_30d} icon="checkmark-done-outline" tint={colors.success} soft={colors.successSoft} />
         </View>
       )}
 

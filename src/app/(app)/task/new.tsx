@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import {
   FlatList,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -21,6 +23,7 @@ import {
   EmptyState,
   PageHeader,
   Screen,
+  Sheet,
   TextField,
 } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
@@ -35,13 +38,6 @@ const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-const TIME_PRESETS = [
-  { label: 'Morning (10:00 AM)', hour: 10, minute: '00', period: 'AM' as const },
-  { label: 'Afternoon (02:00 PM)', hour: 2, minute: '00', period: 'PM' as const },
-  { label: 'End of Day (05:30 PM)', hour: 5, minute: '30', period: 'PM' as const },
-  { label: 'Night Shift (08:00 PM)', hour: 8, minute: '00', period: 'PM' as const },
 ];
 
 const PRIORITY_OPTIONS: {
@@ -149,6 +145,43 @@ export default function NewTask() {
   };
 
   const formattedTime = `${String(selectedHour).padStart(2, '0')}:${selectedMinute} ${selectedPeriod}`;
+
+  // Date / time pickers: the phone's own calendar and clock (Android dialogs, iOS sheet); a simple grid on web.
+  const [iosPicker, setIosPicker] = useState<'date' | 'time' | null>(null);
+  const dateValue = () => (due ? new Date(`${due}T12:00:00`) : new Date());
+  const timeValue = () => {
+    const d = dateValue();
+    d.setHours((selectedHour % 12) + (selectedPeriod === 'PM' ? 12 : 0), Number(selectedMinute), 0, 0);
+    return d;
+  };
+  const applyTime = (d: Date) => {
+    const h = d.getHours();
+    setSelectedPeriod(h >= 12 ? 'PM' : 'AM');
+    setSelectedHour(h % 12 === 0 ? 12 : h % 12);
+    setSelectedMinute(String(d.getMinutes()).padStart(2, '0'));
+  };
+  const openDate = () => {
+    setPriorityDdlOpen(false);
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({ mode: 'date', value: dateValue(), minimumDate: new Date(), onValueChange: (_e, d) => setDue(toDateOnly(d)) });
+    } else if (Platform.OS === 'ios') {
+      setIosPicker('date');
+    } else {
+      setCalendarOpen(!calendarOpen);
+      setTimeOpen(false);
+    }
+  };
+  const openTime = () => {
+    setPriorityDdlOpen(false);
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({ mode: 'time', value: timeValue(), is24Hour: false, onValueChange: (_e, d) => applyTime(d) });
+    } else if (Platform.OS === 'ios') {
+      setIosPicker('time');
+    } else {
+      setTimeOpen(!timeOpen);
+      setCalendarOpen(false);
+    }
+  };
 
   // Employee guard: Employees only receive tasks, cannot assign them
   if (isEmployee) {
@@ -376,80 +409,47 @@ export default function NewTask() {
         {/* ========================================================= */}
         <Card style={styles.sectionCard}>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            {/* Due date input */}
+            {/* Due date */}
             <View style={{ flex: 1, gap: 6 }}>
               <Text style={styles.fieldLabel}>Due date</Text>
               <Pressable
-                onPress={() => {
-                  setCalendarOpen(!calendarOpen);
-                  setTimeOpen(false);
-                  setPriorityDdlOpen(false);
-                }}
-                style={[styles.ddlTrigger, calendarOpen && styles.ddlTriggerActive]}>
-                <Ionicons name="calendar-outline" size={18} color={calendarOpen ? colors.brand : colors.textMuted} />
+                onPress={openDate}
+                accessibilityRole="button"
+                accessibilityLabel="Choose due date"
+                style={({ pressed }) => [styles.ddlTrigger, (calendarOpen || iosPicker === 'date') && styles.ddlTriggerActive, pressed && { opacity: 0.85 }]}>
+                <Ionicons name="calendar-outline" size={18} color={due ? colors.brand : colors.textMuted} />
                 <Text style={[styles.ddlTriggerText, !due && { color: colors.textMuted, fontFamily: fonts.regular }]} numberOfLines={1}>
                   {due ? formatDate(due) : 'Select date'}
                 </Text>
-                <Ionicons name={calendarOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textMuted} />
+                {due && (
+                  <Pressable onPress={() => setDue(null)} hitSlop={10} accessibilityLabel="Clear due date">
+                    <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                  </Pressable>
+                )}
               </Pressable>
             </View>
 
-            {/* Due time input */}
+            {/* Due time */}
             <View style={{ flex: 1, gap: 6 }}>
               <Text style={styles.fieldLabel}>Due time</Text>
               <Pressable
-                onPress={() => {
-                  setTimeOpen(!timeOpen);
-                  setCalendarOpen(false);
-                  setPriorityDdlOpen(false);
-                }}
-                style={[styles.ddlTrigger, timeOpen && styles.ddlTriggerActive]}>
-                <Ionicons name="time-outline" size={18} color={timeOpen ? colors.brand : colors.textMuted} />
-                <Text style={[styles.ddlTriggerText, { fontFamily: fonts.semibold }]} numberOfLines={1}>
+                onPress={openTime}
+                disabled={!due}
+                accessibilityRole="button"
+                accessibilityLabel="Choose due time"
+                style={({ pressed }) => [styles.ddlTrigger, (timeOpen || iosPicker === 'time') && styles.ddlTriggerActive, !due && { opacity: 0.5 }, pressed && { opacity: 0.85 }]}>
+                <Ionicons name="time-outline" size={18} color={due ? colors.brand : colors.textMuted} />
+                <Text style={[styles.ddlTriggerText, { fontFamily: fonts.semibold }, !due && { color: colors.textMuted }]} numberOfLines={1}>
                   {formattedTime}
                 </Text>
-                <Ionicons name={timeOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textMuted} />
               </Pressable>
             </View>
           </View>
+          {!due && <Text style={styles.dueHint}>Choose a date first, then the time it is due.</Text>}
 
-          {/* Connected Calendar Dropdown */}
-          {calendarOpen && (
+          {/* Web: calendar grid (phones use the native calendar) */}
+          {Platform.OS === 'web' && calendarOpen && (
             <View style={styles.pickerAttachedCard}>
-              {/* Quick Date Chips */}
-              <View style={styles.chipsRow}>
-                {[
-                  ['Today', 0],
-                  ['Tomorrow', 1],
-                  ['+3 Days', 3],
-                  ['Next Week', 7],
-                ].map(([label, days]) => {
-                  const target = new Date();
-                  target.setDate(target.getDate() + (days as number));
-                  const targetStr = toDateOnly(target);
-                  const active = due === targetStr;
-                  return (
-                    <Pressable
-                      key={label as string}
-                      onPress={() => {
-                        setDue(targetStr);
-                        setCalendarMonth(new Date(target));
-                      }}
-                      style={[styles.quickChip, active && styles.quickChipActive]}>
-                      <Text style={[styles.quickChipText, active && styles.quickChipTextActive]}>
-                        {label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-                {due && (
-                  <Pressable onPress={() => setDue(null)} style={styles.clearDateBtn}>
-                    <Ionicons name="close" size={13} color={colors.danger} />
-                    <Text style={styles.clearDateText}>Clear</Text>
-                  </Pressable>
-                )}
-              </View>
-
               {/* Month Navigation */}
               <View style={styles.calMonthNav}>
                 <Pressable onPress={() => changeMonth(-1)} hitSlop={8} style={styles.calNavBtn}>
@@ -507,33 +507,9 @@ export default function NewTask() {
             </View>
           )}
 
-          {/* Connected Clock Dropdown */}
-          {timeOpen && (
+          {/* Web: time grid (phones use the native clock) */}
+          {Platform.OS === 'web' && timeOpen && (
             <View style={styles.pickerAttachedCard}>
-              {/* Quick Shift Presets */}
-              <View style={styles.chipsRow}>
-                {TIME_PRESETS.map((preset) => {
-                  const active =
-                    selectedHour === preset.hour &&
-                    selectedMinute === preset.minute &&
-                    selectedPeriod === preset.period;
-                  return (
-                    <Pressable
-                      key={preset.label}
-                      onPress={() => {
-                        setSelectedHour(preset.hour);
-                        setSelectedMinute(preset.minute);
-                        setSelectedPeriod(preset.period);
-                      }}
-                      style={[styles.quickChip, active && styles.quickChipActive]}>
-                      <Text style={[styles.quickChipText, active && styles.quickChipTextActive]}>
-                        {preset.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
               {/* AM / PM Segment */}
               <View style={styles.periodRow}>
                 <Pressable
@@ -582,6 +558,23 @@ export default function NewTask() {
             </View>
           )}
         </Card>
+
+        {Platform.OS === 'ios' && (
+          <Sheet visible={!!iosPicker} onClose={() => setIosPicker(null)} title={iosPicker === 'time' ? 'Due time' : 'Due date'}>
+            {iosPicker && (
+              <DateTimePicker
+                value={iosPicker === 'date' ? dateValue() : timeValue()}
+                mode={iosPicker}
+                display={iosPicker === 'date' ? 'inline' : 'spinner'}
+                minimumDate={iosPicker === 'date' ? new Date() : undefined}
+                accentColor={colors.brand}
+                themeVariant="light"
+                onValueChange={(_e, d) => (iosPicker === 'date' ? setDue(toDateOnly(d)) : applyTime(d))}
+              />
+            )}
+            <Button title="Done" size="lg" onPress={() => setIosPicker(null)} />
+          </Sheet>
+        )}
       </View>
     </Screen>
 
@@ -695,6 +688,7 @@ export default function NewTask() {
 }
 
 const styles = StyleSheet.create({
+  dueHint: { fontFamily: fonts.regular, fontSize: 12.5, color: colors.textMuted, marginTop: spacing.sm },
   restrictedCard: {
     alignItems: 'center',
     padding: spacing.xl,

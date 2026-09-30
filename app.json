@@ -68,6 +68,22 @@
           "cameraPermission": "SKFL uses the camera only to scan the activation QR code from your administrator.",
           "recordAudioAndroid": false
         }
+      ],
+      [
+        "@react-native-community/datetimepicker",
+        {
+          "android": {
+            "datePicker": {
+              "colorAccent": { "light": "#7D6E22" },
+              "textColorPrimary": { "light": "#1C1B19" }
+            },
+            "timePicker": {
+              "headerBackground": { "light": "#2F2E2B" },
+              "numbersSelectorColor": { "light": "#7D6E22" },
+              "numbersBackgroundColor": { "light": "#F8F6E7" }
+            }
+          }
+        }
       ]
     ],
     "experiments": {

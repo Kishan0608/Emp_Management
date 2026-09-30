@@ -28,7 +28,9 @@ import { useMe } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fonts, radius, spacing, type } from '@/theme/tokens';
 
-const FLOW: TaskStatus[] = ['assigned', 'accepted', 'in_progress', 'submitted', 'approved', 'closed'];
+const FLOW: TaskStatus[] = ['assigned', 'accepted', 'closed'];
+const STEP_LABEL: Partial<Record<TaskStatus, string>> = { assigned: 'Assigned', accepted: 'Accepted', closed: 'Done' };
+const STEP_HINT: Partial<Record<TaskStatus, string>> = { assigned: 'Task given', accepted: 'Working on it', closed: 'Completed' };
 
 const EVENT_ICON: Record<TaskStatus, keyof typeof Ionicons.glyphMap> = {
   assigned: 'add-circle',
@@ -38,7 +40,7 @@ const EVENT_ICON: Record<TaskStatus, keyof typeof Ionicons.glyphMap> = {
   submitted: 'cloud-upload',
   approved: 'checkmark-circle',
   returned: 'arrow-undo-circle',
-  closed: 'lock-closed',
+  closed: 'checkmark-done-circle',
 };
 
 type Prompt = null | { to: TaskStatus; title: string; message: string; label: string; required: boolean; danger?: boolean; proof?: boolean };
@@ -63,7 +65,7 @@ export default function TaskDetail() {
     setBusy(to);
     try {
       await api.changeTaskStatus(id, to, note, proof);
-      toast(`Moved to ${taskStatusLabel[to].toLowerCase()}`);
+      toast(to === 'accepted' ? 'Task accepted' : to === 'closed' ? 'Task marked as done' : `Moved to ${taskStatusLabel[to].toLowerCase()}`);
       setPrompt(null);
       setProofLink('');
       reload();
@@ -123,7 +125,7 @@ export default function TaskDetail() {
     }
   };
 
-  const actions = buildActions(t, isAssignee, isReviewer);
+  const actions = buildActions(t, isAssignee);
 
   return (
     <>
@@ -197,7 +199,7 @@ export default function TaskDetail() {
 
           <SectionTitle title="Files" action={isAssignee || isReviewer ? (busy === 'upload' ? 'Uploading…' : 'Attach file') : undefined} onAction={attach} />
           {t.attachments.length === 0 ? (
-            <AppText variant="small">No files yet. Attach proof of work before submitting.</AppText>
+            <AppText variant="small">No files yet. Attach photos or documents of the work here.</AppText>
           ) : (
             <Card padded={false}>
               {t.attachments.map((a, i) => (
@@ -276,46 +278,23 @@ export default function TaskDetail() {
   );
 }
 
-function buildActions(t: Task, isAssignee: boolean, isReviewer: boolean) {
+/** Tasks go Assigned -> Accepted -> Done. Only the assignee moves them forward. */
+function buildActions(t: Task, isAssignee: boolean) {
   type A = { label: string; to: TaskStatus; icon?: keyof typeof Ionicons.glyphMap; variant?: 'primary' | 'outline' | 'danger' | 'secondary'; prompt?: Prompt };
   const a: A[] = [];
-  const block: A = {
-    label: 'Blocked',
-    to: 'blocked',
-    icon: 'hand-left-outline',
-    variant: 'outline',
-    prompt: { to: 'blocked', title: 'What is stopping you?', message: 'A blocker is sent to your manager now, to HR after the set hours, and to the Boss if still unanswered.', label: 'Raise blocker', required: true, danger: true },
-  };
-  const submit: A = {
-    label: 'Submit',
-    to: 'submitted',
-    icon: 'cloud-upload-outline',
-    prompt: { to: 'submitted', title: 'Submit for review', message: 'Add proof of work: a comment, a link, or attach files first.', label: 'Submit for review', required: true, proof: true },
-  };
-
+  if (!isAssignee || t.status === 'closed') return a;
   if (t.is_personal) {
-    if (t.status !== 'closed' && isAssignee) a.push({ label: 'Mark done', to: 'closed', icon: 'checkmark' });
+    a.push({ label: 'Mark as done', to: 'closed', icon: 'checkmark-done' });
     return a;
   }
-  if (isAssignee) {
-    if (t.status === 'assigned') a.push({ label: 'Accept', to: 'accepted', icon: 'hand-right-outline' });
-    if (t.status === 'accepted') a.push({ label: 'Start', to: 'in_progress', icon: 'play' }, block);
-    if (t.status === 'in_progress') a.push(block, submit);
-    if (t.status === 'blocked' || t.status === 'returned') a.push({ label: 'Resume work', to: 'in_progress', icon: 'play' });
-  }
-  if (isReviewer && t.status === 'submitted') {
-    a.push(
-      {
-        label: 'Return',
-        to: 'returned',
-        icon: 'arrow-undo',
-        variant: 'outline',
-        prompt: { to: 'returned', title: 'Return with a reason', message: 'Tell the assignee what to change.', label: 'Return task', required: true, danger: true },
-      },
-      { label: 'Approve', to: 'approved', icon: 'checkmark-done' },
-    );
-  }
-  if (isReviewer && t.status === 'approved') a.push({ label: 'Close task', to: 'closed', icon: 'lock-closed-outline', variant: 'secondary' });
+  if (t.status === 'assigned') a.push({ label: 'Accept task', to: 'accepted', icon: 'hand-right-outline' });
+  else
+    a.push({
+      label: 'Mark as done',
+      to: 'closed',
+      icon: 'checkmark-done',
+      prompt: { to: 'closed', title: 'Mark this task as done?', message: 'Add a short note or a link to the result if you like. Files can be attached on the task.', label: 'Mark as done', required: false, proof: true },
+    });
   return a;
 }
 
@@ -323,32 +302,29 @@ function toneColor(s: TaskStatus) {
   if (s === 'approved') return colors.success;
   if (s === 'blocked' || s === 'returned') return colors.danger;
   if (s === 'submitted') return colors.warning;
-  if (s === 'closed') return colors.textMuted;
+  if (s === 'closed') return colors.success;
   return colors.brand;
 }
 
+/** Old in-between stages count as Accepted; approved counts as Done. */
+const stepOf = (s: TaskStatus): TaskStatus => (s === 'assigned' ? 'assigned' : s === 'closed' || s === 'approved' ? 'closed' : 'accepted');
+
 function Stepper({ status }: { status: TaskStatus }) {
-  const effective = status === 'blocked' ? 'in_progress' : status === 'returned' ? 'in_progress' : status;
-  const idx = FLOW.indexOf(effective);
+  const idx = FLOW.indexOf(stepOf(status));
   return (
     <Card style={{ gap: spacing.md }}>
-      {(status === 'blocked' || status === 'returned') && (
-        <Banner tone="danger" title={status === 'blocked' ? 'Work is blocked' : 'Returned for changes'}>
-          {status === 'blocked' ? 'A blocker was raised in Feedback and will escalate if unanswered.' : 'See the reviewer’s note in the timeline.'}
-        </Banner>
-      )}
       <View style={styles.stepper}>
         {FLOW.map((s, i) => {
           const done = i <= idx;
+          const current = i === idx;
           return (
             <View key={s} style={styles.step}>
-              <View style={[styles.stepDot, done && { backgroundColor: colors.brand, borderColor: colors.brand }]}>
-                {done && <Ionicons name="checkmark" size={12} color={colors.white} />}
-              </View>
               {i < FLOW.length - 1 && <View style={[styles.stepLine, i < idx && { backgroundColor: colors.brand }]} />}
-              <Text style={[styles.stepLabel, i === idx && { color: colors.brand, fontFamily: fonts.semibold }]} numberOfLines={2}>
-                {taskStatusLabel[s]}
-              </Text>
+              <View style={[styles.stepDot, done && { backgroundColor: i === FLOW.length - 1 ? colors.success : colors.brand, borderColor: i === FLOW.length - 1 ? colors.success : colors.brand }, current && styles.stepDotCurrent]}>
+                {done ? <Ionicons name="checkmark" size={15} color={colors.white} /> : <Text style={styles.stepNum}>{i + 1}</Text>}
+              </View>
+              <Text style={[styles.stepLabel, current && { color: colors.text, fontFamily: fonts.bold }]}>{STEP_LABEL[s]}</Text>
+              <Text style={styles.stepHint}>{STEP_HINT[s]}</Text>
             </View>
           );
         })}
@@ -379,9 +355,9 @@ const styles = StyleSheet.create({
   stepper: { flexDirection: 'row' },
   step: { flex: 1, alignItems: 'center' },
   stepDot: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     borderWidth: 2,
     borderColor: colors.borderStrong,
     backgroundColor: colors.surface,
@@ -389,7 +365,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 1,
   },
-  stepLine: { position: 'absolute', top: 10, left: '50%', width: '100%', height: 2, backgroundColor: colors.border },
-  stepLabel: { marginTop: 6, fontFamily: fonts.medium, fontSize: 10.5, color: colors.textMuted, textAlign: 'center' },
+  stepDotCurrent: { transform: [{ scale: 1.08 }] },
+  stepNum: { fontFamily: fonts.bold, fontSize: 13, color: colors.textMuted },
+  stepLine: { position: 'absolute', top: 14, left: '50%', width: '100%', height: 3, borderRadius: 2, backgroundColor: colors.border },
+  stepLabel: { marginTop: 8, fontFamily: fonts.semibold, fontSize: 13, color: colors.textMuted, textAlign: 'center' },
+  stepHint: { marginTop: 1, fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted, textAlign: 'center' },
   person: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, paddingHorizontal: spacing.lg },
 });

@@ -92,8 +92,8 @@ export default function MemberReport() {
           <Tile icon="checkmark-done-outline" label="Done" value={t.done} tint={colors.success} />
           <Tile icon="time-outline" label="Open" value={t.open} tint={colors.info} />
           <Tile icon="alert-circle-outline" label="Overdue" value={t.overdue} tint={t.overdue ? colors.danger : colors.textMuted} />
-          <Tile icon="hand-left-outline" label="Blocked" value={t.blocked} tint={t.blocked ? colors.danger : colors.textMuted} />
-          <Tile icon="eye-outline" label="To review" value={t.awaiting_review} tint={t.awaiting_review ? colors.warning : colors.textMuted} />
+          <Tile icon="mail-unread-outline" label="Assigned" value={t.not_started} tint={t.not_started ? colors.warning : colors.textMuted} />
+          <Tile icon="hand-right-outline" label="Accepted" value={t.in_progress} tint={colors.brand} />
           <Tile icon="calendar-outline" label="Due in 7 days" value={t.due_7d} tint={colors.warning} />
           <Tile icon="trophy-outline" label="Done (30 days)" value={t.done_30d} tint={colors.success} />
         </View>
@@ -103,11 +103,8 @@ export default function MemberReport() {
             <Text style={type.caption}>Open work by stage</Text>
             <StackBar
               parts={[
-                { label: 'Not started', value: t.not_started, color: colors.borderStrong },
-                { label: 'In progress', value: t.in_progress, color: colors.brand },
-                { label: 'Blocked', value: t.blocked, color: colors.danger },
-                { label: 'In review', value: t.awaiting_review, color: colors.warning },
-                { label: 'Returned', value: t.returned, color: colors.accent },
+                { label: 'Assigned', value: t.not_started, color: colors.warning },
+                { label: 'Accepted', value: t.in_progress, color: colors.brand },
               ]}
             />
             <Divider />
@@ -227,8 +224,7 @@ function buildInsights(r: TeamMemberReport, onTime: number | null) {
   const out: { icon: IconName; text: string; tone: keyof typeof toneColors }[] = [];
   const { tasks: t, habits: h } = r;
   if (t.overdue) out.push({ icon: 'alert-circle', text: `${t.overdue} task${t.overdue === 1 ? ' is' : 's are'} overdue`, tone: 'danger' });
-  if (t.blocked) out.push({ icon: 'hand-left', text: `${t.blocked} task${t.blocked === 1 ? ' is' : 's are'} blocked — may need your help`, tone: 'danger' });
-  if (t.awaiting_review) out.push({ icon: 'eye', text: `${t.awaiting_review} submitted task${t.awaiting_review === 1 ? '' : 's'} waiting for your review`, tone: 'warning' });
+  if (t.not_started) out.push({ icon: 'mail-unread', text: `${t.not_started} task${t.not_started === 1 ? ' is' : 's are'} not accepted yet`, tone: 'warning' });
   if (onTime != null && onTime >= 85 && r.quality.on_time >= 3) out.push({ icon: 'trophy', text: `Reliable: ${onTime}% of work delivered on time`, tone: 'success' });
   if (onTime != null && onTime < 60 && t.done >= 3) out.push({ icon: 'trending-down', text: `Only ${onTime}% delivered on time`, tone: 'warning' });
   if (t.open > 0 && h.active_days_30d === 0) out.push({ icon: 'moon', text: 'No task updates in the last 30 days', tone: 'warning' });

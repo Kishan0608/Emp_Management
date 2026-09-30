@@ -55,7 +55,7 @@ export default function NewFeedback() {
     }
   };
 
-  const activeTasks = (myTasks.data ?? []).filter((t) => ['accepted', 'in_progress'].includes(t.status) && !t.is_personal);
+  const activeTasks = (myTasks.data ?? []).filter((t) => t.status === 'accepted' && !t.is_personal);
 
   return (
     <Screen

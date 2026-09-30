@@ -20,7 +20,7 @@ export const taskStatusLabel: Record<TaskStatus, string> = {
   submitted: 'Submitted',
   approved: 'Approved',
   returned: 'Returned',
-  closed: 'Closed',
+  closed: 'Done',
 };
 
 export const taskStatusTone: Record<TaskStatus, Tone> = {
@@ -31,7 +31,7 @@ export const taskStatusTone: Record<TaskStatus, Tone> = {
   submitted: 'warning',
   approved: 'success',
   returned: 'danger',
-  closed: 'neutral',
+  closed: 'success',
 };
 
 export const priorityLabel: Record<TaskPriority, string> = { low: 'Low', medium: 'Medium', high: 'High', urgent: 'Urgent' };
