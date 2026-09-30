@@ -9,7 +9,6 @@ import { useLoad } from '@/hooks/useLoad';
 import { api } from '@/lib/api';
 import { dueLabel, formatDate, formatDateTime, priorityLabel, priorityTone, roleLabel, taskStatusLabel, taskStatusTone, timeAgo, toneColors } from '@/lib/format';
 import type { TaskPriority, TeamMemberReport } from '@/lib/types';
-import { useMe } from '@/providers/AuthProvider';
 import { colors, fonts, radius, spacing, type } from '@/theme/tokens';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -18,7 +17,6 @@ const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : null)
 
 export default function MemberReport() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { isBoss, isHR } = useMe();
   const report = useLoad(() => api.teamMemberReport(id), [id]);
   const r = report.data;
 
@@ -217,7 +215,7 @@ export default function MemberReport() {
         <View style={styles.privacy}>
           <Ionicons name="lock-closed-outline" size={14} color={colors.textMuted} />
           <Text style={styles.privacyText}>
-            {isBoss || isHR ? 'Complaints and cases are in the Complaints section.' : 'Complaints about people are confidential and handled only by HR and the Boss.'} Viewing this report is recorded in the audit log.
+            Viewing this report is recorded in the audit log.
           </Text>
         </View>
       </View>

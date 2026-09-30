@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -24,7 +24,7 @@ export default function Team() {
   const team = useLoad(() => api.teamOverview());
   const [q, setQ] = useState('');
 
-  const members = team.data ?? [];
+  const members = useMemo(() => team.data ?? [], [team.data]);
   const list = useMemo(() => {
     const t = q.trim().toLowerCase();
     return members.filter((m) => !t || `${m.full_name} ${m.job_title ?? ''} ${m.department ?? ''}`.toLowerCase().includes(t));
@@ -64,7 +64,7 @@ export default function Team() {
             const pct = m.total ? m.done / m.total : 0;
             return (
               <Animated.View key={m.id} entering={FadeInDown.delay(i * 50).duration(350)}>
-                <Card onPress={() => router.push(`/team/${m.id}`)} style={{ gap: spacing.md }}>
+                <Card onPress={() => router.push(`/team/${m.id}` as Href)} style={{ gap: spacing.md }}>
                   <View style={styles.top}>
                     <Avatar name={m.full_name} id={m.id} size={46} />
                     <View style={{ flex: 1, minWidth: 0 }}>

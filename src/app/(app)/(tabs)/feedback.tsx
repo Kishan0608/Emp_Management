@@ -49,13 +49,10 @@ export default function Feedback() {
         refreshing={refreshing}
         onRefresh={refresh}
         header={
-          <HeroHeader title="Feedback" subtitle="Questions · ideas · blockers" colorsOverride={gradients.feedback}>
-            <View style={{ marginTop: spacing.lg }}>
-              <Segmented dark options={scopes} value={scope} onChange={setScope} />
-            </View>
-          </HeroHeader>
+          <HeroHeader title="Feedback" subtitle="Questions · ideas · blockers" colorsOverride={gradients.feedback} />
         }>
         <View style={{ gap: spacing.md }}>
+          <Segmented options={scopes} value={scope} onChange={setScope} />
           <TextField icon="search" placeholder="Search" value={q} onChangeText={setQ} autoCorrect={false} />
           {scope === 'mine' && (
             <Banner tone="info">Posts you sent anonymously are not linked to you, so they don&apos;t appear here. Answers to anonymous questions can be published on the Q&amp;A board.</Banner>

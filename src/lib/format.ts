@@ -1,17 +1,12 @@
 import { colors } from '@/theme/tokens';
 
 import type {
-  CaseStage,
-  ComplaintCategory,
   FeedbackAudience,
   FeedbackStatus,
   FeedbackType,
-  FlagLevel,
-  Penalty,
   Role,
   TaskPriority,
   TaskStatus,
-  TriageStatus,
   VisibilityField,
 } from './types';
 
@@ -56,62 +51,6 @@ export const feedbackStatusTone: Record<FeedbackStatus, Tone> = {
   acknowledged: 'info',
   answered: 'brand',
   resolved: 'success',
-};
-
-export const complaintCategoryLabel: Record<ComplaintCategory, string> = {
-  behaviour: 'Behaviour / conduct',
-  work_quality: 'Work quality',
-  attendance: 'Attendance / punctuality',
-  misuse_of_resources: 'Misuse of resources',
-  discrimination: 'Discrimination',
-  safety: 'Safety',
-  other: 'Other',
-};
-
-export const triageLabel: Record<TriageStatus, string> = {
-  pending: 'Pending',
-  credible: 'Credible',
-  duplicate: 'Duplicate',
-  unsubstantiated: 'Unsubstantiated',
-  malicious: 'Malicious',
-};
-export const triageTone: Record<TriageStatus, Tone> = {
-  pending: 'warning',
-  credible: 'danger',
-  duplicate: 'neutral',
-  unsubstantiated: 'neutral',
-  malicious: 'info',
-};
-
-export const flagTone: Record<FlagLevel, Tone> = { none: 'neutral', yellow: 'warning', red: 'danger' };
-export const flagLabel: Record<FlagLevel, string> = { none: 'Logged', yellow: 'Yellow · watch', red: 'Red · review' };
-
-export const caseStages: CaseStage[] = [
-  'preliminary_inquiry',
-  'show_cause',
-  'employee_reply',
-  'domestic_inquiry',
-  'findings',
-  'penalty',
-  'written_order',
-  'closed',
-];
-export const caseStageLabel: Record<CaseStage, string> = {
-  preliminary_inquiry: 'Preliminary inquiry',
-  show_cause: 'Show-cause notice',
-  employee_reply: 'Employee reply',
-  domestic_inquiry: 'Domestic inquiry',
-  findings: 'Findings',
-  penalty: 'Penalty decided',
-  written_order: 'Written order',
-  closed: 'Closed',
-};
-export const penaltyLabel: Record<Penalty, string> = {
-  none: 'No penalty',
-  warning: 'Written warning',
-  performance_plan: 'Performance plan',
-  suspension: 'Suspension',
-  termination: 'Termination',
 };
 
 export const fieldLabel: Record<VisibilityField, string> = {

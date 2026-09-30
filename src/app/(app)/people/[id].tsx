@@ -64,8 +64,6 @@ export default function PersonProfile() {
               <Badge label={roleLabel[p.role]} tone="brand" />
               {p.department && <Badge label={p.department} />}
               {!p.is_active && <Badge label="Inactive" tone="danger" />}
-              {p.is_case_handler && <Badge label="Case handler" tone="danger" />}
-              {p.is_committee && <Badge label="Internal Committee" tone="info" />}
             </View>
             {isBoss && !isMe && (
               <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
@@ -222,8 +220,6 @@ function EditRoleSheet({
   const [manager, setManager] = useState<string | null>(profile.manager_id);
   const [title, setTitle] = useState(profile.job_title ?? '');
   const [active, setActive] = useState(profile.is_active);
-  const [handler, setHandler] = useState(profile.is_case_handler);
-  const [committee, setCommittee] = useState(profile.is_committee);
   const [busy, setBusy] = useState(false);
 
   return (
@@ -232,10 +228,7 @@ function EditRoleSheet({
         <ChoiceChips
           label="Role"
           value={role}
-          onChange={(r) => {
-            setRole(r);
-            if (r !== 'hr') setHandler(false);
-          }}
+          onChange={setRole}
           options={(['employee', 'manager', 'hr', 'boss'] as Role[]).map((r) => ({ value: r, label: roleLabel[r] }))}
         />
         <SelectField label="Department" allowClear value={dept} onChange={setDept} options={departments.map((d) => ({ value: d.id, label: d.name }))} />
@@ -247,8 +240,6 @@ function EditRoleSheet({
           options={people.filter((x) => x.role !== 'employee').map((x) => ({ value: x.id, label: x.full_name, sublabel: roleLabel[x.role] }))}
         />
         <TextField label="Job title" value={title} onChangeText={setTitle} />
-        {role === 'hr' && <SwitchRow label="Complaint case handler" description="Can read complaint text and triage it." value={handler} onChange={setHandler} />}
-        <SwitchRow label="Internal Committee member" description="Reads confidential POSH reports." value={committee} onChange={setCommittee} />
         <SwitchRow label="Account active" description="Inactive people cannot sign in or see anything." value={active} onChange={setActive} />
         <Button
           title="Save changes"
@@ -256,8 +247,7 @@ function EditRoleSheet({
           onPress={async () => {
             setBusy(true);
             try {
-              await api.updateUser({ id: profile.id, role, department_id: dept, manager_id: manager, job_title: title, is_active: active, is_case_handler: handler });
-              if (committee !== profile.is_committee) await api.setCommittee(profile.id, committee);
+              await api.updateUser({ id: profile.id, role, department_id: dept, manager_id: manager, job_title: title, is_active: active, is_case_handler: false });
               onSaved();
             } catch (e) {
               toast(errorMessage(e), 'error');

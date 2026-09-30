@@ -7,10 +7,13 @@ import {
   authenticate,
   clearAppLock,
   getAppLockSupport,
+  getLockOwner,
   hasPasscode,
   isAppLockEnabled,
   lockSupported,
+  resetPasscodeFails,
   setAppLockEnabled,
+  setLockOwner,
   setPasscode,
   verifyPasscode,
 } from '@/lib/appLock';
@@ -33,7 +36,8 @@ interface AuthValue {
   notice: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
-  signOut: (allDevices?: boolean, notice?: string) => Promise<void>;
+  /** `forgetPasscode` also removes this phone's passcode and fingerprint setting. */
+  signOut: (allDevices?: boolean, notice?: string, forgetPasscode?: boolean) => Promise<void>;
   refresh: () => Promise<void>;
   clearNotice: () => void;
   /** When `locked`, the app shows the passcode / fingerprint screen over everything. */
@@ -62,16 +66,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const freshSignIn = useRef(false); // true right after typing the password: no need to unlock again
   const pushRegistered = useRef(false);
 
-  const signOut = useCallback(async (allDevices = false, message?: string) => {
+  const signOut = useCallback(async (allDevices = false, message?: string, forgetPasscode = false) => {
     try {
       await api.recordLogout(allDevices);
     } catch {
       // logging out must work even offline
     }
     await supabase.auth.signOut({ scope: allDevices ? 'global' : 'local' });
-    await clearAppLock();
+    if (forgetPasscode) {
+      await clearAppLock();
+      setAppLockState(false);
+    }
     pushRegistered.current = false;
-    setAppLockState(false);
     setLocked(false);
     setCtx(null);
     setSession(null);
@@ -103,6 +109,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         setCtx(c);
+        if (lockSupported) {
+          const owner = await getLockOwner();
+          if (owner && owner !== c.user.id) {
+            // A different account signed in on this phone: the old passcode is not theirs.
+            await clearAppLock();
+            setAppLockState(false);
+          } else if (!owner && (await hasPasscode())) {
+            await setLockOwner(c.user.id);
+          }
+        }
         const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
         if (c.mfa_required && aal?.currentLevel !== 'aal2') setStatus('needsMfa');
         else if (c.user.must_change_password) setStatus('needsPassword');
@@ -176,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (pin: string) => {
       const r = await verifyPasscode(pin);
       if (r.ok) setLocked(false);
-      else if (r.attemptsLeft === 0) await signOut(false, 'Too many wrong passcodes. Sign in with your email and password.');
+      else if (r.attemptsLeft === 0) await signOut(false, 'Too many wrong passcodes. Sign in with your email and password.', true);
       return r;
     },
     [signOut],
@@ -197,6 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const savePasscode = useCallback(
     async (pin: string, biometrics?: boolean) => {
       await setPasscode(pin);
+      if (ctx) await setLockOwner(ctx.user.id);
       if (biometrics !== undefined) {
         await setAppLockEnabled(biometrics);
         setAppLockState(biometrics);
@@ -206,7 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStatus('ready');
       }
     },
-    [status],
+    [status, ctx],
   );
 
   const signIn = useCallback(
@@ -217,6 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error.status === 429) throw new Error('Too many attempts. Please wait a few minutes and try again.');
         throw new Error(error.message === 'Invalid login credentials' ? 'Incorrect email or password.' : error.message);
       }
+      await resetPasscodeFails();
       freshSignIn.current = true;
       setSession(data.session);
       await resolve(data.session);
@@ -228,6 +246,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setNotice(null);
     const session = await googleSignIn();
     if (!session) return; // cancelled
+    await resetPasscodeFails();
     freshSignIn.current = true;
     setSession(session);
     await resolve(session);
@@ -281,6 +300,5 @@ export function useMe() {
     isHR: u.role === 'hr',
     isManager: u.role === 'manager',
     isEmployee: u.role === 'employee',
-    isCaseHandler: u.role === 'hr' && u.is_case_handler,
   };
 }

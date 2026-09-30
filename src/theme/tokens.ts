@@ -15,8 +15,6 @@ export const colors = {
   // modules
   task: '#0D9488',
   taskSoft: '#E6F7F5',
-  complaint: '#E11D48',
-  complaintSoft: '#FDECEF',
   feedback: '#2563EB',
   feedbackSoft: '#EAF1FE',
 
@@ -49,7 +47,6 @@ export const gradients = {
   gold: ['#EDEAB8', '#DCD28B', '#C4B468'] as const, // primary actions (logo champagne)
   goldLine: ['rgba(229,227,172,0)', '#E5E3AC', 'rgba(229,227,172,0)'] as const,
   task: ['#252B29', '#1E3A35', '#0F766E'] as const,
-  complaint: ['#2B2527', '#3F1E27', '#9F1239'] as const,
   feedback: ['#25272C', '#1F2A45', '#1D4ED8'] as const,
 };
 

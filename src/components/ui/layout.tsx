@@ -2,14 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { setStatusBarStyle } from 'expo-status-bar';
-import { useCallback, useEffect, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import Animated, { Easing, FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedBackdrop } from '@/components/AnimatedBackdrop';
-import { BrandTile } from '@/components/brand/SkflLogo';
-import { COMPANY } from '@/components/brand/skflPaths';
 import { colors, fonts, gradients, layout, radius, spacing, type } from '@/theme/tokens';
 
 import { KeyboardScrollProvider, useKeyboardScroll } from '@/providers/KeyboardScrollProvider';
@@ -88,6 +86,13 @@ function ScreenContent({
   return body;
 }
 
+/**
+ * Headers have a fixed height on every screen, so moving between pages never
+ * makes the header grow or shrink. Content inside is vertically centred.
+ */
+export const PAGE_HEADER_HEIGHT = 48;
+export const HERO_HEADER_HEIGHT = 84;
+
 /** Plain header for pushed (detail) screens. */
 export function PageHeader({ title, subtitle, right, back = true }: { title: string; subtitle?: string; right?: ReactNode; back?: boolean }) {
   const insets = useSafeAreaInsets();
@@ -108,7 +113,7 @@ export function PageHeader({ title, subtitle, right, back = true }: { title: str
           <Text style={type.h2} numberOfLines={1}>
             {title}
           </Text>
-          {subtitle && (
+          {!!subtitle && (
             <Text style={type.small} numberOfLines={1}>
               {subtitle}
             </Text>
@@ -120,18 +125,19 @@ export function PageHeader({ title, subtitle, right, back = true }: { title: str
   );
 }
 
-/** Gradient header for tab screens. */
+/** Gradient header for tab screens: small line above, title, optional line below. Same height on every tab. */
 export function HeroHeader({
   title,
   subtitle,
+  meta,
   right,
-  children,
   colorsOverride,
 }: {
   title: string;
   subtitle?: string;
+  /** Optional one-line row under the title (e.g. role + job title on Home). */
+  meta?: ReactNode;
   right?: ReactNode;
-  children?: ReactNode;
   colorsOverride?: readonly [string, string, ...string[]];
 }) {
   const insets = useSafeAreaInsets();
@@ -139,23 +145,19 @@ export function HeroHeader({
   return (
     <LinearGradient colors={colorsOverride ?? gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { paddingTop: insets.top + spacing.md }]}>
       <AnimatedBackdrop variant="subtle" />
-      <View style={styles.inner}>
-        <View style={styles.brandStrip}>
-          <BrandTile size={26} />
-          <Text style={styles.brandText} numberOfLines={1}>
-            {COMPANY.name.toUpperCase()}
-          </Text>
-        </View>
-        <Animated.View entering={FadeInDown.duration(420)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <View style={{ flex: 1 }}>
-            {subtitle && <Text style={styles.heroSubtitle}>{subtitle}</Text>}
-            <Text style={styles.heroTitle} numberOfLines={1}>
-              {title}
+      <View style={[styles.inner, styles.heroBody]}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          {!!subtitle && (
+            <Text style={styles.heroSubtitle} numberOfLines={1}>
+              {subtitle}
             </Text>
-          </View>
-          {right}
-        </Animated.View>
-        {children}
+          )}
+          <Text style={styles.heroTitle} numberOfLines={1}>
+            {title}
+          </Text>
+          {meta && <View style={styles.heroMeta}>{meta}</View>}
+        </View>
+        {right}
       </View>
       <LinearGradient colors={gradients.goldLine} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.heroRule} />
     </LinearGradient>
@@ -163,14 +165,29 @@ export function HeroHeader({
 }
 
 /** Placeholder block with a soft gold shimmer, used while content loads. */
+/**
+ * Placeholders stay invisible (but keep their space) for the first moments of a load.
+ * Most loads finish sooner, so fast navigation never flashes grey boxes.
+ */
+const SKELETON_DELAY_MS = 350;
+function useShowAfterDelay() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setShow(true), SKELETON_DELAY_MS);
+    return () => clearTimeout(t);
+  }, []);
+  return show;
+}
+
 export function Skeleton({ height = 16, width = '100%', radiusSize = 8, style }: { height?: number; width?: number | `${number}%`; radiusSize?: number; style?: ViewStyle }) {
+  const show = useShowAfterDelay();
   const x = useSharedValue(0);
   useEffect(() => {
     x.set(withRepeat(withTiming(1, { duration: 1300, easing: Easing.inOut(Easing.ease) }), -1, false));
   }, [x]);
   const anim = useAnimatedStyle(() => ({ transform: [{ translateX: -160 + x.get() * 560 }] }));
   return (
-    <View style={[{ height, width, borderRadius: radiusSize, backgroundColor: '#EEEAE1', overflow: 'hidden' }, style]}>
+    <View style={[{ height, width, borderRadius: radiusSize, backgroundColor: '#EEEAE1', overflow: 'hidden' }, style, !show && { opacity: 0 }]}>
       <Animated.View style={[{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 160 }, anim]}>
         <LinearGradient
           colors={['rgba(255,255,255,0)', 'rgba(255,248,230,0.95)', 'rgba(255,255,255,0)']}
@@ -184,8 +201,9 @@ export function Skeleton({ height = 16, width = '100%', radiusSize = 8, style }:
 }
 
 export function ListSkeleton({ rows = 4 }: { rows?: number }) {
+  const show = useShowAfterDelay();
   return (
-    <View style={{ gap: spacing.md }}>
+    <View style={[{ gap: spacing.md }, !show && { opacity: 0 }]}>
       {Array.from({ length: rows }).map((_, i) => (
         <View key={i} style={styles.skelCard}>
           <Skeleton height={40} width={40} radiusSize={20} />
@@ -228,14 +246,14 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   pageHeader: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: spacing.md, paddingHorizontal: spacing.lg },
-  pageHeaderInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, width: '100%', maxWidth: layout.maxWidth, alignSelf: 'center' },
+  pageHeaderInner: { height: PAGE_HEADER_HEIGHT, flexDirection: 'row', alignItems: 'center', gap: spacing.md, width: '100%', maxWidth: layout.maxWidth, alignSelf: 'center' },
   back: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   hero: { paddingHorizontal: layout.screenPadding, paddingBottom: spacing.xxl, overflow: 'hidden', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
-  heroSubtitle: { fontFamily: fonts.medium, fontSize: 13, color: '#E5E3AC', marginBottom: 2 },
+  heroBody: { height: HERO_HEADER_HEIGHT, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  heroMeta: { height: 24, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 6 },
+  heroSubtitle: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: '#E5E3AC', marginBottom: 2 },
   heroRule: { position: 'absolute', left: 24, right: 24, bottom: 0, height: 1.5 },
-  brandStrip: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.lg },
-  brandText: { flex: 1, fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 1.8, color: 'rgba(229,227,172,0.9)' },
-  heroTitle: { fontFamily: fonts.bold, fontSize: 24, color: colors.white, letterSpacing: -0.4 },
+  heroTitle: { fontFamily: fonts.bold, fontSize: 24, lineHeight: 30, color: colors.white, letterSpacing: -0.4 },
   skelCard: {
     flexDirection: 'row',
     alignItems: 'center',

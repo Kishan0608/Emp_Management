@@ -2,15 +2,13 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
-import { AppText, Banner, Button, Card, ChoiceChips, PageHeader, Screen, SelectField, SwitchRow, TextField } from '@/components/ui';
+import { Banner, Button, Card, ChoiceChips, PageHeader, Screen, SelectField, SwitchRow, TextField } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
 import { api, errorMessage } from '@/lib/api';
 import type { FeedbackAudience, FeedbackType } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, spacing } from '@/theme/tokens';
-
-const CONDUCT_WORDS = /\b(harass|bully|bullied|abus|rude|shout|yell|insult|threat|misbehav|inappropriate|discriminat|humiliat)/i;
 
 export default function NewFeedback() {
   const { me, manager, settings } = useMe();
@@ -32,12 +30,6 @@ export default function NewFeedback() {
     [people.data, me.department_id],
   );
 
-  // Nudge: if this reads like a complaint about a specific person, suggest the Complaint module.
-  const mentionsPerson = useMemo(() => {
-    const text = `${title} ${body}`.toLowerCase();
-    return (people.data ?? []).some((p) => p.id !== me.id && p.full_name.length > 3 && text.includes(p.full_name.split(' ')[0].toLowerCase()));
-  }, [people.data, title, body, me.id]);
-  const conductNudge = kind !== 'blocker' && CONDUCT_WORDS.test(`${title} ${body}`) && (mentionsPerson || /\b(he|she|they|my manager|colleague)\b/i.test(body));
 
   const submit = async () => {
     setError(null);
@@ -104,16 +96,6 @@ export default function NewFeedback() {
         <Card style={{ gap: spacing.lg }}>
           <TextField label="Title" value={title} onChangeText={setTitle} placeholder={kind === 'question' ? 'e.g. How do I apply for WFH?' : 'Short summary'} counter={160} />
           <TextField label="Details" value={body} onChangeText={setBody} placeholder="Explain clearly. Include what you already tried." multiline counter={4000} />
-          {conductNudge && (
-            <Banner tone="warning" title="Is this about someone's conduct?">
-              <View style={{ gap: spacing.sm }}>
-                <AppText variant="small">
-                  Feedback does not count toward any complaint record. If this is about a person&apos;s behaviour, use a Complaint instead. It is anonymous by design.
-                </AppText>
-                <Button title="File a complaint instead" size="sm" variant="outline" icon="shield-outline" onPress={() => router.replace('/complaint/new')} />
-              </View>
-            </Banner>
-          )}
           {kind === 'blocker' && activeTasks.length > 0 && (
             <SelectField
               label="Blocked task (optional)"

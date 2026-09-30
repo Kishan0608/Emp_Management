@@ -6,7 +6,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Avatar } from '@/components/ui';
 import { getAppLockSupport, PASSCODE_LENGTH, type AppLockSupport } from '@/lib/appLock';
 import { useAuth } from '@/providers/AuthProvider';
 import { colors, fonts, spacing } from '@/theme/tokens';
@@ -75,12 +74,6 @@ export function AppLockScreen({ autoPrompt }: { autoPrompt: boolean }) {
       <View style={[styles.content, { paddingTop: insets.top + spacing.xxl, paddingBottom: insets.bottom + spacing.lg }]}>
         <Animated.View entering={FadeInDown.duration(450)} style={{ alignItems: 'center', gap: spacing.md }}>
           <SkflMark width={110} />
-          <View style={styles.userChip}>
-            {ctx && <Avatar name={name} id={ctx.user.id} size={30} />}
-            <Text style={styles.userText} numberOfLines={1}>
-              {ctx?.user.email}
-            </Text>
-          </View>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(120).duration(450)} style={{ alignItems: 'center', gap: spacing.sm }}>
@@ -107,7 +100,7 @@ export function AppLockScreen({ autoPrompt }: { autoPrompt: boolean }) {
           />
         </Animated.View>
 
-        <Pressable onPress={() => signOut(false)} hitSlop={10} style={styles.alt}>
+        <Pressable onPress={() => signOut(false, undefined, true)} hitSlop={10} style={styles.alt}>
           <Text style={styles.altText}>Forgot passcode? Sign in with password</Text>
         </Pressable>
       </View>
@@ -118,20 +111,6 @@ export function AppLockScreen({ autoPrompt }: { autoPrompt: boolean }) {
 const styles = StyleSheet.create({
   root: { zIndex: 900, backgroundColor: '#3A3935' },
   content: { flex: 1, alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl },
-  userChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    maxWidth: 280,
-    paddingLeft: 4,
-    paddingRight: 14,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(229,227,172,0.2)',
-  },
-  userText: { fontFamily: fonts.medium, fontSize: 13, color: 'rgba(255,255,255,0.85)', flexShrink: 1 },
   lockBadge: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.goldLight, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   hello: { fontFamily: fonts.extrabold, fontSize: 24, color: colors.white, letterSpacing: -0.5, textAlign: 'center' },
   sub: { fontFamily: fonts.regular, fontSize: 14, color: 'rgba(255,255,255,0.7)', textAlign: 'center' },

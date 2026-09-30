@@ -13,6 +13,7 @@ const BIO_KEY = 'skfl.appLock.enabled';
 const HASH_KEY = 'skfl.passcode.hash';
 const SALT_KEY = 'skfl.passcode.salt';
 const FAILS_KEY = 'skfl.passcode.fails';
+const OWNER_KEY = 'skfl.passcode.owner';
 
 export const PASSCODE_LENGTH = 4;
 export const MAX_PASSCODE_ATTEMPTS = 5;
@@ -89,10 +90,27 @@ export async function verifyPasscode(pin: string): Promise<{ ok: boolean; attemp
   return { ok: false, attemptsLeft: Math.max(0, MAX_PASSCODE_ATTEMPTS - n) };
 }
 
-/** Removes the passcode and fingerprint setting from this phone (on sign-out). */
+/** The account the saved passcode belongs to, so it survives sign-out for that same person only. */
+export async function getLockOwner() {
+  if (!lockSupported) return null;
+  return get(OWNER_KEY);
+}
+
+export async function setLockOwner(userId: string) {
+  if (!lockSupported) return;
+  await SecureStore.setItemAsync(OWNER_KEY, userId);
+}
+
+/** A correct password sign-in proves identity, so earlier wrong passcode tries no longer count. */
+export async function resetPasscodeFails() {
+  if (!lockSupported) return;
+  await SecureStore.deleteItemAsync(FAILS_KEY).catch(() => {});
+}
+
+/** Removes the passcode and fingerprint setting from this phone. */
 export async function clearAppLock() {
   if (!lockSupported) return;
-  await Promise.all([HASH_KEY, SALT_KEY, FAILS_KEY, BIO_KEY].map((k) => SecureStore.deleteItemAsync(k).catch(() => {})));
+  await Promise.all([HASH_KEY, SALT_KEY, FAILS_KEY, BIO_KEY, OWNER_KEY].map((k) => SecureStore.deleteItemAsync(k).catch(() => {})));
 }
 
 /** Shows the phone's fingerprint / face prompt. The app passcode is the fallback, not the phone PIN. */

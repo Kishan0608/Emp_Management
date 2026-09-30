@@ -4,32 +4,24 @@ import { supabase } from './supabase';
 import type {
   AppSettings,
   AuditLog,
-  CaseDocument,
   ChecklistItem,
-  ComplaintCategory,
-  ComplaintOverviewRow,
-  ConfidentialReport,
   DashboardStats,
   Department,
   DirectoryUser,
-  DisciplinaryCase,
   EmployeeProfile,
   FeedbackAudience,
   FeedbackItem,
   FeedbackReply,
   FeedbackStatus,
   FeedbackType,
-  HrComplaint,
   MyContext,
   NotificationRow,
-  Penalty,
   Role,
   Task,
   TaskEvent,
   TaskPriority,
   TaskStatus,
   TaskVisibility,
-  TriageStatus,
   VisibilityField,
   VisibilityRule,
   TeamMemberReport,
@@ -171,8 +163,6 @@ export const api = {
     ),
   invite: async (p: { email: string; full_name: string; role: Role; department_id: string | null; manager_id: string | null; job_title: string }) =>
     invokeFn<{ ok: true; user_id: string; activation_key: string }>('invite-user', p),
-  setCommittee: async (userId: string, member: boolean) =>
-    check(await supabase.rpc('admin_set_committee', { p_user_id: userId, p_member: member })),
 
   // ---------- visibility ----------
   visibilityRules: async () =>
@@ -330,64 +320,6 @@ export const api = {
   passwordResetComplete: async (email: string, code: string, password: string) =>
     invokeFn<{ ok: true }>('password-reset', { action: 'complete', email, code, password }),
 
-  // ---------- complaints ----------
-  submitComplaint: async (p: { target_id: string; category: ComplaintCategory; description: string }) =>
-    invokeFn<{ ok: true; remaining: number | null }>('submit-complaint', p),
-  myQuota: async () => check<{ limit: number; used: number }>(await supabase.rpc('my_complaint_quota')),
-  targetContext: async (id: string) =>
-    check<{ group_size: number; min_group_size: number; small_group: boolean }>(
-      await supabase.rpc('complaint_target_context', { p_target: id }),
-    ),
-  complaintOverview: async () => check<ComplaintOverviewRow[]>(await supabase.rpc('complaint_overview')),
-  hrComplaints: async (status?: TriageStatus) =>
-    check<HrComplaint[]>(await supabase.rpc('hr_list_complaints', { p_status: status ?? null })),
-  triage: async (id: string, status: TriageStatus, note: string) =>
-    check(await supabase.rpc('hr_triage_complaint', { p_id: id, p_status: status, p_note: note })),
-
-  // ---------- cases ----------
-  cases: async () =>
-    check<DisciplinaryCase[]>(
-      await supabase
-        .from('disciplinary_cases')
-        .select('*, target:users!disciplinary_cases_target_id_fkey(full_name, job_title)')
-        .order('opened_at', { ascending: false }),
-    ),
-  case: async (id: string) =>
-    check<DisciplinaryCase>(
-      await supabase
-        .from('disciplinary_cases')
-        .select('*, target:users!disciplinary_cases_target_id_fkey(full_name, job_title)')
-        .eq('id', id)
-        .single(),
-    ),
-  caseDocuments: async (id: string) =>
-    check<CaseDocument[]>(
-      await supabase
-        .from('case_documents')
-        .select('*, author:users!case_documents_created_by_fkey(full_name)')
-        .eq('case_id', id)
-        .order('created_at'),
-    ),
-  openCase: async (target: string, summary: string) =>
-    check<string>(await supabase.rpc('open_case', { p_target: target, p_summary: summary })),
-  advanceCase: async (id: string, title: string, body: string, penalty?: Penalty) =>
-    check(await supabase.rpc('advance_case', { p_case: id, p_title: title, p_body: body, p_penalty: penalty ?? null })),
-  caseReply: async (id: string, body: string) => check(await supabase.rpc('submit_case_reply', { p_case: id, p_body: body })),
-  caseNote: async (id: string, title: string, body: string) =>
-    check(await supabase.rpc('add_case_note', { p_case: id, p_title: title, p_body: body })),
-  terminate: async (id: string, confirmName: string) =>
-    check(await supabase.rpc('terminate_employee', { p_case: id, p_confirm_name: confirmName })),
-
-  // ---------- POSH confidential lane ----------
-  submitConfidential: async (target: string | null, incidentDate: string | null, statement: string) =>
-    check<string>(
-      await supabase.rpc('submit_confidential_report', { p_target: target, p_incident_date: incidentDate, p_statement: statement }),
-    ),
-  myConfidential: async () => check<ConfidentialReport[]>(await supabase.rpc('my_confidential_reports')),
-  committeeReports: async () => check<ConfidentialReport[]>(await supabase.rpc('committee_list_reports')),
-  committeeUpdate: async (id: string, status: ConfidentialReport['committee_status']) =>
-    check(await supabase.rpc('committee_update_report', { p_id: id, p_status: status })),
-  committeeMembers: async () => check<{ user_id: string }[]>(await supabase.from('committee_members').select('user_id')),
 
   // ---------- notifications ----------
   notifications: async () =>

@@ -93,15 +93,11 @@ export default function Tasks() {
             title="Tasks"
             subtitle={isEmployee ? 'Tasks assigned to you' : isBoss ? 'All company tasks' : 'Team tasks & reviews'}
             colorsOverride={gradients.task}
-            right={<IconButton icon="download-outline" label="Export CSV" color={colors.white} bg="rgba(255,255,255,0.18)" onPress={exportCsv} />}>
-            {!isEmployee && (
-              <View style={{ marginTop: spacing.lg }}>
-                <Segmented dark options={scopes} value={scope} onChange={setScope} />
-              </View>
-            )}
-          </HeroHeader>
+            right={<IconButton icon="download-outline" label="Export CSV" color={colors.white} bg="rgba(255,255,255,0.18)" onPress={exportCsv} />}
+          />
         }>
         <View style={{ gap: spacing.md }}>
+          {!isEmployee && <Segmented options={scopes} value={scope} onChange={setScope} />}
           <TextField icon="search" placeholder={isEmployee ? 'Search my tasks' : 'Search tasks or people'} value={q} onChangeText={setQ} autoCorrect={false} />
           <ChoiceChips
             options={[

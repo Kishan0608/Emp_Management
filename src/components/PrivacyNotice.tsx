@@ -9,23 +9,15 @@ const SECTIONS: [string, string][] = [
   ],
   [
     'Why we use it',
-    'To assign and review work, answer questions, resolve blockers and handle workplace complaints fairly. We do not use it for anything else or sell it.',
+    'To assign and review work, answer questions and resolve blockers. We do not use it for anything else or sell it.',
   ],
   [
     'Who can see it',
     'Only people whose role needs it. The Boss decides, field by field, who can see contact, salary, attendance, task history and performance details. Every change to those settings is logged.',
   ],
   [
-    'Anonymous complaints',
-    'Complaints are stored without your name, account, device, IP address or exact time. Nobody in the company, including the Boss and HR, can see who wrote one. The text itself could still identify you through its details or writing style.',
-  ],
-  [
-    'Confidential harassment reports',
-    'These are not anonymous. Your name and statement go only to the Internal Committee under the POSH Act.',
-  ],
-  [
     'How long we keep it',
-    'Complaints are deleted after the retention period set by the company (3 years by default) and audit logs after 5 years. Read notifications are removed after 180 days.',
+    'Audit logs are kept for 5 years. Read notifications are removed after 180 days.',
   ],
   [
     'Your rights',

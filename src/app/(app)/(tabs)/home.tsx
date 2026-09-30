@@ -1,10 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { TaskCard } from '@/components/cards';
-import { Badge, Banner, Card, EmptyState, HeroHeader, IconButton, ListSkeleton, Screen, SectionTitle, Skeleton, StatCard, type IconName } from '@/components/ui';
+import { Banner, Card, EmptyState, HeroHeader, IconButton, ListSkeleton, Screen, SectionTitle, Skeleton, StatCard, type IconName } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
 import { api } from '@/lib/api';
 import { greeting, roleLabel } from '@/lib/format';
@@ -13,7 +12,7 @@ import { useNotifications } from '@/providers/NotificationsProvider';
 import { colors, fonts, radius, shadow, spacing, type } from '@/theme/tokens';
 
 export default function Home() {
-  const { me, isBoss, isHR, isManager, isCaseHandler, isEmployee } = useMe();
+  const { me, isBoss, isHR, isManager, isEmployee } = useMe();
   const { unread } = useNotifications();
   const stats = useLoad(() => api.dashboard());
   const myTasks = useLoad(() => api.tasks('mine', me.id));
@@ -42,19 +41,21 @@ export default function Home() {
               badge={unread}
               onPress={() => router.push('/notifications')}
             />
-          }>
-          <View style={styles.heroMeta}>
-            <View style={styles.rolePill}>
-              <Ionicons name="shield-half-outline" size={13} color={colors.white} />
-              <Text style={styles.rolePillText}>{roleLabel[me.role]}</Text>
-            </View>
-            {!!me.job_title && (
-              <Text style={styles.heroMetaText} numberOfLines={1}>
-                {me.job_title}
-              </Text>
-            )}
-          </View>
-        </HeroHeader>
+          }
+          meta={
+            <>
+              <View style={styles.rolePill}>
+                <Ionicons name="shield-half-outline" size={13} color={colors.white} />
+                <Text style={styles.rolePillText}>{roleLabel[me.role]}</Text>
+              </View>
+              {!!me.job_title && (
+                <Text style={styles.heroMetaText} numberOfLines={1}>
+                  {me.job_title}
+                </Text>
+              )}
+            </>
+          }
+        />
       }>
       {stats.error && <Banner tone="danger">{stats.error}</Banner>}
 
@@ -64,7 +65,6 @@ export default function Home() {
           <QuickAction icon="add-circle" label="New task" color={colors.task} bg={colors.taskSoft} onPress={() => router.push('/task/new')} />
         )}
         <QuickAction icon="chatbubble-ellipses" label="Ask / Feedback" color={colors.feedback} bg={colors.feedbackSoft} onPress={() => router.push('/feedback/new')} />
-        <QuickAction icon="shield" label="Complaint" color={colors.complaint} bg={colors.complaintSoft} onPress={() => router.push('/complaint/new')} />
       </View>
 
       {/* personal numbers */}
@@ -95,7 +95,7 @@ export default function Home() {
       {isManager && s?.team && (
         <>
           <SectionTitle title="My team" action="Team tasks" onAction={() => router.push({ pathname: '/tasks', params: { scope: 'team' } })} />
-          <Card style={{ gap: spacing.md }} onPress={() => router.push('/team')}>
+          <Card style={{ gap: spacing.md }} onPress={() => router.push('/team' as Href)}>
             <View style={styles.teamCard}>
               <Metric label="Members" value={s.team.members} tone={colors.brand} />
               <Metric label="Open" value={s.team.open} />
@@ -125,37 +125,8 @@ export default function Home() {
               soft={colors.dangerSoft}
               onPress={() => router.push({ pathname: '/feedback', params: { scope: 'blockers' } })}
             />
-            {isCaseHandler && (
-              <StatCard
-                label="Complaints to triage"
-                value={s.complaints_pending ?? 0}
-                icon="file-tray-full-outline"
-                tint={colors.complaint}
-                soft={colors.complaintSoft}
-                onPress={() => router.push('/complaint/triage')}
-              />
-            )}
-            <StatCard label="Open cases" value={s.open_cases ?? 0} icon="briefcase-outline" tint={colors.accent} soft="#F3EEFE" onPress={() => router.push('/complaints')} />
           </View>
         </>
-      )}
-
-      {isBoss && s?.flags && (s.flags.red > 0 || s.flags.yellow > 0) && (
-        <Animated.View entering={FadeInDown.duration(350)} style={{ marginTop: spacing.lg }}>
-          <Card onPress={() => router.push('/complaints')} style={styles.flagCard}>
-            <View style={styles.flagIcon}>
-              <Ionicons name="flag" size={22} color={colors.white} />
-            </View>
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text style={type.h3}>Complaint flags need attention</Text>
-              <View style={{ flexDirection: 'row', gap: 6 }}>
-                {s.flags.red > 0 && <Badge label={`${s.flags.red} red`} tone="danger" />}
-                {s.flags.yellow > 0 && <Badge label={`${s.flags.yellow} yellow`} tone="warning" />}
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-          </Card>
-        </Animated.View>
       )}
 
       {isBoss && s && (
@@ -231,7 +202,6 @@ function Metric({ label, value, tone }: { label: string; value: number | string;
 }
 
 const styles = StyleSheet.create({
-  heroMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
   rolePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -269,8 +239,6 @@ const styles = StyleSheet.create({
   },
   teamCtaText: { flex: 1, fontFamily: fonts.semibold, fontSize: 13.5, color: colors.brand },
   metricValue: { fontFamily: fonts.bold, fontSize: 22, color: colors.text, letterSpacing: -0.4 },
-  flagCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderColor: colors.complaint + '40', backgroundColor: '#FFF8F9' },
-  flagIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.complaint, alignItems: 'center', justifyContent: 'center' },
   track: { height: 8, borderRadius: 4, backgroundColor: '#F0EDE6', flexDirection: 'row', overflow: 'hidden' },
   fill: { height: 8 },
 });

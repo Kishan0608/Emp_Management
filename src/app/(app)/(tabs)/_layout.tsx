@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Tabs, type BottomTabBarProps } from 'expo-router/js-tabs';
 import { useEffect, useRef, useState } from 'react';
-import { Easing, Platform, Pressable, Animated as RNAnimated, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -11,7 +11,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { useMe } from '@/providers/AuthProvider';
 import { colors, fonts } from '@/theme/tokens';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -20,19 +19,7 @@ const TAB_ICONS: Record<string, { active: IconName; inactive: IconName }> = {
   home: { active: 'grid', inactive: 'grid-outline' },
   tasks: { active: 'checkbox', inactive: 'checkbox-outline' },
   feedback: { active: 'chatbubbles', inactive: 'chatbubbles-outline' },
-  complaints: { active: 'shield-checkmark', inactive: 'shield-checkmark-outline' },
   more: { active: 'menu', inactive: 'menu-outline' },
-};
-
-/** Scene transition between tabs: a short directional slide + fade (runs on the native driver). */
-const TAB_TRANSITION = {
-  transitionSpec: { animation: 'timing' as const, config: { duration: 220, easing: Easing.bezier(0.2, 0, 0, 1) } },
-  sceneStyleInterpolator: ({ current }: { current: { progress: RNAnimated.AnimatedInterpolation<number> } }) => ({
-    sceneStyle: {
-      opacity: current.progress.interpolate({ inputRange: [-1, -0.5, 0, 0.5, 1], outputRange: [0, 0.4, 1, 0.4, 0] }),
-      transform: [{ translateX: current.progress.interpolate({ inputRange: [-1, 0, 1], outputRange: [-28, 0, 28] }) }],
-    },
-  }),
 };
 
 const PILL_W = 52;
@@ -148,22 +135,17 @@ function CustomTabBar({ state, descriptors, navigation, insets }: BottomTabBarPr
 }
 
 export default function TabsLayout() {
-  const { isBoss, isCaseHandler } = useMe();
-  const complaintsTitle = isBoss || isCaseHandler ? 'Integrity' : 'Complaints';
-
   return (
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        freezeOnBlur: true,
+        animation: 'none', // instant switch: no fade, no in-between frames
         sceneStyle: { backgroundColor: colors.bg },
-        ...TAB_TRANSITION,
       }}>
       <Tabs.Screen name="home" options={{ title: 'Home' }} />
       <Tabs.Screen name="tasks" options={{ title: 'Tasks' }} />
       <Tabs.Screen name="feedback" options={{ title: 'Feedback' }} />
-      <Tabs.Screen name="complaints" options={{ title: complaintsTitle }} />
       <Tabs.Screen name="more" options={{ title: 'More' }} />
     </Tabs>
   );

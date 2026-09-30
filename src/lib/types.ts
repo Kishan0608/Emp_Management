@@ -5,11 +5,6 @@ export type TaskVisibility = 'private' | 'team' | 'company';
 export type FeedbackType = 'feedback' | 'question' | 'blocker';
 export type FeedbackAudience = 'manager' | 'hr' | 'boss' | 'all';
 export type FeedbackStatus = 'open' | 'acknowledged' | 'answered' | 'resolved';
-export type ComplaintCategory = 'behaviour' | 'work_quality' | 'attendance' | 'misuse_of_resources' | 'discrimination' | 'safety' | 'other';
-export type TriageStatus = 'pending' | 'credible' | 'duplicate' | 'unsubstantiated' | 'malicious';
-export type FlagLevel = 'none' | 'yellow' | 'red';
-export type CaseStage = 'preliminary_inquiry' | 'show_cause' | 'employee_reply' | 'domestic_inquiry' | 'findings' | 'penalty' | 'written_order' | 'closed';
-export type Penalty = 'none' | 'warning' | 'performance_plan' | 'suspension' | 'termination';
 export type VisibilityField = 'contact' | 'salary' | 'attendance' | 'task_history' | 'performance';
 
 export interface AppUser {
@@ -149,68 +144,6 @@ export interface FeedbackReply {
   responder?: { full_name: string; role: Role } | null;
 }
 
-export interface ComplaintOverviewRow {
-  target_id: string;
-  full_name: string;
-  job_title: string | null;
-  role: Role;
-  department: string | null;
-  total_received: number;
-  credible_count: number;
-  pending_count: number;
-  distinct_in_window: number;
-  level: FlagLevel;
-  open_case_id: string | null;
-}
-
-export interface HrComplaint {
-  id: string;
-  target_id: string;
-  target_name: string;
-  target_role: Role;
-  category: ComplaintCategory;
-  description: string;
-  received_date: string;
-  triage_status: TriageStatus;
-  triage_note: string | null;
-}
-
-export interface DisciplinaryCase {
-  id: string;
-  target_id: string;
-  opened_by: string | null;
-  stage: CaseStage;
-  penalty: Penalty;
-  summary: string;
-  opened_at: string;
-  updated_at: string;
-  closed_at: string | null;
-  terminated_at: string | null;
-  target?: { full_name: string; job_title: string | null } | null;
-}
-
-export interface CaseDocument {
-  id: string;
-  case_id: string;
-  stage: CaseStage;
-  doc_type: string;
-  title: string;
-  body: string;
-  created_by: string | null;
-  created_at: string;
-  author?: { full_name: string } | null;
-}
-
-export interface ConfidentialReport {
-  id: string;
-  reporter_name?: string;
-  target_name: string | null;
-  incident_date: string | null;
-  statement?: string;
-  committee_status: 'received' | 'under_inquiry' | 'resolved' | 'closed';
-  created_at: string;
-}
-
 export interface NotificationRow {
   id: string;
   kind: string;
@@ -255,13 +188,10 @@ export interface DashboardStats {
   team?: { members: number; open: number; blocked: number; overdue: number; feedback_open: number };
   feedback_open?: number;
   blockers_open?: number;
-  open_cases?: number;
-  complaints_pending?: number;
   headcount?: Partial<Record<Role, number>>;
   tasks_by_status?: Partial<Record<TaskStatus, number>>;
   tasks_overdue?: number;
   on_time_rate_30d?: number | null;
-  flags?: { yellow: number; red: number };
   by_department?: { name: string; open: number; done: number; overdue: number }[];
 }
 

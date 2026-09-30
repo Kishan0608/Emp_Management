@@ -57,7 +57,7 @@ export default function Analytics() {
                 <StatCard label="On time (30 days)" value={s.on_time_rate_30d == null ? '—' : `${s.on_time_rate_30d}%`} icon="speedometer-outline" tint={colors.task} soft={colors.taskSoft} />
                 <StatCard label="Overdue tasks" value={s.tasks_overdue ?? 0} icon="alarm-outline" tint={colors.danger} soft={colors.dangerSoft} />
                 <StatCard label="Open blockers" value={s.blockers_open ?? 0} icon="hand-left-outline" tint={colors.warning} soft={colors.warningSoft} />
-                <StatCard label="Red flags" value={s.flags?.red ?? 0} icon="flag-outline" tint={colors.complaint} soft={colors.complaintSoft} />
+                <StatCard label="Open feedback" value={s.feedback_open ?? 0} icon="chatbubbles-outline" tint={colors.feedback} soft={colors.feedbackSoft} />
               </View>
 
               <SectionTitle title="Tasks by status" />
@@ -151,29 +151,6 @@ export default function Analytics() {
             />
             {isBoss && (
               <>
-                <Button
-                  title="Complaint counts (numbers only)"
-                  icon="download-outline"
-                  variant="outline"
-                  loading={busy === 'counts'}
-                  onPress={() =>
-                    run('counts', async () => {
-                      const rows = await api.complaintOverview();
-                      await shareCsv(
-                        `complaint-counts-${today}.csv`,
-                        toCsv(rows as unknown as Record<string, unknown>[], [
-                          { key: 'full_name', label: 'Employee' },
-                          { key: 'department', label: 'Department' },
-                          { key: 'total_received', label: 'Total received' },
-                          { key: 'distinct_in_window', label: 'Different people (window)' },
-                          { key: 'credible_count', label: 'Credible' },
-                          { key: 'pending_count', label: 'Pending triage' },
-                          { key: 'level', label: 'Level' },
-                        ]),
-                      );
-                    })
-                  }
-                />
                 <Button
                   title="Audit log"
                   icon="download-outline"

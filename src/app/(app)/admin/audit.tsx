@@ -10,14 +10,10 @@ import { spacing, type } from '@/theme/tokens';
 const GROUPS: { value: string; label: string; match: (a: string) => boolean }[] = [
   { value: 'all', label: 'All', match: () => true },
   { value: 'auth', label: 'Sign-ins', match: (a) => a.startsWith('auth.') },
-  { value: 'complaint', label: 'Complaint views', match: (a) => a.startsWith('complaint.') || a.startsWith('confidential.') },
-  { value: 'access', label: 'Access changes', match: (a) => a.startsWith('visibility.') || a.startsWith('user.') || a.startsWith('committee.') || a.startsWith('settings.') },
-  { value: 'case', label: 'Cases', match: (a) => a.startsWith('case.') || a.startsWith('employee.') },
+  { value: 'access', label: 'Access changes', match: (a) => a.startsWith('visibility.') || a.startsWith('user.') || a.startsWith('settings.') },
 ];
 
 function tone(action: string): Tone {
-  if (action.startsWith('employee.terminate')) return 'danger';
-  if (action.startsWith('complaint') || action.startsWith('confidential')) return 'warning';
   if (action.startsWith('visibility') || action.startsWith('user') || action.startsWith('settings')) return 'brand';
   if (action.startsWith('auth')) return 'info';
   return 'neutral';

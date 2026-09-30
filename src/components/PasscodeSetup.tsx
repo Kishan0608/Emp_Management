@@ -15,7 +15,7 @@ type Step = 'create' | 'confirm' | 'bio';
 const WEAK = new Set(['0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '1234', '4321', '0123', '9876']);
 
 /** Create → confirm a 4-digit passcode, then offer fingerprint / face unlock. */
-export function PasscodeSetup({ offerBiometrics = true, onDone }: { offerBiometrics?: boolean; onDone?: () => void }) {
+export function PasscodeSetup({ offerBiometrics = true, avoid, onDone }: { offerBiometrics?: boolean; /** Current passcode, which the new one must differ from. */ avoid?: string; onDone?: () => void }) {
   const { savePasscode } = useAuth();
   const [step, setStep] = useState<Step>('create');
   const [first, setFirst] = useState('');
@@ -54,6 +54,7 @@ export function PasscodeSetup({ offerBiometrics = true, onDone }: { offerBiometr
     if (v.length < PASSCODE_LENGTH) return;
     if (step === 'create') {
       if (WEAK.has(v)) return fail('Too easy to guess. Choose a different passcode.');
+      if (avoid && v === avoid) return fail('That is your current passcode. Choose a new one.');
       setFirst(v);
       setPin('');
       setStep('confirm');

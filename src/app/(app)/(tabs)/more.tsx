@@ -25,7 +25,7 @@ interface Item {
 
 export default function More() {
   const { signOut } = useAuth();
-  const { me, department, manager, isBoss, isHR, is_committee } = useMe();
+  const { me, department, manager, isBoss, isHR } = useMe();
   const [privacy, setPrivacy] = useState(false);
 
   const confirm = (title: string, message: string, fn: () => void) => {
@@ -77,8 +77,6 @@ export default function More() {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
               <Badge label={roleLabel[me.role]} tone="brand" />
               {department && <Badge label={department} />}
-              {me.is_case_handler && <Badge label="Case handler" tone="danger" />}
-              {is_committee && <Badge label="Internal Committee" tone="info" />}
             </View>
             {manager && <Text style={type.small}>Reports to {manager}</Text>}
           </View>
@@ -110,7 +108,7 @@ export default function More() {
             hint: 'Signs out this phone only',
             tint: colors.warning,
             bg: colors.warningSoft,
-            onPress: () => confirm('Sign out?', 'You will need your email and password to sign in again, and your passcode will be removed from this phone.', () => signOut(false)),
+            onPress: () => confirm('Sign out?', 'You will need your email and password to sign in again. Your passcode and fingerprint stay set up on this phone.', () => signOut(false)),
           },
         ])}
 
