@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
@@ -17,7 +17,6 @@ import {
   resolveFeedbackDisplay,
   roleLabel,
 } from '@/lib/format';
-import { supabase } from '@/lib/supabase';
 import type { FeedbackStatus } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
@@ -33,31 +32,6 @@ export default function FeedbackDetail() {
   const [publish, setPublish] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const reload = () => {
-    item.reload();
-    replies.reload();
-  };
-
-  // Live updates: new replies and status/publish changes stream in via Supabase
-  // Realtime, so the thread stays current without pull-to-refresh. Must run
-  // before the loading guard below so hook order stays stable across renders.
-  useEffect(() => {
-    if (!id) return;
-    const channel = supabase
-      .channel(`feedback:${id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'feedback_replies', filter: `feedback_id=eq.${id}` }, () => {
-        replies.reload();
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'feedback_items', filter: `id=eq.${id}` }, () => {
-        item.reload();
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `item`/`replies` are fresh functions each render; only `id` should re-open the channel.
-  }, [id]);
-
   const f = item.data;
   if (!f) {
     return <Screen header={<PageHeader title="Feedback" />}>{item.error ? <Banner tone="danger">{item.error}</Banner> : <ListSkeleton rows={3} />}</Screen>;
@@ -68,6 +42,11 @@ export default function FeedbackDetail() {
   const isAuthor = f.author_id === me.id;
   const canRespond = isBoss || isHR || (me.role === 'manager' && f.recipient_manager_id === me.id && ['manager', 'all'].includes(f.audience));
   const canReply = canRespond || isAuthor;
+
+  const reload = () => {
+    item.reload();
+    replies.reload();
+  };
 
   const setStatus = async (s: FeedbackStatus) => {
     setBusy(s);
