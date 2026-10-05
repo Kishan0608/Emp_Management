@@ -2,6 +2,7 @@ import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { Platform } from 'react-native';
 
 import { ErrorScreen } from '@/components/ErrorScreen';
+import { LocationSync } from '@/components/LocationSync';
 import { NotificationsProvider } from '@/providers/NotificationsProvider';
 import { colors } from '@/theme/tokens';
 
@@ -13,6 +14,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 export default function AppLayout() {
   return (
     <NotificationsProvider>
+      <LocationSync />
       <Stack
         screenOptions={{
           headerShown: false,

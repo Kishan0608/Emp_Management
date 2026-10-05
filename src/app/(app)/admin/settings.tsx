@@ -9,7 +9,7 @@ import { useAuth, useMe } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { spacing } from '@/theme/tokens';
 
-type NumKey = Exclude<keyof AppSettings, 'company_name' | 'require_mfa_admins'>;
+type NumKey = 'min_group_size' | 'blocker_hr_hours' | 'blocker_boss_hours' | 'retention_audit_days' | 'location_retention_days';
 
 const NUMBERS: { key: NumKey; label: string; hint: string }[] = [
   { key: 'min_group_size', label: 'Small-team warning below', hint: 'Warn about anonymous feedback in small teams' },
@@ -18,6 +18,8 @@ const NUMBERS: { key: NumKey; label: string; hint: string }[] = [
   { key: 'retention_audit_days', label: 'Keep audit logs for (days)', hint: '' },
 ];
 
+const LOCATION_RETENTION = { key: 'location_retention_days' as const, label: 'Keep location history for (days)', hint: 'Older location points are deleted every night' };
+
 export default function Settings() {
   const { settings } = useMe();
   const { refresh } = useAuth();
@@ -25,7 +27,9 @@ export default function Settings() {
   const depts = useLoad(() => api.departments());
   const orgs = useLoad(() => api.allOrganizations());
   const [name, setName] = useState(settings.company_name);
-  const [nums, setNums] = useState<Record<NumKey, string>>(() => Object.fromEntries(NUMBERS.map((n) => [n.key, String(settings[n.key])])) as Record<NumKey, string>);
+  const [nums, setNums] = useState<Record<NumKey, string>>(() =>
+    Object.fromEntries([...NUMBERS, LOCATION_RETENTION].map((n) => [n.key, String(settings[n.key])])) as Record<NumKey, string>,
+  );
   const [mfa, setMfa] = useState(settings.require_mfa_admins);
   const [newDept, setNewDept] = useState('');
   const [newOrg, setNewOrg] = useState('');
@@ -33,7 +37,7 @@ export default function Settings() {
 
   const save = async () => {
     const patch: Partial<AppSettings> = { company_name: name.trim(), require_mfa_admins: mfa };
-    for (const n of NUMBERS) {
+    for (const n of [...NUMBERS, LOCATION_RETENTION]) {
       const v = Number(nums[n.key]);
       if (!Number.isInteger(v) || v < 1) return toast(`${n.label}: enter a whole number above 0`, 'error');
       (patch as Record<string, number>)[n.key] = v;
@@ -103,6 +107,17 @@ export default function Settings() {
               keyboardType="number-pad"
             />
           ))}
+        </Card>
+
+        <SectionTitle title="Location tracking" />
+        <Card>
+          <TextField
+            label={LOCATION_RETENTION.label}
+            hint={LOCATION_RETENTION.hint}
+            value={nums.location_retention_days}
+            onChangeText={(t) => setNums({ ...nums, location_retention_days: t.replace(/\D/g, '') })}
+            keyboardType="number-pad"
+          />
         </Card>
 
         <SectionTitle title="Security" />

@@ -34,6 +34,11 @@ export default function OrganizationScreen() {
     try {
       await setSelectedOrg(org);
       toast(org ? `Switched active company to ${org.name}` : 'Showing consolidated view (All Companies)');
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/');
+      }
     } finally {
       setSwitchingId(null);
     }

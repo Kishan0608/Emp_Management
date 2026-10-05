@@ -9,17 +9,15 @@
  *   5. Official SKFL emblem emerges seamlessly at the center of the Rangoli
  *   6. Continuous rhythmic breathing glow-and-unglow cycle ("time to time that unglow make")
  *   7. Active orbital loading comet tracer
- *   8. Live loading percentage counter in the footer (loading line removed per user request)
+ *   8. Clean luxury presentation (number loading and footer counters completely removed)
  *   9. Clean luxury layout: "SHREE KARNI FABCOM LTD" (no portal subtitle)
  */
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
-  FadeIn,
-  FadeOut,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -29,7 +27,6 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fonts } from '@/theme/tokens';
 
@@ -46,29 +43,21 @@ const GOLD_MID   = '#C9B96A';
 // ── Timing (Slow, Stately, Professional) ───────────────────────────────────────
 const MIN_VISIBLE_MS = 3800;
 
-// Phase 1: Slow, stately, professional Rangoli expansion
-const RINGS_AT   = 150;
-const INNER_D_AT = 550;
-const MID_D_AT   = 950;
-const OUTER_D_AT = 1350;
+// Phase 1: Multi-directional sacred arrival (center outward, outer inward, mid orbital sweep)
+const RINGS_AT   = 120; // Center rounds expand OUTWARD from the center
+const OUTER_D_AT = 480; // Grand outer crown converges INWARD from the outside!
+const MID_D_AT   = 880; // Mid diamond garland sweeps along the ORBITAL track
+const INNER_D_AT = 1280; // Inner diamond star & spoke rays radiate outward to bridge layers
 
-// Phase 2: SKFL comes in center (strictly AFTER diamonds make)
-const LOGO_AT    = 2100;
-const NAME_AT    = 2650;
-
-const MESSAGES = [
-  'Preparing your workspace',
-  'Verifying credentials',
-  'Loading your dashboard',
-  'Almost ready',
-] as const;
+// Phase 2: SKFL comes in center at the convergence heart
+const LOGO_AT    = 2050;
+const NAME_AT    = 2550;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────────────────────────────────────
 export function AnimatedSplash({ ready, onFinish }: { ready: boolean; onFinish: () => void }) {
   const { width: W, height: H } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
 
   const rangoliSize = Math.min(W * 0.94, 380);
   const cx = W / 2;
@@ -79,8 +68,6 @@ export function AnimatedSplash({ ready, onFinish }: { ready: boolean; onFinish: 
   const logoH = (logoW * SKFL_VIEWBOX.height) / SKFL_VIEWBOX.width;
 
   const [minElapsed, setMinElapsed] = useState(false);
-  const [msg, setMsg]               = useState(0);
-  const [percent, setPercent]       = useState(0);
 
   // ── Master Animation Values ──
   const exitV              = useSharedValue(1);
@@ -125,33 +112,16 @@ export function AnimatedSplash({ ready, onFinish }: { ready: boolean; onFinish: 
     // 5. Phase 2: Then SKFL comes in center (after all diamonds are made)
     logoIn.set(withDelay(LOGO_AT, withTiming(1, { duration: 850, easing: Easing.out(Easing.cubic) })));
 
-    // 6. Live loading percentage counter (smooth progression)
-    const startTime = Date.now();
-    const percentTimer = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      if (elapsed < MIN_VISIBLE_MS) {
-        const ratio = elapsed / MIN_VISIBLE_MS;
-        const currentP = Math.min(92, Math.round((1 - Math.pow(1 - ratio, 2.2)) * 92));
-        setPercent(currentP);
-      } else {
-        setPercent(ready ? 100 : 94);
-      }
-    }, 40);
-
     const t1 = setTimeout(() => setMinElapsed(true), MIN_VISIBLE_MS);
-    const t2 = setInterval(() => setMsg(m => Math.min(m + 1, MESSAGES.length - 1)), 950);
 
     return () => {
       clearTimeout(t1);
-      clearInterval(t2);
-      clearInterval(percentTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!ready || !minElapsed) return;
-    setPercent(100);
     exitV.set(withDelay(180, withTiming(0, { duration: 520, easing: Easing.in(Easing.cubic) }, done => {
       if (done) runOnJS(onFinish)();
     })));
@@ -247,29 +217,6 @@ export function AnimatedSplash({ ready, onFinish }: { ready: boolean; onFinish: 
           {letters.map((ch, i) => (
             <MandalaLetter key={i} ch={ch} delay={NAME_AT + i * 35} />
           ))}
-        </View>
-      </View>
-
-      {/* ── Footer ── */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 32 }]}>
-        {/* Sacred Diamond Trio Pulse */}
-        <PetalDiamonds ready={!!(ready && minElapsed)} />
-
-        {/* Live Percentage Counter (loading line removed) */}
-        <View style={styles.percentContainer}>
-          <Text style={styles.percentNumber}>{percent}%</Text>
-        </View>
-
-        {/* Status Message */}
-        <View style={styles.statusBox}>
-          <Animated.Text
-            key={msg}
-            entering={FadeIn.duration(240)}
-            exiting={FadeOut.duration(140)}
-            style={styles.status}
-          >
-            {MESSAGES[msg]}…
-          </Animated.Text>
         </View>
       </View>
     </Animated.View>
@@ -389,68 +336,6 @@ function MandalaLetter({ ch, delay }: { ch: string; delay: number }) {
   return <Animated.Text style={[styles.letter, style]}>{ch === ' ' ? '\u00A0' : ch}</Animated.Text>;
 }
 
-/** 3 sacred diamonds that pulse in wave sequence, then lock gold on ready */
-function PetalDiamonds({ ready }: { ready: boolean }) {
-  return (
-    <View style={styles.dotsRow}>
-      {[0, 1, 2].map(i => (
-        <DiamondPulse key={i} index={i} ready={ready} />
-      ))}
-    </View>
-  );
-}
-
-function DiamondPulse({ index, ready }: { index: number; ready: boolean }) {
-  const p = useSharedValue(0.4);
-
-  useEffect(() => {
-    if (ready) {
-      p.set(withTiming(1, { duration: 300 }));
-    } else {
-      p.set(
-        withDelay(
-          index * 220,
-          withRepeat(
-            withSequence(
-              withTiming(1, { duration: 500, easing: Easing.inOut(Easing.quad) }),
-              withTiming(0.25, { duration: 500, easing: Easing.inOut(Easing.quad) }),
-            ),
-            -1,
-            false,
-          ),
-        ),
-      );
-    }
-  }, [p, index, ready]);
-
-  const style = useAnimatedStyle(() => {
-    const val = p.get();
-    return {
-      opacity: ready ? 1 : 0.35 + val * 0.65,
-      transform: [
-        { rotate: '45deg' },
-        { scale: ready ? 1.2 : 0.85 + val * 0.3 },
-      ],
-    };
-  });
-
-  return (
-    <Animated.View
-      style={[
-        {
-          width: 7,
-          height: 7,
-          borderWidth: 1,
-          borderColor: ready ? '#FFFBE0' : GOLD,
-          backgroundColor: ready ? GOLD : 'rgba(229, 227, 172, 0.25)',
-          marginHorizontal: 5,
-        },
-        style,
-      ]}
-    />
-  );
-}
-
 // ── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: {
@@ -480,44 +365,5 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     color: GOLD,
     letterSpacing: 2.8,
-  },
-
-  footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    gap: 8,
-  },
-
-  percentContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  percentNumber: {
-    fontFamily: fonts.semibold,
-    fontSize: 20,
-    color: GOLD,
-    letterSpacing: 1.2,
-    fontVariant: ['tabular-nums'],
-  },
-
-  statusBox: {
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  status: {
-    fontFamily: fonts.medium,
-    fontSize: 12.5,
-    color: 'rgba(255, 255, 255, 0.62)',
-    letterSpacing: 0.4,
-    textAlign: 'center',
-  },
-
-  dotsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
 });

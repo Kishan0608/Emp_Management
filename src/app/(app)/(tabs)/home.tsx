@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { TaskCard } from '@/components/cards';
 import { Banner, Card, EmptyState, HeroHeader, IconButton, ListSkeleton, Screen, SectionTitle, Skeleton, StatCard } from '@/components/ui';
@@ -14,8 +13,9 @@ import { useOrganization } from '@/providers/OrganizationProvider';
 import { colors, fonts, spacing, type } from '@/theme/tokens';
 
 export default function Home() {
-  const { me, isBoss, isHR, isManager } = useMe();
+  const { me, isBoss, isHR, isManager, organization } = useMe();
   const { selectedOrg, selectedOrgId } = useOrganization();
+  const currentCompany = selectedOrg?.name || organization?.name || 'Shree Karni Fabcom Ltd';
   const { unread } = useNotifications();
   const stats = useLoad(() => api.dashboard(selectedOrgId), [selectedOrgId]);
   const myTasks = useLoad(() => api.tasks('mine', me.id));
@@ -51,24 +51,12 @@ export default function Home() {
                   <Ionicons name="shield-half-outline" size={13} color={colors.white} />
                   <Text style={styles.rolePillText}>{roleLabel[me.role]}</Text>
                 </View>
-                {isBoss ? (
-                  <Pressable
-                    onPress={() => router.push('/organization')}
-                    style={styles.orgPill}
-                    accessibilityRole="button"
-                    accessibilityLabel="Select company"
-                    hitSlop={6}>
-                    <Ionicons name="business" size={13} color={colors.white} />
-                    <Text style={styles.orgPillText} numberOfLines={1}>
-                      {selectedOrg ? selectedOrg.name : 'All Companies'}
-                    </Text>
-                    <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.7)" />
-                  </Pressable>
-                ) : !!me.job_title ? (
-                  <Text style={styles.heroMetaText} numberOfLines={1}>
-                    {me.job_title}
+                <View style={styles.orgPill}>
+                  <Ionicons name="business" size={13} color={colors.white} />
+                  <Text style={styles.orgPillText} numberOfLines={1}>
+                    {currentCompany}
                   </Text>
-                ) : null}
+                </View>
               </>
             }
           />
@@ -178,7 +166,13 @@ export default function Home() {
   );
 }
 
-function Metric({ label, value, tone }: { label: string; value: number | string; tone?: string }) {
+interface MetricProps {
+  label: string;
+  value: number | string;
+  tone?: string;
+}
+
+function Metric({ label, value, tone }: MetricProps) {
   return (
     <View style={{ flex: 1, minWidth: 56 }}>
       <Text style={[styles.metricValue, tone ? { color: tone } : null]}>{value}</Text>
@@ -208,7 +202,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3.5,
     borderRadius: 6,
     backgroundColor: 'rgba(255,255,255,0.22)',
-    maxWidth: 180,
+    maxWidth: 220,
   },
   orgPillText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.white },
   heroMetaText: { flex: 1, fontFamily: fonts.medium, fontSize: 13, color: 'rgba(255,255,255,0.8)' },
