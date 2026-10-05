@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "364247112224",
-    "project_id": "shree-karni-fabcom-ltd",
-    "storage_bucket": "shree-karni-fabcom-ltd.firebasestorage.app"
+    "project_number": "282005777840",
+    "project_id": "shree-karni-fabcom-ltd-81ac9",
+    "storage_bucket": "shree-karni-fabcom-ltd-81ac9.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:364247112224:android:7222aa82024c6dd0103a45",
+        "mobilesdk_app_id": "1:282005777840:android:b49a6e578f04e0c7c17a75",
         "android_client_info": {
           "package_name": "com.shreekarnifabcom.skfl"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyC-JqJy41wN5HvopbcBdwFSjRMC5RmxTmc"
+          "current_key": "AIzaSyAd2RahWqztouW9DKvYpbdDoEVR_55so08"
         }
       ],
       "services": {
