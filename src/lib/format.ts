@@ -140,3 +140,26 @@ export function formatINR(value: number | null | undefined): string {
   if (value == null) return '—';
   return '₹' + Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 }
+
+const PRIORITY_RANK: Record<TaskPriority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+export const isTaskDone = (status: TaskStatus) => status === 'closed' || status === 'approved';
+
+/**
+ * Task list order: open work first (overdue, then soonest due, then highest
+ * priority, then most recently updated); finished work after, newest first.
+ */
+export function sortTasks<T extends { status: TaskStatus; priority: TaskPriority; due_date: string | null; approved_at: string | null; updated_at: string }>(list: T[]): T[] {
+  const today = toDateOnly(new Date());
+  return [...list].sort((a, b) => {
+    const ad = isTaskDone(a.status);
+    const bd = isTaskDone(b.status);
+    if (ad !== bd) return ad ? 1 : -1;
+    if (ad) return (b.approved_at ?? b.updated_at).localeCompare(a.approved_at ?? a.updated_at);
+    const ao = !!a.due_date && a.due_date < today;
+    const bo = !!b.due_date && b.due_date < today;
+    if (ao !== bo) return ao ? -1 : 1;
+    if (a.due_date !== b.due_date) return !a.due_date ? 1 : !b.due_date ? -1 : a.due_date.localeCompare(b.due_date);
+    if (a.priority !== b.priority) return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+    return b.updated_at.localeCompare(a.updated_at);
+  });
+}

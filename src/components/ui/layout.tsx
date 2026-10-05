@@ -8,7 +8,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTim
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedBackdrop } from '@/components/AnimatedBackdrop';
-import { colors, fonts, gradients, layout, radius, spacing, type } from '@/theme/tokens';
+import { colors, fonts, gradients, layout, radius, shadow, spacing, type } from '@/theme/tokens';
 
 import { KeyboardScrollProvider, useKeyboardScroll } from '@/providers/KeyboardScrollProvider';
 
@@ -219,13 +219,12 @@ export function ListSkeleton({ rows = 4 }: { rows?: number }) {
 
 /** Floating action button. */
 export function Fab({ icon = 'add', label, onPress }: { icon?: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
-  const insets = useSafeAreaInsets();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => [styles.fab, { bottom: insets.bottom + 84 }, pressed && { transform: [{ scale: 0.96 }] }]}>
+      style={({ pressed }) => [styles.fab, pressed && { transform: [{ scale: 0.96 }] }]}>
       <LinearGradient colors={gradients.gold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fabInner}>
         <Ionicons name={icon} size={22} color={colors.ink} />
         <Text style={styles.fabText}>{label}</Text>
@@ -264,7 +263,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  fab: { position: 'absolute', right: spacing.lg, borderRadius: radius.pill, overflow: 'hidden' },
+  /** Sits just above the tab bar (tab screens end at the bar). */
+  fab: { position: 'absolute', right: spacing.lg, bottom: spacing.md, borderRadius: radius.pill, ...shadow.md },
   fabInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: 20, height: 52, borderRadius: radius.pill },
   fabText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
 });

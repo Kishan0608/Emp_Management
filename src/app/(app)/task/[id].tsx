@@ -3,7 +3,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   AppText,
@@ -26,22 +26,11 @@ import { dueLabel, formatDate, formatDateTime, priorityLabel, priorityTone, task
 import type { ChecklistItem, Task, TaskStatus } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
-import { colors, fonts, radius, spacing, type } from '@/theme/tokens';
+import { colors, fonts, spacing, type } from '@/theme/tokens';
 
 const FLOW: TaskStatus[] = ['assigned', 'accepted', 'closed'];
 const STEP_LABEL: Partial<Record<TaskStatus, string>> = { assigned: 'Assigned', accepted: 'Accepted', closed: 'Done' };
 const STEP_HINT: Partial<Record<TaskStatus, string>> = { assigned: 'Task given', accepted: 'Working on it', closed: 'Completed' };
-
-const EVENT_ICON: Record<TaskStatus, keyof typeof Ionicons.glyphMap> = {
-  assigned: 'add-circle',
-  accepted: 'hand-right',
-  in_progress: 'play-circle',
-  blocked: 'hand-left',
-  submitted: 'cloud-upload',
-  approved: 'checkmark-circle',
-  returned: 'arrow-undo-circle',
-  closed: 'checkmark-done-circle',
-};
 
 type Prompt = null | { to: TaskStatus; title: string; message: string; label: string; required: boolean; danger?: boolean; proof?: boolean };
 
@@ -50,7 +39,6 @@ export default function TaskDetail() {
   const { me, isBoss } = useMe();
   const toast = useToast();
   const task = useLoad(() => api.task(id), [id]);
-  const events = useLoad(() => api.taskEvents(id), [id]);
   const [prompt, setPrompt] = useState<Prompt>(null);
   const [proofLink, setProofLink] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
@@ -58,7 +46,6 @@ export default function TaskDetail() {
   const t = task.data;
   const reload = () => {
     task.reload();
-    events.reload();
   };
 
   const move = async (to: TaskStatus, note?: string, proof?: string) => {
@@ -222,36 +209,6 @@ export default function TaskDetail() {
             </Card>
           )}
 
-          <SectionTitle title="Timeline" />
-          <Card>
-            {events.loading ? (
-              <ActivityIndicator color={colors.brand} />
-            ) : (
-              (events.data ?? []).map((e, i, arr) => (
-                <View key={e.id} style={styles.event}>
-                  <View style={{ alignItems: 'center' }}>
-                    <Ionicons name={EVENT_ICON[e.to_status]} size={22} color={toneColor(e.to_status)} />
-                    {i < arr.length - 1 && <View style={styles.eventLine} />}
-                  </View>
-                  <View style={{ flex: 1, paddingBottom: spacing.lg, gap: 2 }}>
-                    <Text style={type.bodyMedium}>
-                      {taskStatusLabel[e.to_status]}
-                      <Text style={type.small}> · {e.actor?.full_name ?? 'System'}</Text>
-                    </Text>
-                    <Text style={type.small}>{formatDateTime(e.created_at)}</Text>
-                    {e.note && <Text style={[type.body, styles.note]}>{e.note}</Text>}
-                    {e.proof_url && (
-                      <Pressable onPress={() => WebBrowser.openBrowserAsync(e.proof_url!)}>
-                        <Text style={[type.smallMedium, { color: colors.brand }]} numberOfLines={1}>
-                          🔗 {e.proof_url}
-                        </Text>
-                      </Pressable>
-                    )}
-                  </View>
-                </View>
-              ))
-            )}
-          </Card>
         </View>
       </Screen>
 
@@ -298,14 +255,6 @@ function buildActions(t: Task, isAssignee: boolean) {
   return a;
 }
 
-function toneColor(s: TaskStatus) {
-  if (s === 'approved') return colors.success;
-  if (s === 'blocked' || s === 'returned') return colors.danger;
-  if (s === 'submitted') return colors.warning;
-  if (s === 'closed') return colors.success;
-  return colors.brand;
-}
-
 /** Old in-between stages count as Accepted; approved counts as Done. */
 const stepOf = (s: TaskStatus): TaskStatus => (s === 'assigned' ? 'assigned' : s === 'closed' || s === 'approved' ? 'closed' : 'accepted');
 
@@ -349,9 +298,6 @@ const styles = StyleSheet.create({
   check: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
   file: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, paddingHorizontal: spacing.lg },
   fileIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
-  event: { flexDirection: 'row', gap: spacing.md },
-  eventLine: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 2 },
-  note: { marginTop: 6, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surfaceAlt, fontSize: 14 },
   stepper: { flexDirection: 'row' },
   step: { flex: 1, alignItems: 'center' },
   stepDot: {

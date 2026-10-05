@@ -44,3 +44,4 @@ example
 
 # separate project kept alongside, not part of this app
 SKF App/
+.vercel

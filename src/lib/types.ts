@@ -21,6 +21,13 @@ export interface AppUser {
   account_status?: 'invited' | 'awaiting_approval' | 'active';
   consent_version: number | null;
   consent_at: string | null;
+  phone?: string | null;
+  personal_email?: string | null;
+  address?: string | null;
+  salary_monthly?: number | null;
+  attendance_pct?: number | null;
+  performance_rating?: number | null;
+  joined_on?: string | null;
   created_at: string;
 }
 
@@ -28,23 +35,18 @@ export interface AppSettings {
   company_name: string;
   session_timeout_minutes: number;
   privacy_notice_version: number;
-  monthly_complaint_quota: number;
   min_group_size: number;
-  yellow_threshold: number;
-  red_threshold: number;
-  window_days: number;
   blocker_hr_hours: number;
   blocker_boss_hours: number;
   require_mfa_admins: boolean;
-  retention_complaint_days: number;
   retention_audit_days: number;
+  email_test_mode?: boolean;
 }
 
 export interface MyContext {
   user: AppUser;
   department: string | null;
   manager: string | null;
-  is_committee: boolean;
   mfa_required: boolean;
   aal: 'aal1' | 'aal2';
   settings: AppSettings;
@@ -129,6 +131,7 @@ export interface FeedbackItem {
   status: FeedbackStatus;
   escalation_level: number;
   is_published: boolean;
+  replies?: FeedbackReply[];
   created_at: string;
   answered_at: string | null;
   resolved_at: string | null;
@@ -166,8 +169,8 @@ export interface EmployeeProfile {
   manager: string | null;
   manager_id: string | null;
   is_active: boolean;
-  is_case_handler: boolean;
-  is_committee: boolean;
+  is_case_handler?: boolean;
+  is_committee?: boolean;
   created_at: string;
   visible_fields: VisibilityField[];
   phone?: string | null;
@@ -274,4 +277,25 @@ export interface TeamMemberReport {
   monthly: { month: string; done: number }[];
   recent_tasks: { id: string; title: string; status: TaskStatus; priority: TaskPriority; due_date: string | null; sort_key: string; overdue: boolean }[];
   timeline: { created_at: string; to_status: TaskStatus; note: string | null; title: string; task_id: string; actor: string | null }[];
+}
+
+/** Tasks grouped by people: Boss -> managers & HR -> their team. */
+export interface TaskCounts {
+  total: number;
+  pending: number;
+  done: number;
+  overdue: number;
+}
+export interface TaskTeamMember extends TaskCounts {
+  id: string;
+  full_name: string;
+  role: Role;
+  job_title: string | null;
+  team_size: number;
+  team_pending: number;
+}
+export interface TaskTeam {
+  is_top: boolean;
+  leader: TaskCounts & { id: string; full_name: string; role: Role; job_title: string | null };
+  members: TaskTeamMember[];
 }

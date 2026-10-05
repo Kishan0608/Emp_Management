@@ -145,27 +145,34 @@ export default function FeedbackDetail() {
           />
         )}
 
-        <SectionTitle title={`Conversation · ${replies.data?.length ?? 0}`} />
-        {(replies.data ?? []).length === 0 ? (
-          <AppText variant="small">No replies yet.</AppText>
-        ) : (
-          (replies.data ?? []).map((r, i) => {
-            const mine = r.responder_id === me.id;
-            return (
-              <Animated.View key={r.id} entering={FadeInUp.delay(i * 40)} style={[styles.bubbleRow, mine && { justifyContent: 'flex-end' }]}>
-                {!mine && <Avatar name={r.responder?.full_name} id={r.responder_id ?? undefined} size={30} />}
-                <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}>
-                  <Text style={[styles.bubbleName, mine && { color: 'rgba(255,255,255,0.85)' }]}>
-                    {mine ? 'You' : r.responder?.full_name ?? 'Former employee'}
-                    {r.responder && !mine ? ` · ${roleLabel[r.responder.role]}` : ''}
-                  </Text>
-                  <Text style={[styles.bubbleText, mine && { color: colors.white }]}>{r.body}</Text>
-                  <Text style={[styles.bubbleTime, mine && { color: 'rgba(255,255,255,0.7)' }]}>{formatDateTime(r.created_at)}</Text>
-                </View>
-              </Animated.View>
-            );
-          })
-        )}
+        {(() => {
+          const replyList = f.replies && f.replies.length > 0 ? f.replies : replies.data ?? [];
+          return (
+            <>
+              <SectionTitle title={`Conversation · ${replyList.length}`} />
+              {replyList.length === 0 ? (
+                <AppText variant="small">No replies yet.</AppText>
+              ) : (
+                replyList.map((r, i) => {
+                  const mine = r.responder_id === me.id;
+                  return (
+                    <Animated.View key={r.id} entering={FadeInUp.delay(i * 40)} style={[styles.bubbleRow, mine && { justifyContent: 'flex-end' }]}>
+                      {!mine && <Avatar name={r.responder?.full_name} id={r.responder_id ?? undefined} size={30} />}
+                      <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}>
+                        <Text style={[styles.bubbleName, mine && { color: 'rgba(255,255,255,0.85)' }]}>
+                          {mine ? 'You' : r.responder?.full_name ?? 'Former employee'}
+                          {r.responder && !mine ? ` · ${roleLabel[r.responder.role]}` : ''}
+                        </Text>
+                        <Text style={[styles.bubbleText, mine && { color: colors.white }]}>{r.body}</Text>
+                        <Text style={[styles.bubbleTime, mine && { color: 'rgba(255,255,255,0.7)' }]}>{formatDateTime(r.created_at)}</Text>
+                      </View>
+                    </Animated.View>
+                  );
+                })
+              )}
+            </>
+          );
+        })()}
       </View>
     </Screen>
   );

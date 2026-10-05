@@ -18,6 +18,7 @@ import type {
   NotificationRow,
   Role,
   Task,
+  TaskTeam,
   TaskEvent,
   TaskPriority,
   TaskStatus,
@@ -77,7 +78,7 @@ async function invokeFn<T>(name: string, body: Record<string, unknown>): Promise
   return data as T;
 }
 
-const USER_FIELDS = 'id, full_name, email, role, job_title, department_id, manager_id, is_active, is_case_handler';
+const USER_FIELDS = 'id, full_name, email, role, job_title, department_id, manager_id, phone, is_active, is_case_handler';
 const TASK_SELECT =
   '*, assignee:users!tasks_assignee_id_fkey(full_name), creator:users!tasks_created_by_fkey(full_name), reviewer:users!tasks_reviewer_id_fkey(full_name)';
 
@@ -189,6 +190,15 @@ export const api = {
     return check<Task[]>(await q);
   },
   task: async (id: string) => check<Task>(await supabase.from('tasks').select(TASK_SELECT).eq('id', id).single()),
+  /** A person's team with task counts; no id = my own team (for the Boss: every manager and HR). */
+  taskTeam: async (leader?: string) => check<TaskTeam>(await supabase.rpc('task_team', { p_leader: leader ?? null })),
+  /** Work tasks one person gave to other people. */
+  tasksGivenBy: async (person: string) =>
+    check<Task[]>(await supabase.from('tasks').select(TASK_SELECT).eq('created_by', person).neq('assignee_id', person).eq('is_personal', false).order('updated_at', { ascending: false }).limit(200)),
+  /** Work tasks assigned to one person (personal to-dos excluded). */
+  personTasks: async (person: string) =>
+    check<Task[]>(await supabase.from('tasks').select(TASK_SELECT).eq('assignee_id', person).eq('is_personal', false).order('updated_at', { ascending: false }).limit(200)),
+  /** Status history of a task, oldest first (from task_events; readable whenever the task is). */
   taskEvents: async (id: string) =>
     check<TaskEvent[]>(
       await supabase
@@ -255,14 +265,13 @@ export const api = {
     check<FeedbackItem>(
       await supabase.from('feedback_items').select('*, author:users!feedback_items_author_id_fkey(full_name)').eq('id', id).single(),
     ),
-  feedbackReplies: async (id: string) =>
-    check<FeedbackReply[]>(
-      await supabase
-        .from('feedback_replies')
-        .select('*, responder:users!feedback_replies_responder_id_fkey(full_name, role)')
-        .eq('feedback_id', id)
-        .order('created_at'),
-    ),
+  feedbackReplies: async (id: string) => {
+    const res = await supabase.from('feedback_items').select('replies').eq('id', id).single();
+    if (res.data?.replies && Array.isArray(res.data.replies)) {
+      return res.data.replies as FeedbackReply[];
+    }
+    return [];
+  },
   submitFeedback: async (p: { type: FeedbackType; audience: FeedbackAudience; title: string; body: string; anonymous: boolean; taskId?: string | null }) =>
     check<string>(
       await supabase.rpc('submit_feedback', {

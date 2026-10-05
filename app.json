@@ -22,7 +22,12 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "softwareKeyboardLayoutMode": "resize",
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "output": "single",
@@ -74,13 +79,23 @@
         {
           "android": {
             "datePicker": {
-              "colorAccent": { "light": "#7D6E22" },
-              "textColorPrimary": { "light": "#1C1B19" }
+              "colorAccent": {
+                "light": "#7D6E22"
+              },
+              "textColorPrimary": {
+                "light": "#1C1B19"
+              }
             },
             "timePicker": {
-              "headerBackground": { "light": "#2F2E2B" },
-              "numbersSelectorColor": { "light": "#7D6E22" },
-              "numbersBackgroundColor": { "light": "#F8F6E7" }
+              "headerBackground": {
+                "light": "#2F2E2B"
+              },
+              "numbersSelectorColor": {
+                "light": "#7D6E22"
+              },
+              "numbersBackgroundColor": {
+                "light": "#F8F6E7"
+              }
             }
           }
         }
@@ -90,6 +105,16 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "description": "Shree Karni Fabcom Ltd (SKFL): tasks, anonymous complaints and feedback."
+    "description": "Shree Karni Fabcom Ltd (SKFL): tasks, anonymous complaints and feedback.",
+    "extra": {
+      "router": {},
+      "expo-navigation-bar": {
+        "enforceContrast": false,
+        "style": "dark"
+      },
+      "eas": {
+        "projectId": "6b7ee816-d581-4ef2-b629-31e047639c70"
+      }
+    }
   }
 }

@@ -26,6 +26,7 @@ import {
   Sheet,
   TextField,
 } from '@/components/ui';
+import { DialogButton, PickerDialog, TimeDialog } from '@/components/ClockDial';
 import { useLoad } from '@/hooks/useLoad';
 import { api, errorMessage } from '@/lib/api';
 import { formatDate, roleLabel, toDateOnly } from '@/lib/format';
@@ -447,9 +448,10 @@ export default function NewTask() {
           </View>
           {!due && <Text style={styles.dueHint}>Choose a date first, then the time it is due.</Text>}
 
-          {/* Web: calendar grid (phones use the native calendar) */}
-          {Platform.OS === 'web' && calendarOpen && (
-            <View style={styles.pickerAttachedCard}>
+          {/* Web: calendar in a centered dialog (phones use the native calendar) */}
+          {Platform.OS === 'web' && (
+            <PickerDialog visible={calendarOpen} title="Select due date" onClose={() => setCalendarOpen(false)} footer={<DialogButton label="Cancel" onPress={() => setCalendarOpen(false)} />}>
+            <View>
               {/* Month Navigation */}
               <View style={styles.calMonthNav}>
                 <Pressable onPress={() => changeMonth(-1)} hitSlop={8} style={styles.calNavBtn}>
@@ -505,57 +507,22 @@ export default function NewTask() {
                 })}
               </View>
             </View>
+            </PickerDialog>
           )}
 
-          {/* Web: time grid (phones use the native clock) */}
-          {Platform.OS === 'web' && timeOpen && (
-            <View style={styles.pickerAttachedCard}>
-              {/* AM / PM Segment */}
-              <View style={styles.periodRow}>
-                <Pressable
-                  onPress={() => setSelectedPeriod('AM')}
-                  style={[styles.periodBtn, selectedPeriod === 'AM' && styles.periodBtnActive]}>
-                  <Text style={[styles.periodBtnText, selectedPeriod === 'AM' && styles.periodBtnTextActive]}>AM</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setSelectedPeriod('PM')}
-                  style={[styles.periodBtn, selectedPeriod === 'PM' && styles.periodBtnActive]}>
-                  <Text style={[styles.periodBtnText, selectedPeriod === 'PM' && styles.periodBtnTextActive]}>PM</Text>
-                </Pressable>
-              </View>
-
-              {/* Hours Grid */}
-              <Text style={styles.clockSubhead}>Hour</Text>
-              <View style={styles.hoursGrid}>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((h) => {
-                  const active = selectedHour === h;
-                  return (
-                    <Pressable
-                      key={h}
-                      onPress={() => setSelectedHour(h)}
-                      style={[styles.clockNumCell, active && styles.clockNumCellActive]}>
-                      <Text style={[styles.clockNumText, active && styles.clockNumTextActive]}>{h}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              {/* Minutes Grid */}
-              <Text style={styles.clockSubhead}>Minute</Text>
-              <View style={styles.minutesRow}>
-                {['00', '15', '30', '45'].map((m) => {
-                  const active = selectedMinute === m;
-                  return (
-                    <Pressable
-                      key={m}
-                      onPress={() => setSelectedMinute(m)}
-                      style={[styles.minuteCell, active && styles.minuteCellActive]}>
-                      <Text style={[styles.minuteText, active && styles.minuteTextActive]}>:{m}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
+          {/* Web: clock-face dialog (phones use the native clock) */}
+          {Platform.OS === 'web' && (
+            <TimeDialog
+              visible={timeOpen}
+              initial={{ hour: selectedHour, minute: Number(selectedMinute), period: selectedPeriod }}
+              onCancel={() => setTimeOpen(false)}
+              onConfirm={(v) => {
+                setSelectedHour(v.hour);
+                setSelectedMinute(String(v.minute).padStart(2, '0'));
+                setSelectedPeriod(v.period);
+                setTimeOpen(false);
+              }}
+            />
           )}
         </Card>
 

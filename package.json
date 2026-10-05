@@ -56,9 +56,10 @@
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
+    "build": "expo export -p web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test:smoke": "node --env-file=.env.local scripts/smoke-test.mjs",
