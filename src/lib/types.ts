@@ -58,6 +58,10 @@ export interface AppUser {
   app_lock_biometric_enabled?: boolean;
   has_passcode?: boolean;
   has_pattern?: boolean;
+  // Location sharing (opt-in, set only through set_my_location_sharing)
+  location_sharing_enabled?: boolean;
+  location_sharing_changed_at?: string | null;
+  location_device_status?: LocationDeviceStatus | null;
 }
 
 export interface AppSettings {
@@ -69,7 +73,41 @@ export interface AppSettings {
   blocker_boss_hours: number;
   require_mfa_admins: boolean;
   retention_audit_days: number;
+  location_retention_days: number;
   email_test_mode?: boolean;
+}
+
+// ---------- location tracking ----------
+/** What the salesperson's phone last reported about itself. */
+export type LocationDeviceStatus = 'ok' | 'foreground_only' | 'permission_denied' | 'services_off';
+
+export interface LocationPoint {
+  recorded_at: string;
+  latitude: number;
+  longitude: number;
+  accuracy_m: number | null;
+  speed_mps: number | null;
+}
+
+/** One row on the live board: the newest fix for a person the viewer may track. */
+export interface LiveLocation {
+  user_id: string;
+  full_name: string;
+  role: Role;
+  job_title: string | null;
+  department: string | null;
+  organization_id: string | null;
+  organization: string | null;
+  last_point: LocationPoint | null;
+  points_today: number;
+  device_status: LocationDeviceStatus | null;
+  status_at: string | null;
+}
+
+export interface LocationDay {
+  person: { id: string; full_name: string; role: Role; sharing_enabled: boolean };
+  work_date: string;
+  points: LocationPoint[];
 }
 
 export interface MyContext {
@@ -77,6 +115,8 @@ export interface MyContext {
   department: string | null;
   manager: string | null;
   organization?: { id: string; name: string } | null;
+  /** True when anyone reports to this user, whatever their role. */
+  leads_team?: boolean;
   mfa_required: boolean;
   aal: 'aal1' | 'aal2';
   settings: AppSettings;

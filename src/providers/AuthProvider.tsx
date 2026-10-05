@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState } from 'react-native';
 
 import { api, errorMessage } from '@/lib/api';
+import { stopLocationTracking } from '@/lib/location';
 import {
   authenticate,
   clearAppLock,
@@ -103,6 +104,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async (allDevices = false, message?: string, forgetPasscode = false) => {
+    // A signed-out phone must never keep sending location.
+    await stopLocationTracking().catch(() => {});
     try {
       await api.recordLogout(allDevices);
     } catch {

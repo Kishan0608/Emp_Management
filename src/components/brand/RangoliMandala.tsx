@@ -2,12 +2,12 @@
  * Rangoli Mandala — Sacred Geometric Textile & Diamond Motif
  *
  * Designed for Shree Karni Fabcom Ltd (SKFL).
- * Professional, slow, stately, luxury aesthetic:
- *   - Stately concentric rounds expanding outward without jerky twists
- *   - 16-point Inner Sacred Diamond Star
- *   - Mid Rangoli Round with 16 linked Diamond Garlands and lotus scallop arches
- *   - Grand Outer Rangoli Crown with 16 Diamond Florets, pearl teardrops, and celestial halos
- *   - Central golden sanctum core designed to frame SKFL seamlessly
+ * Multi-directional, converging sacred geometry arrival:
+ *   - Central Sanctum & Concentric Rounds expand OUTWARD from the center (0.20 -> 1.0)
+ *   - Grand Outer Diamond Crown & Celestial Halo converge INWARD from outside (1.35 -> 1.0)
+ *   - Mid Diamond Garland & Lotus Arches sweep along the ORBITAL track (-35deg -> 0deg)
+ *   - Inner Diamond Star & Radial Spoke Rays radiate outward from the core to link the layers
+ *   - Central golden sanctum core designed to frame SKFL seamlessly at the convergence point
  *   - True feathered Optical Radial Glow (SVG RadialGradient)
  *   - Smooth Orbital Loading Comet Tracer orbiting the diamond track
  *   - Rhythmic Slow Glow & Unglow breathing cycle ("time to time unglow make")
@@ -15,7 +15,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
-import Svg, { Circle, Defs, G, LinearGradient, Path, Polygon, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Polygon, RadialGradient, Stop } from 'react-native-svg';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 export const RANGOLI_COLORS = {
@@ -157,6 +157,15 @@ export function RangoliMandala({
       });
     }
 
+    // 5. Radial spoke rays (bridging inner sanctum to garland)
+    const spokeRays: { x1: number; y1: number; x2: number; y2: number }[] = [];
+    for (let i = 0; i < 16; i++) {
+      const a = i * 22.5;
+      const p1 = polar(74, a);
+      const p2 = polar(116, a);
+      spokeRays.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y });
+    }
+
     return {
       majorDiamonds,
       majorInnerDiamonds,
@@ -174,47 +183,56 @@ export function RangoliMandala({
       sanctumInnerPearls,
       corePearls,
       celestialPearls,
+      spokeRays,
     };
   }, []);
 
-  // ── Reanimated Transformations (Stately, Slow, Luxury Cinematic) ────────────
+  // ── Reanimated Transformations (Multi-Directional Diverse Arrivals) ─────────
 
-  // 1. Concentric Rounds — smooth majestic expansion
+  // 1. Concentric Rounds — expands smoothly from the CENTER OUTWARD (0.20 -> 1.0)
   const ringsStyle = useAnimatedStyle(() => {
     const s = ringsScale.get();
+    const scale = 0.20 + s * 0.80;
     return {
       opacity: s,
-      transform: [{ scale: s }],
+      transform: [{ scale }],
     };
   });
 
-  // 2. Inner Diamonds — graceful outward bloom with gentle micro-drift
+  // 2. Inner Diamonds & Spoke Rays — radiates OUTWARD from the core to link the rings
   const innerDiamondsStyle = useAnimatedStyle(() => {
     const s = innerDiamondsScale.get();
-    const rot = clock.get() * 12; // slow, dignified 60s rotation
+    const scale = 0.45 + s * 0.55;
+    const settle = (1 - s) * 16;
+    const rot = settle + clock.get() * 12; // slow dignified 60s rotation
     return {
       opacity: s,
-      transform: [{ scale: s }, { rotate: `${rot}deg` }],
+      transform: [{ scale }, { rotate: `${rot}deg` }],
     };
   });
 
-  // 3. Mid Garland — continuous linked diamond garland with gentle counter-drift
+  // 3. Mid Garland — arrives via ORBITAL CIRCULAR SWEEP along the R=130 track (-32deg -> 0deg)
   const midGarlandStyle = useAnimatedStyle(() => {
     const s = midDiamondsScale.get();
-    const rot = -clock.get() * 16; // slow dignified counter-drift
+    const scale = 0.82 + s * 0.18;
+    const sweep = (1 - s) * -32;
+    const rot = sweep - clock.get() * 14;
     return {
       opacity: s,
-      transform: [{ scale: s }, { rotate: `${rot}deg` }],
+      transform: [{ scale }, { rotate: `${rot}deg` }],
     };
   });
 
-  // 4. Grand Outer Crown — unfolds like a royal lotus
+  // 4. Grand Outer Crown — converges INWARD FROM THE OUTSIDE (1.35 -> 1.0)
   const outerCrownStyle = useAnimatedStyle(() => {
     const s = outerDiamondsScale.get();
-    const rot = clock.get() * 8; // stately outer drift
+    // Descends inward from outside perimeter (1.35 down to 1.0)
+    const scale = 1.35 - s * 0.35;
+    const settle = (1 - s) * 18;
+    const rot = settle + clock.get() * 8;
     return {
       opacity: s,
-      transform: [{ scale: s }, { rotate: `${rot}deg` }],
+      transform: [{ scale }, { rotate: `${rot}deg` }],
     };
   });
 
@@ -266,7 +284,7 @@ export function RangoliMandala({
           Always visible, provides grounding structure & fine filigree detail
          ════════════════════════════════════════════════════════════════════════ */}
 
-      {/* 1. Concentric Rangoli Rounds & Central Sanctum */}
+      {/* 1. Concentric Rangoli Rounds & Central Sanctum (Expands from Center Outward) */}
       <Animated.View style={[StyleSheet.absoluteFill, styles.center, ringsStyle]}>
         <Svg width={size} height={size} viewBox="-210 -210 420 420">
           <Defs>
@@ -310,9 +328,17 @@ export function RangoliMandala({
         </Svg>
       </Animated.View>
 
-      {/* 2. Inner Sacred Diamond Star Layer */}
+      {/* 2. Inner Sacred Diamond Star & Spoke Rays Layer (Radiates Outward from Core) */}
       <Animated.View style={[StyleSheet.absoluteFill, styles.center, innerDiamondsStyle]}>
         <Svg width={size} height={size} viewBox="-210 -210 420 420">
+          {/* Radial Spoke Rays connecting inner ring to garland */}
+          <G stroke={RANGOLI_COLORS.LINE_GUIDE} strokeWidth="0.8" strokeDasharray="2, 3">
+            {geometry.spokeRays.map((r, i) => (
+              <Line key={`spoke-${i}`} x1={r.x1} y1={r.y1} x2={r.x2} y2={r.y2} />
+            ))}
+          </G>
+
+          {/* Major Diamonds */}
           <G stroke={RANGOLI_COLORS.GOLD_MID} strokeWidth="1.2" fill={RANGOLI_COLORS.DIAMOND_FILL_BASE}>
             {geometry.majorDiamonds.map((d, i) => (
               <Path key={`maj-d-${i}`} d={d} />
@@ -339,7 +365,7 @@ export function RangoliMandala({
         </Svg>
       </Animated.View>
 
-      {/* 3. Mid Diamond Garland Layer */}
+      {/* 3. Mid Diamond Garland Layer (Arrives via Orbital Sweep) */}
       <Animated.View style={[StyleSheet.absoluteFill, styles.center, midGarlandStyle]}>
         <Svg width={size} height={size} viewBox="-210 -210 420 420">
           {/* Connecting Lotus Arches */}
@@ -366,7 +392,7 @@ export function RangoliMandala({
         </Svg>
       </Animated.View>
 
-      {/* 4. Grand Outer Diamond Crown Layer */}
+      {/* 4. Grand Outer Diamond Crown Layer (Converges INWARD from Outside) */}
       <Animated.View style={[StyleSheet.absoluteFill, styles.center, outerCrownStyle]}>
         <Svg width={size} height={size} viewBox="-210 -210 420 420">
           {/* Base Scallop Arches */}
@@ -405,7 +431,7 @@ export function RangoliMandala({
           Pulses smoothly between brilliant luminous champagne gold and soft unglow
          ════════════════════════════════════════════════════════════════════════ */}
       <Animated.View style={[StyleSheet.absoluteFill, glowOverlayStyle]}>
-        {/* Glow overlay on Rings */}
+        {/* Glow overlay on Rings (Center Outward) */}
         <Animated.View style={[StyleSheet.absoluteFill, styles.center, ringsStyle]}>
           <Svg width={size} height={size} viewBox="-210 -210 420 420">
             <Circle cx="0" cy="0" r="54" stroke={RANGOLI_COLORS.GOLD_BRIGHT} strokeWidth="1.8" fill="none" />
@@ -417,7 +443,7 @@ export function RangoliMandala({
           </Svg>
         </Animated.View>
 
-        {/* Glow overlay on Inner Diamonds */}
+        {/* Glow overlay on Inner Diamonds (Radiating Outward) */}
         <Animated.View style={[StyleSheet.absoluteFill, styles.center, innerDiamondsStyle]}>
           <Svg width={size} height={size} viewBox="-210 -210 420 420">
             <G stroke={RANGOLI_COLORS.GOLD_BRIGHT} strokeWidth="1.8" fill={RANGOLI_COLORS.DIAMOND_FILL_GLOW}>
@@ -439,7 +465,7 @@ export function RangoliMandala({
           </Svg>
         </Animated.View>
 
-        {/* Glow overlay on Mid Garland */}
+        {/* Glow overlay on Mid Garland (Orbital Sweep) */}
         <Animated.View style={[StyleSheet.absoluteFill, styles.center, midGarlandStyle]}>
           <Svg width={size} height={size} viewBox="-210 -210 420 420">
             <G stroke={RANGOLI_COLORS.GOLD_BRIGHT} strokeWidth="1.8" fill={RANGOLI_COLORS.DIAMOND_FILL_GLOW}>
@@ -458,7 +484,7 @@ export function RangoliMandala({
           </Svg>
         </Animated.View>
 
-        {/* Glow overlay on Outer Crown */}
+        {/* Glow overlay on Outer Crown (Converging Inward) */}
         <Animated.View style={[StyleSheet.absoluteFill, styles.center, outerCrownStyle]}>
           <Svg width={size} height={size} viewBox="-210 -210 420 420">
             <G stroke={RANGOLI_COLORS.GOLD_BRIGHT} strokeWidth="1.9" fill={RANGOLI_COLORS.DIAMOND_FILL_GLOW}>

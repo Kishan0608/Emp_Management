@@ -246,6 +246,17 @@ export function formatDayLabel(value: string): string {
   return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+/** Local calendar day as 'YYYY-MM-DD' (phone time). */
+export function dayKey(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function shiftDay(key: string, delta: number): string {
+  const d = new Date(`${key}T00:00:00`);
+  d.setDate(d.getDate() + delta);
+  return dayKey(d);
+}
+
 /** First-of-month key ('YYYY-MM-01') used end to end for month-scoped attendance RPCs. */
 export function monthKey(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;

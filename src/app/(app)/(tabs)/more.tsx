@@ -37,7 +37,7 @@ interface Item {
 
 export default function More() {
   const { signOut, appLockEnabled, appLockType, biometricEnabled } = useAuth();
-  const { me, department, manager, organization, isBoss, isHR } = useMe();
+  const { me, department, manager, organization, isBoss, isHR, isManager, leads_team } = useMe();
   const { selectedOrg } = useOrganization();
   const [privacy, setPrivacy] = useState(false);
 
@@ -65,6 +65,7 @@ export default function More() {
     }] : []),
     ...(isBoss ? [{ icon: 'eye-outline' as const, label: 'Visibility settings', hint: 'Who sees which employee details', href: '/admin/visibility' as Href }] : []),
     ...(isBoss || isHR ? [{ icon: 'calendar-outline' as const, label: 'Attendance', hint: 'All employees · salary', href: '/admin/attendance' as Href }] : []),
+    ...(isBoss || isHR || isManager || leads_team ? [{ icon: 'navigate-outline' as const, label: 'Live locations', hint: isBoss || isHR ? 'Everyone sharing location' : 'Your team', href: '/admin/location' as Href }] : []),
     ...(isBoss || isHR ? [{ icon: 'bar-chart-outline' as const, label: 'Analytics & exports', href: '/admin/analytics' as Href }] : []),
     ...(isBoss ? [{ icon: 'settings-outline' as const, label: 'Company settings', hint: 'Thresholds, retention, security', href: '/admin/settings' as Href }] : []),
     ...(isBoss ? [{ icon: 'receipt-outline' as const, label: 'Audit log', href: '/admin/audit' as Href }] : []),
@@ -143,6 +144,12 @@ export default function More() {
         <View style={{ height: spacing.sm }} />
 
         {renderItems([
+          {
+            icon: 'navigate-outline',
+            label: 'Location sharing',
+            hint: me.location_sharing_enabled ? 'On · visible to Boss, HR and your managers' : 'Off',
+            href: '/location-sharing' as Href,
+          },
           {
             icon: 'lock-closed-outline',
             label: 'App lock settings',

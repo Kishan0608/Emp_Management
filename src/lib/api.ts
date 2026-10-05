@@ -19,6 +19,10 @@ import type {
   FeedbackReply,
   FeedbackStatus,
   FeedbackType,
+  LiveLocation,
+  LocationDeviceStatus,
+  LocationDay,
+  LocationPoint,
   MyAttendanceMonth,
   MyContext,
   NotificationRow,
@@ -472,6 +476,15 @@ export const api = {
   myAttendance: async (month: string) => check<MyAttendanceMonth>(await supabase.rpc('my_attendance', { p_month: month })),
   attendanceOverview: async (month: string) => check<AttendanceOverviewRow[]>(await supabase.rpc('attendance_overview', { p_month: month })),
   attendanceDetail: async (id: string, month: string) => check<AttendanceDetail>(await supabase.rpc('attendance_detail', { p_target: id, p_month: month })),
+  // ---------- location tracking ----------
+  setLocationSharing: async (enabled: boolean) => check<boolean>(await supabase.rpc('set_my_location_sharing', { p_enabled: enabled })),
+  reportLocationStatus: async (status: LocationDeviceStatus) => check(await supabase.rpc('report_location_status', { p_status: status })),
+  recordLocationPoints: async (points: LocationPoint[]) => check<number>(await supabase.rpc('record_location_points', { p_points: points })),
+  /** `log` is true only for a deliberate screen open; background refreshes leave it false so the audit log stays readable. */
+  liveLocations: async (log = false) => check<LiveLocation[]>(await supabase.rpc('location_live', { p_log: log })),
+  locationDay: async (id: string, date: string, log = false) =>
+    check<LocationDay>(await supabase.rpc('location_day', { p_target: id, p_date: date, p_log: log })),
+
   setSalary: async (userId: string, salary: number) => check(await supabase.rpc('admin_set_salary', { p_user_id: userId, p_salary: salary })),
 
   // ---------- notifications ----------

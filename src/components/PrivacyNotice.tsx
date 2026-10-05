@@ -5,7 +5,7 @@ import { colors, fonts, spacing } from '@/theme/tokens';
 const SECTIONS: [string, string][] = [
   [
     'What we collect',
-    'Your name, work email, role, team, manager, and the tasks, feedback and questions you create. HR may also hold contact details, attendance, salary and performance records.',
+    'Your name, work email, role, team, manager, and the tasks, feedback and questions you create. HR may also hold contact details, attendance, salary and performance records. If you switch on location sharing, your phone also sends your location.',
   ],
   [
     'Why we use it',
@@ -17,7 +17,7 @@ const SECTIONS: [string, string][] = [
   ],
   [
     'How long we keep it',
-    'Audit logs are kept for 5 years. Read notifications are removed after 180 days.',
+    'Audit logs are kept for 5 years. Read notifications are removed after 180 days. Location history is deleted after the period your company sets (30 days by default).',
   ],
   [
     'Your rights',
