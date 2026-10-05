@@ -6,6 +6,9 @@ export type FeedbackType = 'feedback' | 'question' | 'blocker';
 export type FeedbackAudience = 'manager' | 'hr' | 'boss' | 'all';
 export type FeedbackStatus = 'open' | 'acknowledged' | 'answered' | 'resolved';
 export type VisibilityField = 'contact' | 'salary' | 'attendance' | 'task_history' | 'performance';
+export type AttendanceStatus = 'present' | 'half_day' | 'absent';
+export type AttendanceNextAction = 'clock_in' | 'break_start' | 'break_end' | 'clock_out' | 'done';
+export type HalfDayReason = 'early_clockout' | 'late_streak';
 
 export interface AppUser {
   id: string;
@@ -230,6 +233,75 @@ export interface TeamMemberSummary {
   overdue: number;
   on_time_pct: number | null;
   last_active: string | null;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  work_date: string;
+  clock_in_at: string | null;
+  break_start_at: string | null;
+  break_end_at: string | null;
+  clock_out_at: string | null;
+  status: AttendanceStatus | null;
+  half_day_reason: HalfDayReason | null;
+  is_late: boolean;
+  late_minutes: number | null;
+  worked_minutes: number | null;
+  auto_closed?: boolean;
+}
+
+export interface AttendanceThresholds {
+  work_start: string;
+  work_end: string;
+  grace_minutes: number;
+  half_day_cutoff: string;
+  warning_limit: number;
+}
+
+export interface AttendanceToday {
+  record: AttendanceRecord | null;
+  next_action: AttendanceNextAction;
+  late_count_this_month: number;
+  thresholds: AttendanceThresholds;
+}
+
+export interface AttendanceMonthSummary {
+  present: number;
+  half_day: number;
+  absent: number;
+  late: number;
+}
+
+export interface MyAttendanceMonth {
+  records: AttendanceRecord[];
+  summary: AttendanceMonthSummary;
+}
+
+export interface SalaryBreakdown {
+  base_salary: number | null;
+  per_day_rate: number;
+  days_in_month: number;
+  absent_days: number;
+  half_days: number;
+  deduction: number;
+  payable_salary: number;
+}
+
+export interface AttendanceOverviewRow extends SalaryBreakdown {
+  user_id: string;
+  full_name: string;
+  role: Role;
+  department: string | null;
+  present: number;
+  half_day: number;
+  absent: number;
+  late: number;
+}
+
+export interface AttendanceDetail {
+  person: { id: string; full_name: string; role: Role };
+  records: AttendanceRecord[];
+  salary: SalaryBreakdown;
 }
 
 export interface TeamMemberReport {
