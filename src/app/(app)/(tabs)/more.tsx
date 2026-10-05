@@ -126,13 +126,13 @@ export default function More() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={type.bodyMedium}>App Lock</Text>
                 <Badge
-                  label={appLockEnabled ? (appLockType === 'pattern' ? 'Pattern' : 'Passcode') : 'Disabled'}
+                  label={appLockEnabled ? (appLockType === 'pattern' ? 'Pattern' : appLockType === 'biometric' ? 'Fingerprint' : 'PIN') : 'Off'}
                   tone={appLockEnabled ? 'brand' : 'neutral'}
                 />
               </View>
               <Text style={type.small}>
                 {appLockEnabled
-                  ? `Active · ${appLockType === 'pattern' ? '3x3 Pattern' : '4-digit PIN'}${biometricEnabled ? ' + Biometrics' : ''}`
+                  ? `On · ${appLockType === 'pattern' ? '3×3 pattern' : appLockType === 'biometric' ? 'Fingerprint / face' : '4-digit PIN'}${biometricEnabled && appLockType !== 'biometric' ? ' + biometrics' : ''}`
                   : 'Disabled · Email & password protected only'}
               </Text>
             </View>

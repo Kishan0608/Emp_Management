@@ -26,8 +26,14 @@
       "permissions": [
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT",
-        "android.permission.CAMERA"
-      ]
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "single",
@@ -122,8 +128,9 @@
         "style": "dark"
       },
       "eas": {
-        "projectId": "6b7ee816-d581-4ef2-b629-31e047639c70"
+        "projectId": "99d90a2f-8a92-45ec-8415-bb7bac1420f9"
       }
-    }
+    },
+    "owner": "skfl"
   }
 }

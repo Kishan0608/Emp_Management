@@ -38,7 +38,6 @@ select pg_temp.try('employee', 'read HR complaint inbox', 'DENIED', 'select coun
 select pg_temp.try('employee', 'read audit log', 'ok: 0', 'select count(*)::text from public.audit_logs');
 select pg_temp.try('employee', 'colleague profile: visible fields', 'ok: []', $q$select (public.get_employee_profile('a0000000-0000-4000-8000-000000000005') -> 'visible_fields')::text$q$);
 select pg_temp.try('employee', 'see anonymous feedback sent to manager', 'ok: 0', $q$select count(*)::text from public.feedback_items where title = 'Stand-ups run too long'$q$);
-select pg_temp.try('employee', 'see published Q&A', 'ok: 1', 'select count(*)::text from public.feedback_items where is_published');
 select pg_temp.try('employee', 'change visibility rules', 'DENIED', $q$select public.admin_set_visibility(null,'employee','salary',true)::text$q$);
 select pg_temp.try('employee', 'insert notification for someone else', 'DENIED', $q$insert into public.notifications(user_id, kind, title) values ('a0000000-0000-4000-8000-000000000001','x','spam') returning 'inserted'$q$);
 reset role;

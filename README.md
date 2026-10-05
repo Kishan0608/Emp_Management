@@ -52,12 +52,12 @@ In development the sign-in screen has one-tap buttons for these. **Delete these 
 | Employee details | Everything | Fields the Boss allows | Fields the Boss allows | Own profile |
 | Complaint counts | Yes (numbers only) | Case handler | – | – |
 | Complaint text | **Never** | Case handler only | – | – |
-| Feedback | All | All | Own team's & addressed to them | Own + Q&A board |
+| Feedback | All | All | Own team's & addressed to them | Own |
 | Disciplinary cases | Open, decide penalty, terminate | Run inquiry stages | – | Own case after notice |
 
 **Tasks:** Assigned → Accepted → In progress → (Blocked) → Submitted (with proof: comment, link or file) → Approved / Returned → Closed. Every change is timestamped. Blocking a task raises a blocker in Feedback.
 
-**Feedback:** feedback, work questions, blockers. Optional anonymity (except blockers). Blockers escalate to HR after 4 h and the Boss after 24 h (configurable, runs every 15 min). Answered questions can be published to a Q&A board. If the text looks like a complaint about a person, the app suggests using Complaints instead.
+**Feedback:** feedback, work questions, blockers. Optional anonymity (except blockers). Blockers escalate to HR after 4 h and the Boss after 24 h (configurable, runs every 15 min). If the text looks like a complaint about a person, the app suggests using Complaints instead.
 
 **Complaints:**
 - Filed through the `submit-complaint` Edge Function. The database stores no author.

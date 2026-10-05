@@ -106,8 +106,8 @@ export const api = {
   recordLogout: async (allDevices: boolean) => check(await supabase.rpc('record_logout', { p_all_devices: allDevices })),
   acceptPrivacy: async () => check(await supabase.rpc('accept_privacy_notice')),
   passwordChanged: async () => check(await supabase.rpc('password_changed')),
-  savePushToken: async (userId: string, token: string | null) =>
-    check(await supabase.from('users').update({ push_token: token }).eq('id', userId)),
+  /** Ties this phone to the signed-in account (and removes it from any other account); null unregisters it. */
+  setPushToken: async (token: string | null) => check(await supabase.rpc('set_my_push_token', { p_token: token })),
   dashboard: async (orgId?: string | null) => check<DashboardStats>(await supabase.rpc('dashboard_stats', { p_org: orgId ?? null })),
   organizations: async () => check<Organization[]>(await supabase.from('organizations').select('*').eq('is_active', true).order('name')),
   allOrganizations: async () => check<Organization[]>(await supabase.from('organizations').select('*').order('name')),
@@ -332,7 +332,7 @@ export const api = {
     check<boolean>(await supabase.rpc('reply_task_question', { p_question_id: questionId, p_body: body })),
 
   feedback: async (
-    scope: 'inbox' | 'mine' | 'qa' | 'blockers' | 'all',
+    scope: 'inbox' | 'mine' | 'blockers' | 'all',
     me: string,
     isStaff?: boolean,
     orgId?: string | null,
@@ -344,15 +344,13 @@ export const api = {
       .limit(200);
     if (scope === 'mine') {
       q = q.eq('author_id', me);
-    } else if (scope === 'qa') {
-      q = q.eq('is_published', true);
     } else if (scope === 'blockers') {
       q = q.eq('type', 'blocker').in('status', ['open', 'acknowledged']);
     } else if (scope === 'inbox') {
       if (isStaff) {
         q = q.or(`author_id.is.null,author_id.neq.${me}`);
       } else {
-        q = q.or(`author_id.eq.${me},is_published.eq.true`);
+        q = q.eq('author_id', me);
       }
     }
     const res = await q;
@@ -364,7 +362,7 @@ export const api = {
   },
   feedbackCounts: async (me: string, isStaff?: boolean) => {
     try {
-      const [inboxRes, mineRes, blockersRes, qaRes] = await Promise.all([
+      const [inboxRes, mineRes, blockersRes] = await Promise.all([
         isStaff
           ? supabase
               .from('feedback_items')
@@ -385,19 +383,14 @@ export const api = {
           .select('*', { count: 'exact', head: true })
           .eq('type', 'blocker')
           .in('status', ['open', 'acknowledged']),
-        supabase
-          .from('feedback_items')
-          .select('*', { count: 'exact', head: true })
-          .eq('is_published', true),
       ]);
       return {
         inbox: inboxRes.count ?? 0,
         mine: mineRes.count ?? 0,
         blockers: blockersRes.count ?? 0,
-        qa: qaRes.count ?? 0,
       };
     } catch {
-      return { inbox: 0, mine: 0, blockers: 0, qa: 0 };
+      return { inbox: 0, mine: 0, blockers: 0 };
     }
   },
   feedbackItem: async (id: string) =>
@@ -423,12 +416,10 @@ export const api = {
         p_task: p.taskId ?? null,
       }),
     ),
-  replyFeedback: async (id: string, body: string, publish: boolean) =>
-    check(await supabase.rpc('reply_feedback', { p_id: id, p_body: body, p_publish: publish })),
+  replyFeedback: async (id: string, body: string) =>
+    check(await supabase.rpc('reply_feedback', { p_id: id, p_body: body })),
   setFeedbackStatus: async (id: string, status: FeedbackStatus) =>
     check(await supabase.rpc('set_feedback_status', { p_id: id, p_status: status })),
-  setFeedbackPublished: async (id: string, published: boolean) =>
-    check(await supabase.rpc('set_feedback_published', { p_id: id, p_published: published })),
 
   // ---------- self sign-up & onboarding ----------
   signupStart: async (email: string, password: string, organizationId?: string) =>

@@ -62,10 +62,14 @@ interface AuthValue {
   setAppLock: (on: boolean) => Promise<string | null>;
   setAppLockTypePref: (type: AppLockType) => Promise<void>;
   setBiometricPref: (on: boolean) => Promise<string | null>;
+  /** Makes `type` the one active unlock method and turns App Lock on. PIN/pattern must already be set up. Returns an error message or null. */
+  chooseAppLockMethod: (type: AppLockType) => Promise<string | null>;
   disableAppLock: () => Promise<void>;
   savePasscode: (pin: string, biometrics?: boolean) => Promise<void>;
   savePatternLock: (pattern: string, biometrics?: boolean) => Promise<void>;
   testAppLock: () => void;
+  /** Why phone notifications are not working on this device, if they should be. */
+  pushIssue: string | null;
 }
 
 // Returning to the app after this long in the background asks for the passcode / pattern / fingerprint again.
@@ -87,6 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const freshSignIn = useRef(false); // true right after typing the password: no need to unlock again
   const pushRegistered = useRef(false);
+  /** Why phone notifications are not working on this device, if they should be. */
+  const [pushIssue, setPushIssue] = useState<string | null>(null);
 
   const syncLocalLockFlags = useCallback(async () => {
     const [enabled, type, bio, pass, pat] = await Promise.all([
@@ -104,8 +110,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async (allDevices = false, message?: string, forgetPasscode = false) => {
-    // A signed-out phone must never keep sending location.
+    // A signed-out phone must never keep sending location, or keep receiving this person's notifications.
     await stopLocationTracking().catch(() => {});
+    if (pushRegistered.current) await api.setPushToken(null).catch(() => {});
     try {
       await api.recordLogout(allDevices);
     } catch {
@@ -232,8 +239,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     pushRegistered.current = true;
     api.recordLogin().catch(() => {});
     registerForPush()
-      .then((token) => token && api.savePushToken(ctx.user.id, token))
-      .catch(() => {});
+      .then(async ({ token, issue }) => {
+        setPushIssue(issue);
+        if (token) await api.setPushToken(token);
+      })
+      .catch((e) => setPushIssue(e instanceof Error ? e.message : 'Could not register for notifications.'));
   }, [status, ctx]);
 
   // Background timer: lock the app when returning after a while if app lock is enabled
@@ -362,9 +372,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAppLockState(false);
     setLocked(false);
     try {
-      await api.saveAppLock({ enabled: false });
+      // Keep the chosen method so turning App Lock back on restores it.
+      await api.saveAppLock({ enabled: false, type: appLockType, biometric_enabled: biometricEnabled });
     } catch {}
-  }, []);
+  }, [appLockType, biometricEnabled]);
 
   const setAppLockTypePref = useCallback(async (type: AppLockType) => {
     await setAppLockType(type);
@@ -388,6 +399,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {}
     return null;
   }, []);
+
+  const chooseAppLockMethod = useCallback(async (type: AppLockType) => {
+    const bio = type === 'biometric';
+    if (bio) {
+      const support = await getAppLockSupport();
+      if (!support.available) return support.reason ?? 'Biometrics not available on this device.';
+      const r = await authenticate(`Turn on ${support.method.toLowerCase()} unlock`);
+      if (!r.ok) return r.error ?? `${support.method} was not verified.`;
+    }
+    if (ctx) await setLockOwner(ctx.user.id);
+    await setAppLockEnabled(true);
+    await setAppLockType(type);
+    await setBiometricEnabled(bio);
+    setAppLockState(true);
+    setAppLockTypeState(type);
+    setBiometricState(bio);
+    try {
+      await api.saveAppLock({ enabled: true, type, biometric_enabled: bio });
+    } catch {}
+    return null;
+  }, [ctx]);
 
   const setAppLock = useCallback(
     async (on: boolean) => {
@@ -465,10 +497,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAppLock,
       setAppLockTypePref,
       setBiometricPref,
+      chooseAppLockMethod,
       disableAppLock,
       savePasscode,
       savePatternLock,
       testAppLock,
+      pushIssue,
     }),
     [
       status,
@@ -491,10 +525,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAppLock,
       setAppLockTypePref,
       setBiometricPref,
+      chooseAppLockMethod,
       disableAppLock,
       savePasscode,
       savePatternLock,
       testAppLock,
+      pushIssue,
     ],
   );
 

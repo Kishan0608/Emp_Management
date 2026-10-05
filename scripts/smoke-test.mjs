@@ -13,7 +13,7 @@ let r = await emp.auth.signInWithPassword({ email: 'neha@example.com', password:
 ok('employee signs in', !r.error, r.error?.message);
 let ctx = await emp.rpc('my_context');
 ok('my_context returns role', ctx.data?.user?.role === 'employee', ctx.error?.message ?? ctx.data?.user?.role);
-let dash = await emp.rpc('dashboard_stats');
+let dash = await emp.rpc('dashboard_stats', { p_org: null });
 ok('dashboard works', !!dash.data?.my_tasks, dash.error?.message);
 let t = await emp.from('tasks').select('id,title,assignee:users!tasks_assignee_id_fkey(full_name)').limit(5);
 ok('tasks with joined assignee', !t.error && t.data.length > 0, t.error?.message ?? `${t.data.length} rows`);

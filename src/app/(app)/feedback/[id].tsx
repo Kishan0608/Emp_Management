@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
-import { AppText, Avatar, Badge, Banner, Button, Card, ListSkeleton, PageHeader, Screen, SectionTitle, SwitchRow, TextField } from '@/components/ui';
+import { AppText, Avatar, Badge, Banner, Button, Card, ListSkeleton, PageHeader, Screen, SectionTitle, TextField } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
 import { api, errorMessage } from '@/lib/api';
 import {
@@ -29,7 +29,6 @@ export default function FeedbackDetail() {
   const item = useLoad(() => api.feedbackItem(id), [id]);
   const replies = useLoad(() => api.feedbackReplies(id), [id]);
   const [text, setText] = useState('');
-  const [publish, setPublish] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
   const f = item.data;
@@ -64,10 +63,9 @@ export default function FeedbackDetail() {
   const send = async () => {
     setBusy('reply');
     try {
-      await api.replyFeedback(f.id, text.trim(), publish);
+      await api.replyFeedback(f.id, text.trim());
       setText('');
-      setPublish(false);
-      toast(publish ? 'Answered and published to Q&A' : 'Reply sent');
+      toast('Reply sent');
       reload();
     } catch (e) {
       toast(errorMessage(e), 'error');
@@ -85,9 +83,6 @@ export default function FeedbackDetail() {
       footer={
         canReply && f.status !== 'resolved' ? (
           <View style={{ gap: spacing.sm }}>
-            {canRespond && f.type === 'question' && !isAuthor && (isBoss || isHR) && (
-              <SwitchRow label="Publish answer to Q&A board" description="Everyone can then read the question and answer (without the author's name)." value={publish} onChange={setPublish} />
-            )}
             <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
                 <TextField value={text} onChangeText={setText} placeholder={canRespond && !isAuthor ? 'Write an answer' : 'Add a follow-up'} />
@@ -103,7 +98,6 @@ export default function FeedbackDetail() {
             <Badge label={label} tone={tone} icon={icon} />
             <Badge label={feedbackStatusLabel[f.status]} tone={feedbackStatusTone[f.status]} />
             <Badge label={`To ${audienceLabel[f.audience]}`} icon="paper-plane-outline" />
-            {f.is_published && <Badge label="On Q&A board" tone="success" icon="globe-outline" />}
             {f.type === 'blocker' && f.escalation_level > 0 && <Badge label={f.escalation_level === 1 ? 'Escalated to HR' : 'Escalated to Boss'} tone="danger" icon="trending-up" />}
           </View>
           <AppText variant="h1">{cleanTitle}</AppText>
@@ -139,22 +133,6 @@ export default function FeedbackDetail() {
         )}
         {isAuthor && !canRespond && f.status !== 'resolved' && (
           <Button title="My issue is resolved" icon="checkmark-done" variant="secondary" loading={busy === 'resolved'} onPress={() => setStatus('resolved')} />
-        )}
-        {(isBoss || isHR) && f.type === 'question' && ['answered', 'resolved'].includes(f.status) && (
-          <Button
-            title={f.is_published ? 'Remove from Q&A board' : 'Publish to Q&A board'}
-            icon="globe-outline"
-            variant="outline"
-            onPress={async () => {
-              try {
-                await api.setFeedbackPublished(f.id, !f.is_published);
-                toast(f.is_published ? 'Removed from Q&A' : 'Published to Q&A');
-                item.reload();
-              } catch (e) {
-                toast(errorMessage(e), 'error');
-              }
-            }}
-          />
         )}
 
         {(() => {

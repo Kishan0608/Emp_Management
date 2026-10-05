@@ -226,7 +226,6 @@ export interface FeedbackItem {
   task_id: string | null;
   status: FeedbackStatus;
   escalation_level: number;
-  is_published: boolean;
   replies?: FeedbackReply[];
   created_at: string;
   answered_at: string | null;
