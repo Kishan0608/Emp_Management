@@ -1,5 +1,5 @@
 -- =====================================================================
--- 023 ATTENDANCE: functions
+-- 027 ATTENDANCE: functions
 -- Timezone-safe "today"/lateness helpers, punch RPCs, HR/Boss reports,
 -- salary-from-attendance calculation, and a nightly job that closes missed days.
 -- =====================================================================
@@ -27,7 +27,7 @@ declare
   v_salary numeric; v_joined date; v_days_in_month int; v_per_day numeric;
   v_absent int; v_half int; v_month_start date; v_month_end date; v_bound date;
 begin
-  select salary_monthly, joined_on into v_salary, v_joined from public.employee_details where user_id = p_user;
+  select salary_monthly, joined_on into v_salary, v_joined from public.users where id = p_user;
   v_month_start := date_trunc('month', p_month)::date;
   v_month_end   := (date_trunc('month', p_month) + interval '1 month - 1 day')::date;
   v_days_in_month := extract(day from v_month_end);
@@ -263,9 +263,8 @@ language plpgsql security definer set search_path = '' as $$
 begin
   if not (app.is_boss() or app.is_hr()) then raise exception 'Only Boss or HR can edit salary' using errcode = '42501'; end if;
   if app.is_hr() and p_user_id = auth.uid() then raise exception 'HR cannot edit their own record'; end if;
-  insert into public.employee_details as d (user_id, salary_monthly) values (p_user_id, p_salary)
-  on conflict (user_id) do update set salary_monthly = excluded.salary_monthly;
-  perform app.audit('employee_details.salary_update', 'employee_details', p_user_id, jsonb_build_object('salary_monthly', p_salary));
+  update public.users set salary_monthly = p_salary, updated_at = now() where id = p_user_id;
+  perform app.audit('employee_details.salary_update', 'users', p_user_id, jsonb_build_object('salary_monthly', p_salary));
 end $$;
 
 -- ---------- nightly: close out any day no one finished ----------
@@ -278,8 +277,7 @@ begin
   insert into public.attendance_records (user_id, work_date, status, auto_closed)
   select u.id, v_yesterday, 'absent', true
   from public.users u
-  join public.employee_details d on d.user_id = u.id
-  where u.is_active and u.account_status = 'active' and (d.joined_on is null or d.joined_on <= v_yesterday)
+  where u.is_active and u.account_status = 'active' and (u.joined_on is null or u.joined_on <= v_yesterday)
   on conflict (user_id, work_date) do nothing;
 
   update public.attendance_records

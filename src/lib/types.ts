@@ -6,7 +6,7 @@ export type FeedbackType = 'feedback' | 'question' | 'blocker';
 export type FeedbackAudience = 'manager' | 'hr' | 'boss' | 'all';
 export type FeedbackStatus = 'open' | 'acknowledged' | 'answered' | 'resolved';
 export type VisibilityField = 'contact' | 'salary' | 'attendance' | 'task_history' | 'performance';
-export type AttendanceStatus = 'present' | 'half_day' | 'absent';
+export type AttendanceStatus = 'present' | 'half_day' | 'absent' | 'leave';
 export type AttendanceNextAction = 'clock_in' | 'break_start' | 'break_end' | 'clock_out' | 'done';
 export type HalfDayReason = 'early_clockout' | 'late_streak';
 
@@ -346,6 +346,16 @@ export interface AttendanceRecord {
   late_minutes: number | null;
   worked_minutes: number | null;
   auto_closed?: boolean;
+  leave_reason?: string | null;
+  leave_paid?: boolean | null;
+  leave_attachment_path?: string | null;
+}
+
+export interface LeaveBalance {
+  year: number;
+  quota: number;
+  used: number;
+  remaining: number;
 }
 
 export interface AttendanceThresholds {
@@ -381,8 +391,12 @@ export interface SalaryBreakdown {
   days_in_month: number;
   absent_days: number;
   half_days: number;
+  paid_leave_days: number;
+  unpaid_leave_days: number;
   deduction: number;
   payable_salary: number;
+  /** Last date the deduction actually covers — equals the month's end once it's fully elapsed. */
+  as_of: string;
 }
 
 export interface AttendanceOverviewRow extends SalaryBreakdown {

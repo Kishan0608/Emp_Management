@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, { ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -375,7 +376,7 @@ export default function NewTask() {
             </Pressable>
 
             {priorityDdlOpen && (
-              <View style={styles.ddlContainer}>
+              <Animated.View entering={ZoomIn.springify().damping(16).mass(0.7)} style={styles.ddlContainer}>
                 {PRIORITY_OPTIONS.map((item, idx) => {
                   const active = item.value === priority;
                   return (
@@ -402,7 +403,7 @@ export default function NewTask() {
                     </Pressable>
                   );
                 })}
-              </View>
+              </Animated.View>
             )}
           </View>
         </Card>
