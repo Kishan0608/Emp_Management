@@ -19,7 +19,7 @@ import { useMe } from '@/providers/AuthProvider';
 import { useOrganization } from '@/providers/OrganizationProvider';
 import { colors, fonts, gradients, radius, shadow, spacing } from '@/theme/tokens';
 
-export type FeedbackScope = 'inbox' | 'mine' | 'blockers' | 'qa';
+export type FeedbackScope = 'inbox' | 'mine' | 'blockers';
 
 export default function Feedback() {
   const { me, isEmployee, isBoss } = useMe();
@@ -96,14 +96,6 @@ export default function Feedback() {
       color: colors.danger,
       count: counts.data?.blockers,
     },
-    {
-      value: 'qa',
-      label: 'Q&A',
-      sublabel: 'Verified questions & answers',
-      icon: 'library-outline',
-      color: colors.success,
-      count: counts.data?.qa,
-    },
   ];
 
   const selectedScopeObj = scopes.find((s) => s.value === scope) ?? scopes[0];
@@ -113,9 +105,7 @@ export default function Feedback() {
       ? 'Search inbox…'
       : scope === 'mine'
         ? 'Search my submissions…'
-        : scope === 'blockers'
-          ? 'Search blockers…'
-          : 'Search Q&A board…';
+        : 'Search blockers…';
 
   return (
     <View style={{ flex: 1 }}>
@@ -223,31 +213,25 @@ export default function Feedback() {
             <Card>
               <EmptyState
                 icon={
-                  scope === 'qa'
-                    ? 'library-outline'
-                    : scope === 'blockers'
-                      ? 'shield-checkmark-outline'
-                      : scope === 'mine'
-                        ? 'create-outline'
-                        : 'mail-unread-outline'
+                  scope === 'blockers'
+                    ? 'shield-checkmark-outline'
+                    : scope === 'mine'
+                      ? 'create-outline'
+                      : 'mail-unread-outline'
                 }
                 title={
-                  scope === 'qa'
-                    ? 'No published Q&A yet'
-                    : scope === 'blockers'
-                      ? 'No open blockers'
-                      : scope === 'mine'
-                        ? 'No submissions yet'
-                        : 'No feedback in your inbox'
+                  scope === 'blockers'
+                    ? 'No open blockers'
+                    : scope === 'mine'
+                      ? 'No submissions yet'
+                      : 'No feedback in your inbox'
                 }
                 body={
                   scope === 'mine'
                     ? 'Ask a question, share feedback, or report what is stopping your work.'
                     : scope === 'blockers'
                       ? 'There are currently no active blockers stopping work.'
-                      : scope === 'qa'
-                        ? 'Questions answered and published to the Q&A board will show here.'
-                        : 'Questions, feedback, or blockers sent to your team appear here.'
+                      : 'Questions, feedback, or blockers sent to your team appear here.'
                 }
               />
             </Card>

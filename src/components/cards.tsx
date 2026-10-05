@@ -103,7 +103,6 @@ export function FeedbackCard({
           {item.type === 'blocker' && item.escalation_level > 0 && (
             <Badge label={item.escalation_level === 1 ? 'Escalated · HR' : 'Escalated · Boss'} tone="danger" icon="trending-up" />
           )}
-          {item.is_published && <Badge label="Q&A" tone="success" icon="globe-outline" />}
           {isMine && <Badge label="Mine" tone="brand" icon="person-circle-outline" />}
         </View>
         <Text style={styles.title} numberOfLines={2}>

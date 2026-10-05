@@ -90,10 +90,10 @@ begin
   values ('Book dentist appointment', 'low', current_date + 5, v_e1, v_e1, v_e1, true) returning id into v_task;
   insert into public.task_events (task_id, actor_id, to_status, note) values (v_task, v_e1, 'assigned', 'Task created');
 
-  -- Sample feedback + a published Q&A answer
-  insert into public.feedback_items (type, audience, title, body, author_id, recipient_manager_id, department_id, status, is_published, answered_at, acknowledged_at)
+  -- Sample feedback with an answer
+  insert into public.feedback_items (type, audience, title, body, author_id, recipient_manager_id, department_id, status, answered_at, acknowledged_at)
   values ('question', 'hr', 'How do I claim travel reimbursement?', 'I travelled to the client site last week. What is the process and deadline for claims?',
-          v_e1, v_mgr, v_eng, 'answered', true, now(), now())
+          v_e1, v_mgr, v_eng, 'answered', now(), now())
   returning id into v_task;
   insert into public.feedback_replies (feedback_id, responder_id, body)
   values (v_task, v_hr, 'Upload bills in the expense portal within 30 days of travel. Your manager approves, and payment is made with the next salary.');
