@@ -9,7 +9,7 @@ import { api } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
 import { notificationHref, notificationIcon } from '@/lib/notificationLinks';
 import type { NotificationRow } from '@/lib/types';
-import { useMe } from '@/providers/AuthProvider';
+import { useAuth, useMe } from '@/providers/AuthProvider';
 import { useNotifications } from '@/providers/NotificationsProvider';
 import { colors, radius, spacing, type } from '@/theme/tokens';
 
@@ -18,6 +18,7 @@ const icon = notificationIcon;
 
 export default function Notifications() {
   const { me } = useMe();
+  const { pushIssue } = useAuth();
   const { refresh: refreshUnread, lastArrival } = useNotifications();
   const list = useLoad(() => api.notifications(), [lastArrival]);
   const unread = (list.data ?? []).filter((n) => !n.is_read).length;
@@ -55,6 +56,11 @@ export default function Notifications() {
           }
         />
       }>
+      {pushIssue && (
+        <Banner tone="warning" icon="notifications-off-outline" title="Phone notifications are off">
+          {pushIssue} New tasks and replies still appear here.
+        </Banner>
+      )}
       {list.error && <Banner tone="danger">{list.error}</Banner>}
       {list.loading ? (
         <ListSkeleton rows={5} />

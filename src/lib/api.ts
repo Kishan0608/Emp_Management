@@ -104,8 +104,8 @@ export const api = {
   recordLogout: async (allDevices: boolean) => check(await supabase.rpc('record_logout', { p_all_devices: allDevices })),
   acceptPrivacy: async () => check(await supabase.rpc('accept_privacy_notice')),
   passwordChanged: async () => check(await supabase.rpc('password_changed')),
-  savePushToken: async (userId: string, token: string | null) =>
-    check(await supabase.from('users').update({ push_token: token }).eq('id', userId)),
+  /** Ties this phone to the signed-in account (and removes it from any other account); null unregisters it. */
+  setPushToken: async (token: string | null) => check(await supabase.rpc('set_my_push_token', { p_token: token })),
   dashboard: async (orgId?: string | null) => check<DashboardStats>(await supabase.rpc('dashboard_stats', { p_org: orgId ?? null })),
   organizations: async () => check<Organization[]>(await supabase.from('organizations').select('*').eq('is_active', true).order('name')),
   allOrganizations: async () => check<Organization[]>(await supabase.from('organizations').select('*').order('name')),

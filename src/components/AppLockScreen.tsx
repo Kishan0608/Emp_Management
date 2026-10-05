@@ -26,11 +26,8 @@ import { PatternLock } from './PatternLock';
 export function AppLockScreen({ autoPrompt }: { autoPrompt: boolean }) {
   const {
     ctx,
-    appLockEnabled,
     appLockType,
     biometricEnabled,
-    hasConfiguredPasscode,
-    hasConfiguredPattern,
     unlock,
     unlockWithPasscode,
     unlockWithPattern,
@@ -39,7 +36,8 @@ export function AppLockScreen({ autoPrompt }: { autoPrompt: boolean }) {
 
   const insets = useSafeAreaInsets();
   const [support, setSupport] = useState<AppLockSupport | null>(null);
-  const [currentMode, setCurrentMode] = useState<AppLockType>(appLockType || 'passcode');
+  // Exactly one method is active; the lock screen shows only that one.
+  const currentMode: AppLockType = appLockType || 'passcode';
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -49,11 +47,6 @@ export function AppLockScreen({ autoPrompt }: { autoPrompt: boolean }) {
   useEffect(() => {
     getAppLockSupport().then(setSupport).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    // If current mode is not set or type changed, sync
-    if (appLockType) setCurrentMode(appLockType);
-  }, [appLockType]);
 
   const bioActive = biometricEnabled && !!support?.available;
 
@@ -100,8 +93,6 @@ export function AppLockScreen({ autoPrompt }: { autoPrompt: boolean }) {
   const hour = new Date().getHours();
   const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  const canSwitchToPattern = currentMode !== 'pattern' && hasConfiguredPattern;
-  const canSwitchToPasscode = currentMode !== 'passcode' && hasConfiguredPasscode;
 
   return (
     <Animated.View entering={FadeIn.duration(200)} style={[StyleSheet.absoluteFill, styles.root]}>
@@ -117,7 +108,7 @@ export function AppLockScreen({ autoPrompt }: { autoPrompt: boolean }) {
         <Animated.View entering={FadeInUp.duration(300)} style={{ alignItems: 'center', gap: spacing.xs }}>
           <View style={styles.lockBadge}>
             <Ionicons
-              name={currentMode === 'pattern' ? 'grid' : 'lock-closed'}
+              name={currentMode === 'pattern' ? 'grid' : currentMode === 'biometric' ? 'finger-print' : 'lock-closed'}
               size={14}
               color={colors.ink}
             />
@@ -127,7 +118,9 @@ export function AppLockScreen({ autoPrompt }: { autoPrompt: boolean }) {
             {first ? `, ${first}` : ''}
           </Text>
           <Text style={styles.sub}>
-            {currentMode === 'pattern'
+            {currentMode === 'biometric'
+              ? `Use ${support?.method.toLowerCase() ?? 'your fingerprint'} to unlock`
+              : currentMode === 'pattern'
               ? bioActive
                 ? `Draw pattern or use ${support?.method.toLowerCase()}`
                 : 'Draw your unlock pattern'
@@ -147,7 +140,12 @@ export function AppLockScreen({ autoPrompt }: { autoPrompt: boolean }) {
 
         {/* Lock Controls (Keypad or Pattern Grid) */}
         <Animated.View entering={FadeInUp.delay(80).duration(300)} style={styles.lockControlArea}>
-          {currentMode === 'pattern' ? (
+          {currentMode === 'biometric' ? (
+            <Pressable onPress={tryBiometric} style={styles.bioBig} accessibilityLabel={`Unlock with ${support?.method ?? 'fingerprint'}`}>
+              <Ionicons name={support?.icon ?? 'finger-print'} size={56} color={colors.goldLight} />
+              <Text style={styles.bioButtonText}>Unlock with {support?.method ?? 'Fingerprint'}</Text>
+            </Pressable>
+          ) : currentMode === 'pattern' ? (
             <View style={{ alignItems: 'center', gap: spacing.md }}>
               <PatternLock
                 onPatternComplete={onPatternComplete}
@@ -174,19 +172,6 @@ export function AppLockScreen({ autoPrompt }: { autoPrompt: boolean }) {
 
         {/* Bottom Options: Switch Mode or Forgot */}
         <View style={styles.footerOptions}>
-          {canSwitchToPattern && (
-            <Pressable onPress={() => setCurrentMode('pattern')} hitSlop={8} style={styles.switchButton}>
-              <Ionicons name="grid-outline" size={16} color={colors.goldLight} />
-              <Text style={styles.altText}>Use Pattern Lock</Text>
-            </Pressable>
-          )}
-          {canSwitchToPasscode && (
-            <Pressable onPress={() => setCurrentMode('passcode')} hitSlop={8} style={styles.switchButton}>
-              <Ionicons name="keypad-outline" size={16} color={colors.goldLight} />
-              <Text style={styles.altText}>Use PIN Passcode</Text>
-            </Pressable>
-          )}
-
           <Pressable onPress={() => signOut(false, undefined, false)} hitSlop={10} style={styles.alt}>
             <Text style={styles.forgotText}>Forgot lock? Sign in with password</Text>
           </Pressable>
@@ -244,6 +229,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  bioBig: {
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.xxl,
+    borderRadius: 28,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
