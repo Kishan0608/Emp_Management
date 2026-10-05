@@ -1,5 +1,5 @@
 -- =====================================================================
--- 022 ATTENDANCE: schema
+-- 026 ATTENDANCE: schema
 -- Clock in / break / clock out punches drive attendance status automatically.
 -- Employee and Manager see only their own attendance; HR and Boss see everyone's.
 -- =====================================================================

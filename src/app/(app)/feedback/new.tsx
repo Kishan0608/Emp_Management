@@ -452,6 +452,7 @@ export default function NewFeedback() {
       const file = res.assets[0];
       if ((file.size ?? 0) > 10 * 1024 * 1024) {
         setError('Files must be under 10 MB.');
+        toast('Files must be under 10 MB.', 'error');
         return;
       }
       setError(null);
@@ -463,42 +464,48 @@ export default function NewFeedback() {
       });
     } catch {
       setError('Failed to select file or image.');
+      toast('Failed to select file or image.', 'error');
     }
   };
 
   const submit = async () => {
     setError(null);
+    const fail = (message: string) => {
+      setError(message);
+      toast(message, 'error');
+    };
+
     if (!kind) {
-      setError('Please select a Type.');
+      fail('Please select a Type.');
       return;
     }
     if (!audience) {
-      setError('Please select who to Report To.');
+      fail('Please select who to Report To.');
       return;
     }
 
     if (kind === 'leave') {
       if (!leaveStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(leaveStartDate) || isNaN(new Date(`${leaveStartDate}T00:00:00`).getTime())) {
-        setError('Please enter a valid Start Date (YYYY-MM-DD).');
+        fail('Please enter a valid Start Date (YYYY-MM-DD).');
         return;
       }
       if (durationMode === 'multiple_days') {
         if (!leaveEndDate || !/^\d{4}-\d{2}-\d{2}$/.test(leaveEndDate) || isNaN(new Date(`${leaveEndDate}T00:00:00`).getTime())) {
-          setError('Please enter a valid End Date (YYYY-MM-DD).');
+          fail('Please enter a valid End Date (YYYY-MM-DD).');
           return;
         }
         if (leaveEndDate < leaveStartDate) {
-          setError('End Date cannot be earlier than Start Date.');
+          fail('End Date cannot be earlier than Start Date.');
           return;
         }
       }
       if (leaveReasonText.trim().length < 5) {
-        setError('Please provide a reason or remarks for your leave request (at least 5 characters).');
+        fail('Please provide a reason or remarks for your leave request (at least 5 characters).');
         return;
       }
     } else {
-      if (title.trim().length < 3) return setError('Add a short title.');
-      if (body.trim().length < 5) return setError('Please add a little more detail.');
+      if (title.trim().length < 3) return fail('Add a short title.');
+      if (body.trim().length < 5) return fail('Please add a little more detail.');
     }
 
     setBusy(true);
@@ -571,7 +578,9 @@ export default function NewFeedback() {
       );
       router.replace(`/feedback/${id}`);
     } catch (e) {
-      setError(errorMessage(e));
+      const message = errorMessage(e);
+      setError(message);
+      toast(message, 'error');
     } finally {
       setBusy(false);
     }

@@ -7,6 +7,7 @@ import type {
   AppLockType,
   AttendanceDetail,
   AttendanceOverviewRow,
+  AttendanceRecord,
   AttendanceToday,
   AuditLog,
   ChecklistItem,
@@ -19,6 +20,7 @@ import type {
   FeedbackReply,
   FeedbackStatus,
   FeedbackType,
+  LeaveBalance,
   MyAttendanceMonth,
   MyContext,
   NotificationRow,
@@ -398,13 +400,14 @@ export const api = {
     check<FeedbackItem>(
       await supabase.from('feedback_items').select('*, author:users!feedback_items_author_id_fkey(full_name)').eq('id', id).single(),
     ),
-  feedbackReplies: async (id: string) => {
-    const res = await supabase.from('feedback_items').select('replies').eq('id', id).single();
-    if (res.data?.replies && Array.isArray(res.data.replies)) {
-      return res.data.replies as FeedbackReply[];
-    }
-    return [];
-  },
+  feedbackReplies: async (id: string) =>
+    check<FeedbackReply[]>(
+      await supabase
+        .from('feedback_replies')
+        .select('*, responder:users!feedback_replies_responder_id_fkey(full_name, role)')
+        .eq('feedback_id', id)
+        .order('created_at', { ascending: true }),
+    ),
   submitFeedback: async (p: { type: FeedbackType; audience: FeedbackAudience; title: string; body: string; anonymous: boolean; taskId?: string | null }) =>
     check<string>(
       await supabase.rpc('submit_feedback', {
@@ -473,6 +476,44 @@ export const api = {
   attendanceOverview: async (month: string) => check<AttendanceOverviewRow[]>(await supabase.rpc('attendance_overview', { p_month: month })),
   attendanceDetail: async (id: string, month: string) => check<AttendanceDetail>(await supabase.rpc('attendance_detail', { p_target: id, p_month: month })),
   setSalary: async (userId: string, salary: number) => check(await supabase.rpc('admin_set_salary', { p_user_id: userId, p_salary: salary })),
+  /** HR/Boss only: fix a day's punches (e.g. an employee forgot to clock out). Pass null to clear a field. */
+  hrEditAttendance: async (
+    userId: string,
+    workDate: string,
+    punches: { clock_in_at: string | null; break_start_at: string | null; break_end_at: string | null; clock_out_at: string | null },
+  ) =>
+    check<AttendanceRecord>(
+      await supabase.rpc('hr_edit_attendance', {
+        p_user_id: userId,
+        p_work_date: workDate,
+        p_clock_in: punches.clock_in_at,
+        p_break_start: punches.break_start_at,
+        p_break_end: punches.break_end_at,
+        p_clock_out: punches.clock_out_at,
+      }),
+    ),
+  /** HR/Boss only: mark a day as leave. Beyond the paid-leave quota it's unpaid and deducted like an absent day. */
+  hrMarkLeave: async (userId: string, workDate: string, reason: string, attachmentPath: string | null) =>
+    check<AttendanceRecord>(
+      await supabase.rpc('hr_mark_leave', { p_user_id: userId, p_work_date: workDate, p_reason: reason, p_attachment_path: attachmentPath }),
+    ),
+  hrCancelLeave: async (userId: string, workDate: string) => check(await supabase.rpc('hr_cancel_leave', { p_user_id: userId, p_work_date: workDate })),
+  /** HR/Boss see any employee's balance; an employee can see their own. */
+  leaveBalance: async (userId: string, year?: number) =>
+    check<LeaveBalance>(await supabase.rpc('leave_balance', { p_user_id: userId, p_year: year ?? null })),
+  uploadLeaveAttachment: async (userId: string, file: { uri: string; name: string; mimeType?: string | null }) => {
+    const safeName = file.name.replace(/[^\w.\-]+/g, '_').slice(-80);
+    const path = `${userId}/${Date.now()}_${safeName}`;
+    const bytes = await (await fetch(file.uri)).arrayBuffer();
+    const up = await supabase.storage.from('leave-attachments').upload(path, bytes, { contentType: file.mimeType ?? 'application/octet-stream' });
+    if (up.error) throw new Error(errorMessage(up.error));
+    return path;
+  },
+  leaveAttachmentUrl: async (path: string) => {
+    const { data, error } = await supabase.storage.from('leave-attachments').createSignedUrl(path, 300);
+    if (error) throw new Error(errorMessage(error));
+    return data.signedUrl;
+  },
 
   // ---------- notifications ----------
   notifications: async () =>

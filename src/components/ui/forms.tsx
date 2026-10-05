@@ -13,7 +13,7 @@ import {
   View,
   type TextInputProps,
 } from 'react-native';
-import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatDate, toDateOnly } from '@/lib/format';
@@ -220,10 +220,13 @@ export function Sheet({ visible, onClose, title, children }: { visible: boolean;
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <Animated.View entering={FadeIn.duration(180)} style={styles.backdrop}>
+        <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(150)} style={styles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
         </Animated.View>
-        <Animated.View entering={SlideInUp.springify().damping(20)} style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
+        <Animated.View
+          entering={ZoomIn.springify().damping(16).mass(0.7)}
+          exiting={ZoomOut.duration(150)}
+          style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
           <View style={styles.grabber} />
           <View style={styles.sheetHeader}>
             <AppText variant="h2" style={{ flex: 1 }}>

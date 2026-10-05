@@ -230,8 +230,8 @@ export function greeting(): string {
   return 'Good evening';
 }
 
-export const attendanceStatusLabel: Record<AttendanceStatus, string> = { present: 'Present', half_day: 'Half day', absent: 'Absent' };
-export const attendanceStatusTone: Record<AttendanceStatus, Tone> = { present: 'success', half_day: 'warning', absent: 'danger' };
+export const attendanceStatusLabel: Record<AttendanceStatus, string> = { present: 'Present', half_day: 'Half day', absent: 'Absent', leave: 'Leave' };
+export const attendanceStatusTone: Record<AttendanceStatus, Tone> = { present: 'success', half_day: 'warning', absent: 'danger', leave: 'info' };
 
 export function formatClockTime(value: string | null | undefined): string {
   if (!value) return '—';
@@ -244,6 +244,31 @@ export function formatClockTime(value: string | null | undefined): string {
 export function formatDayLabel(value: string): string {
   const d = new Date(`${value}T00:00:00`);
   return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+export function formatDayShort(value: string): string {
+  const d = new Date(`${value}T00:00:00`);
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+/** Minutes as "Xh Ym" once past an hour, so a 113-minute lateness reads as "1h 53m" instead of "113 min". */
+export function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
+/** The last calendar day of a 'YYYY-MM-01' month key, as a 'YYYY-MM-DD' string. */
+export function monthEndKey(month: string): string {
+  const d = new Date(`${month}T00:00:00`);
+  return toDateOnly(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+}
+
+/** "Payable" once the month is fully elapsed, "Payable (till 5 Oct)" while it's still in progress. */
+export function payableLabel(month: string, asOf: string | null | undefined): string {
+  if (!asOf || asOf >= monthEndKey(month)) return 'Payable';
+  return `Payable (till ${formatDayShort(asOf)})`;
 }
 
 /** First-of-month key ('YYYY-MM-01') used end to end for month-scoped attendance RPCs. */

@@ -88,9 +88,9 @@ export default function FeedbackDetail() {
             {canRespond && f.type === 'question' && !isAuthor && (isBoss || isHR) && (
               <SwitchRow label="Publish answer to Q&A board" description="Everyone can then read the question and answer (without the author's name)." value={publish} onChange={setPublish} />
             )}
-            <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-end' }}>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
-                <TextField value={text} onChangeText={setText} placeholder={canRespond && !isAuthor ? 'Write an answer' : 'Add a follow-up'} multiline style={{ minHeight: 44 }} />
+                <TextField value={text} onChangeText={setText} placeholder={canRespond && !isAuthor ? 'Write an answer' : 'Add a follow-up'} />
               </View>
               <Button title="Send" icon="send" disabled={text.trim().length < 2} loading={busy === 'reply'} onPress={send} />
             </View>

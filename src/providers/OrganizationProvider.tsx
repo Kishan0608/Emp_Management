@@ -89,7 +89,9 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       selectedOrgId,
       setSelectedOrg,
       loading,
-      refreshOrganizations: loadOrganizations,
+      refreshOrganizations: async () => {
+        await loadOrganizations();
+      },
     }),
     [organizations, selectedOrg, selectedOrgId, setSelectedOrg, loading, loadOrganizations],
   );
