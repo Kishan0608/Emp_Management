@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -14,7 +14,7 @@ import { useMe } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fonts, radius, shadow, spacing } from '@/theme/tokens';
 
-type FormFeedbackType = 'work_question' | 'general_question' | 'leave' | 'feedback' | 'blocker';
+type FormFeedbackType = 'general_question' | 'leave' | 'feedback' | 'blocker';
 
 type LeaveCategory = 'casual' | 'sick' | 'earned' | 'half_day' | 'short_leave' | 'emergency' | 'unpaid';
 
@@ -198,14 +198,7 @@ const TYPE_OPTIONS: TypeOption[] = [
     value: null,
     label: 'Select Type',
     sublabel: 'Choose post category',
-    icon: 'help-circle-outline',
-    color: colors.textMuted,
-  },
-  {
-    value: 'work_question',
-    label: 'Work question',
-    sublabel: 'Questions about daily work, tasks, or projects',
-    icon: 'briefcase-outline',
+    icon: 'pricetag-outline',
     color: colors.brand,
   },
   {
@@ -226,7 +219,7 @@ const TYPE_OPTIONS: TypeOption[] = [
     value: 'feedback',
     label: 'Feedback',
     sublabel: 'Suggestions, ideas, or feedback for improvement',
-    icon: 'chatbubble-ellipses-outline',
+    icon: 'chatbubbles-outline',
     color: colors.feedback,
   },
   {
@@ -242,9 +235,10 @@ export default function NewFeedback() {
   const { me, manager, settings } = useMe();
   const toast = useToast();
   const myTasks = useLoad(() => api.tasks('mine', me.id));
+  const params = useLocalSearchParams<{ type?: FormFeedbackType }>();
 
   // General post states
-  const [kind, setKind] = useState<FormFeedbackType | null>(null);
+  const [kind, setKind] = useState<FormFeedbackType | null>(() => params.type ?? null);
   const [audience, setAudience] = useState<FeedbackAudience | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -293,7 +287,7 @@ export default function NewFeedback() {
         label: 'Select Report To',
         sublabel: 'Choose recipient',
         icon: 'paper-plane-outline',
-        color: colors.textMuted,
+        color: colors.brand,
       },
       {
         value: 'manager',
@@ -418,8 +412,6 @@ export default function NewFeedback() {
 
   const titlePlaceholder = useMemo(() => {
     switch (kind) {
-      case 'work_question':
-        return 'e.g. How do I proceed with this sprint task?';
       case 'general_question':
         return 'e.g. How do I apply for WFH or holidays?';
       case 'feedback':
@@ -433,8 +425,6 @@ export default function NewFeedback() {
 
   const detailsPlaceholder = useMemo(() => {
     switch (kind) {
-      case 'work_question':
-        return 'Explain your question clearly. Include what you have already tried and the task it relates to.';
       case 'general_question':
         return 'Explain your question in detail with any relevant background.';
       case 'feedback':
@@ -549,17 +539,15 @@ export default function NewFeedback() {
         finalBody = `${lines.join('\n')}${attachmentText}`;
       } else {
         formattedTitle =
-          kind === 'work_question'
-            ? `[Work Question] ${title.trim()}`
-            : kind === 'general_question'
-              ? `[General Question] ${title.trim()}`
-              : title.trim();
+          kind === 'general_question'
+            ? `[General Question] ${title.trim()}`
+            : title.trim();
 
         finalBody = `${body.trim()}${attachmentText}`;
       }
 
       const dbType: FeedbackType =
-        kind === 'work_question' || kind === 'general_question'
+        kind === 'general_question'
           ? 'question'
           : kind === 'blocker'
             ? 'blocker'
@@ -598,7 +586,7 @@ export default function NewFeedback() {
           subtitle={
             kind === 'leave'
               ? 'Submit formal time-off request with full schedule'
-              : 'Leave, work question, feedback, or blocker'
+              : 'General question, leave, feedback, or blocker'
           }
         />
       }
@@ -627,8 +615,8 @@ export default function NewFeedback() {
               accessibilityRole="button"
               accessibilityLabel="Select post type"
               style={[styles.fieldWrap, typeDdlOpen && styles.fieldWrapDdlOpen]}>
-              <View style={[styles.fieldIconSlot, { backgroundColor: (selectedTypeObj.color || colors.brand) + '1A' }]}>
-                <Ionicons name={selectedTypeObj.icon} size={16} color={selectedTypeObj.color || colors.brand} />
+              <View style={styles.fieldIconSlot}>
+                <Ionicons name={selectedTypeObj.icon} size={18} color={selectedTypeObj.color || colors.brand} />
               </View>
               <View style={styles.fieldTextSlot}>
                 <Text style={[styles.fieldValueText, !kind && styles.fieldPlaceholderText]} numberOfLines={1}>
@@ -658,8 +646,8 @@ export default function NewFeedback() {
                         pressed && styles.ddlOptionPressed,
                         idx < TYPE_OPTIONS.length - 1 && styles.ddlOptionBorder,
                       ]}>
-                      <View style={[styles.fieldIconSlot, { backgroundColor: (item.color || colors.brand) + '1A' }]}>
-                        <Ionicons name={item.icon} size={16} color={item.color || colors.brand} />
+                      <View style={styles.fieldIconSlot}>
+                        <Ionicons name={item.icon} size={18} color={item.color || colors.brand} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.ddlOptionTitle, active && { color: item.color, fontFamily: fonts.bold }]}>
@@ -693,8 +681,8 @@ export default function NewFeedback() {
               accessibilityRole="button"
               accessibilityLabel="Select who to report to"
               style={[styles.fieldWrap, audienceDdlOpen && styles.fieldWrapDdlOpen]}>
-              <View style={[styles.fieldIconSlot, { backgroundColor: (selectedAudienceObj.color || colors.brand) + '1A' }]}>
-                <Ionicons name={selectedAudienceObj.icon} size={16} color={selectedAudienceObj.color || colors.brand} />
+              <View style={styles.fieldIconSlot}>
+                <Ionicons name={selectedAudienceObj.icon} size={18} color={selectedAudienceObj.color || colors.brand} />
               </View>
               <View style={styles.fieldTextSlot}>
                 <Text style={[styles.fieldValueText, !audience && styles.fieldPlaceholderText]} numberOfLines={1}>
@@ -721,8 +709,8 @@ export default function NewFeedback() {
                         pressed && styles.ddlOptionPressed,
                         idx < audienceOptions.length - 1 && styles.ddlOptionBorder,
                       ]}>
-                      <View style={[styles.fieldIconSlot, { backgroundColor: (item.color || colors.brand) + '1A' }]}>
-                        <Ionicons name={item.icon} size={16} color={item.color || colors.brand} />
+                      <View style={styles.fieldIconSlot}>
+                        <Ionicons name={item.icon} size={18} color={item.color || colors.brand} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.ddlOptionTitle, active && { color: item.color, fontFamily: fonts.bold }]}>
@@ -765,7 +753,7 @@ export default function NewFeedback() {
                   accessibilityRole="button"
                   accessibilityLabel="Select leave classification"
                   style={[styles.fieldWrap, leaveCatDdlOpen && styles.fieldWrapDdlOpen]}>
-                  <View style={[styles.fieldIconSlot, { backgroundColor: selectedCategoryObj.color + '1A' }]}>
+                  <View style={styles.fieldIconSlot}>
                     <Ionicons name={selectedCategoryObj.icon} size={16} color={selectedCategoryObj.color} />
                   </View>
                   <View style={styles.fieldTextSlot}>
@@ -800,7 +788,7 @@ export default function NewFeedback() {
                             pressed && styles.ddlOptionPressed,
                             idx < LEAVE_CATEGORIES.length - 1 && styles.ddlOptionBorder,
                           ]}>
-                          <View style={[styles.fieldIconSlot, { backgroundColor: cat.color + '1A' }]}>
+                          <View style={styles.fieldIconSlot}>
                             <Ionicons name={cat.icon} size={16} color={cat.color} />
                           </View>
                           <View style={{ flex: 1 }}>
@@ -833,7 +821,7 @@ export default function NewFeedback() {
                   accessibilityRole="button"
                   accessibilityLabel="Select duration mode"
                   style={[styles.fieldWrap, durationModeDdlOpen && styles.fieldWrapDdlOpen]}>
-                  <View style={[styles.fieldIconSlot, { backgroundColor: colors.brandSoft }]}>
+                  <View style={styles.fieldIconSlot}>
                     <Ionicons name={selectedDurationModeObj.icon} size={16} color={colors.brand} />
                   </View>
                   <View style={styles.fieldTextSlot}>
@@ -861,7 +849,7 @@ export default function NewFeedback() {
                             pressed && styles.ddlOptionPressed,
                             idx < DURATION_MODES.length - 1 && styles.ddlOptionBorder,
                           ]}>
-                          <View style={[styles.fieldIconSlot, { backgroundColor: colors.brandSoft }]}>
+                          <View style={styles.fieldIconSlot}>
                             <Ionicons name={dm.icon} size={16} color={colors.brand} />
                           </View>
                           <View style={{ flex: 1 }}>
@@ -885,99 +873,54 @@ export default function NewFeedback() {
                   <Text style={styles.fieldLabel}>
                     {durationMode === 'multiple_days' ? 'From Date (Start) *' : 'Leave Date *'}
                   </Text>
-                  {Platform.OS === 'web' ? (
-                    <View style={styles.fieldWrap}>
-                      <View style={[styles.fieldIconSlot, { backgroundColor: colors.brandSoft }]}>
-                        <Ionicons name="calendar-outline" size={16} color={colors.brand} />
-                      </View>
-                      <TextInput
-                        value={leaveStartDate}
-                        onChangeText={(t) => {
-                          setLeaveStartDate(t);
-                          if (durationMode === 'multiple_days' && leaveEndDate < t) {
-                            setLeaveEndDate(t);
-                          }
-                        }}
-                        placeholder="YYYY-MM-DD"
-                        placeholderTextColor={colors.textMuted}
-                        maxLength={10}
-                        style={styles.fieldInput}
-                      />
-                      <Text style={styles.inlineWebDateHint}>{formatLeaveDate(leaveStartDate)}</Text>
-                      <Pressable
-                        onPress={openStartDatePicker}
-                        accessibilityRole="button"
-                        accessibilityLabel="Open calendar"
-                        style={({ pressed }) => [styles.fieldRightActionBtn, pressed && { opacity: 0.7 }]}>
-                        <Ionicons name="calendar" size={18} color={colors.brand} />
-                      </Pressable>
+                  <Pressable
+                    onPress={openStartDatePicker}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open calendar"
+                    style={styles.fieldWrap}>
+                    <View style={styles.fieldIconSlot}>
+                      <Ionicons name="calendar-outline" size={16} color={colors.brand} />
                     </View>
-                  ) : (
+                    <View style={styles.fieldTextSlot}>
+                      <Text style={styles.fieldValueText} numberOfLines={1}>
+                        {formatLeaveDate(leaveStartDate)}
+                      </Text>
+                    </View>
                     <Pressable
                       onPress={openStartDatePicker}
                       accessibilityRole="button"
                       accessibilityLabel="Open calendar"
-                      style={styles.fieldWrap}>
-                      <View style={[styles.fieldIconSlot, { backgroundColor: colors.brandSoft }]}>
-                        <Ionicons name="calendar-outline" size={16} color={colors.brand} />
-                      </View>
-                      <View style={styles.fieldTextSlot}>
-                        <Text style={styles.fieldValueText} numberOfLines={1}>
-                          {formatLeaveDate(leaveStartDate)}
-                        </Text>
-                      </View>
-                      <View style={styles.fieldRightActionBtn}>
-                        <Ionicons name="calendar" size={18} color={colors.brand} />
-                      </View>
+                      style={({ pressed }) => [styles.fieldRightActionBtn, pressed && { opacity: 0.7 }]}>
+                      <Ionicons name="calendar" size={18} color={colors.brand} />
                     </Pressable>
-                  )}
+                  </Pressable>
                 </View>
 
                 {/* END DATE (ONLY FOR MULTIPLE DAYS) */}
                 {durationMode === 'multiple_days' && (
                   <View style={{ gap: 6 }}>
                     <Text style={styles.fieldLabel}>To Date (End) *</Text>
-                    {Platform.OS === 'web' ? (
-                      <View style={styles.fieldWrap}>
-                        <View style={[styles.fieldIconSlot, { backgroundColor: colors.brandSoft }]}>
-                          <Ionicons name="calendar-outline" size={16} color={colors.brand} />
-                        </View>
-                        <TextInput
-                          value={leaveEndDate}
-                          onChangeText={setLeaveEndDate}
-                          placeholder="YYYY-MM-DD"
-                          placeholderTextColor={colors.textMuted}
-                          maxLength={10}
-                          style={styles.fieldInput}
-                        />
-                        <Text style={styles.inlineWebDateHint}>{formatLeaveDate(leaveEndDate)}</Text>
-                        <Pressable
-                          onPress={openEndDatePicker}
-                          accessibilityRole="button"
-                          accessibilityLabel="Open calendar"
-                          style={({ pressed }) => [styles.fieldRightActionBtn, pressed && { opacity: 0.7 }]}>
-                          <Ionicons name="calendar" size={18} color={colors.brand} />
-                        </Pressable>
+                    <Pressable
+                      onPress={openEndDatePicker}
+                      accessibilityRole="button"
+                      accessibilityLabel="Open calendar"
+                      style={styles.fieldWrap}>
+                      <View style={styles.fieldIconSlot}>
+                        <Ionicons name="calendar-outline" size={16} color={colors.brand} />
                       </View>
-                    ) : (
+                      <View style={styles.fieldTextSlot}>
+                        <Text style={styles.fieldValueText} numberOfLines={1}>
+                          {formatLeaveDate(leaveEndDate)}
+                        </Text>
+                      </View>
                       <Pressable
                         onPress={openEndDatePicker}
                         accessibilityRole="button"
                         accessibilityLabel="Open calendar"
-                        style={styles.fieldWrap}>
-                        <View style={[styles.fieldIconSlot, { backgroundColor: colors.brandSoft }]}>
-                          <Ionicons name="calendar-outline" size={16} color={colors.brand} />
-                        </View>
-                        <View style={styles.fieldTextSlot}>
-                          <Text style={styles.fieldValueText} numberOfLines={1}>
-                            {formatLeaveDate(leaveEndDate)}
-                          </Text>
-                        </View>
-                        <View style={styles.fieldRightActionBtn}>
-                          <Ionicons name="calendar" size={18} color={colors.brand} />
-                        </View>
+                        style={({ pressed }) => [styles.fieldRightActionBtn, pressed && { opacity: 0.7 }]}>
+                        <Ionicons name="calendar" size={18} color={colors.brand} />
                       </Pressable>
-                    )}
+                    </Pressable>
                   </View>
                 )}
 
@@ -988,7 +931,7 @@ export default function NewFeedback() {
                       <Text style={styles.fieldLabel}>From Time *</Text>
                       {Platform.OS === 'web' ? (
                         <View style={styles.fieldWrap}>
-                          <View style={[styles.fieldIconSlot, { backgroundColor: colors.brandSoft }]}>
+                          <View style={styles.fieldIconSlot}>
                             <Ionicons name="time-outline" size={16} color={colors.brand} />
                           </View>
                           <TextInput
@@ -1012,7 +955,7 @@ export default function NewFeedback() {
                           accessibilityRole="button"
                           accessibilityLabel="Open clock"
                           style={styles.fieldWrap}>
-                          <View style={[styles.fieldIconSlot, { backgroundColor: colors.brandSoft }]}>
+                          <View style={styles.fieldIconSlot}>
                             <Ionicons name="time-outline" size={16} color={colors.brand} />
                           </View>
                           <View style={styles.fieldTextSlot}>
@@ -1031,7 +974,7 @@ export default function NewFeedback() {
                       <Text style={styles.fieldLabel}>To Time *</Text>
                       {Platform.OS === 'web' ? (
                         <View style={styles.fieldWrap}>
-                          <View style={[styles.fieldIconSlot, { backgroundColor: colors.brandSoft }]}>
+                          <View style={styles.fieldIconSlot}>
                             <Ionicons name="time-outline" size={16} color={colors.brand} />
                           </View>
                           <TextInput
@@ -1055,7 +998,7 @@ export default function NewFeedback() {
                           accessibilityRole="button"
                           accessibilityLabel="Open clock"
                           style={styles.fieldWrap}>
-                          <View style={[styles.fieldIconSlot, { backgroundColor: colors.brandSoft }]}>
+                          <View style={styles.fieldIconSlot}>
                             <Ionicons name="time-outline" size={16} color={colors.brand} />
                           </View>
                           <View style={styles.fieldTextSlot}>
@@ -1101,8 +1044,8 @@ export default function NewFeedback() {
             {/* REASON & HANDOVER DETAILS */}
             <Card style={styles.sectionCard}>
               <View style={styles.sectionHeaderRow}>
-                <View style={[styles.sectionHeaderIconWrap, { backgroundColor: colors.feedbackSoft }]}>
-                  <Ionicons name="document-text" size={18} color={colors.feedback} />
+                <View style={styles.sectionHeaderIconWrap}>
+                  <Ionicons name="document-text" size={18} color={colors.brand} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.sectionHeading}>Reason & Responsibility</Text>
@@ -1120,10 +1063,12 @@ export default function NewFeedback() {
                   }}
                   accessibilityRole="button"
                   accessibilityLabel="Select reason classification"
-                  style={[styles.ddlTrigger, reasonDdlOpen && styles.ddlTriggerActive]}>
-                  <Ionicons name={selectedReasonObj.icon} size={18} color={colors.brand} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.ddlTriggerText} numberOfLines={1}>
+                  style={[styles.fieldWrap, reasonDdlOpen && styles.fieldWrapDdlOpen]}>
+                  <View style={styles.fieldIconSlot}>
+                    <Ionicons name={selectedReasonObj.icon} size={18} color={colors.brand} />
+                  </View>
+                  <View style={styles.fieldTextSlot}>
+                    <Text style={styles.fieldValueText} numberOfLines={1}>
                       {selectedReasonObj.label}
                     </Text>
                   </View>
@@ -1147,7 +1092,9 @@ export default function NewFeedback() {
                             pressed && styles.ddlOptionPressed,
                             idx < LEAVE_REASONS.length - 1 && styles.ddlOptionBorder,
                           ]}>
-                          <Ionicons name={r.icon} size={18} color={active ? colors.brand : colors.textMuted} />
+                          <View style={styles.fieldIconSlot}>
+                            <Ionicons name={r.icon} size={18} color={active ? colors.brand : colors.textMuted} />
+                          </View>
                           <View style={{ flex: 1 }}>
                             <Text style={[styles.ddlOptionTitle, active && { color: colors.brand, fontFamily: fonts.bold }]}>
                               {r.label}
@@ -1167,8 +1114,8 @@ export default function NewFeedback() {
                 value={leaveReasonText}
                 onChangeText={setLeaveReasonText}
                 placeholder="Explain the reason for your leave request in detail, including context and any urgent handover instructions…"
+                icon="document-text-outline"
                 multiline
-                counter={2000}
               />
 
               {/* WORK HANDOVER (CLEAN TEXTFIELD WITHOUT HINT LINE) */}
@@ -1178,7 +1125,6 @@ export default function NewFeedback() {
                 onChangeText={setHandoverPerson}
                 placeholder="e.g. Rahul Sharma (covering pending PRs and active client queries)"
                 icon="person-outline"
-                counter={100}
               />
             </Card>
 
@@ -1259,20 +1205,52 @@ export default function NewFeedback() {
         ) : (
           /* STANDARD FORM FOR QUESTION, FEEDBACK & BLOCKER */
           <Card style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionHeaderIconWrap}>
+                <Ionicons
+                  name={
+                    kind === 'general_question'
+                      ? 'help-circle-outline'
+                      : kind === 'blocker'
+                        ? 'hand-left-outline'
+                        : 'chatbubbles-outline'
+                  }
+                  size={18}
+                  color={selectedTypeObj.color || colors.brand}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sectionHeading}>
+                  {kind === 'general_question'
+                    ? 'General Question'
+                    : kind === 'blocker'
+                      ? 'Blocker Details'
+                      : 'Feedback Details'}
+                </Text>
+                <Text style={styles.sectionSubheading}>
+                  {kind === 'blocker'
+                    ? 'Work is stopped and requires urgent resolution'
+                    : kind === 'feedback'
+                      ? 'Suggestions, ideas, or feedback for improvement'
+                      : 'Provide summary and detailed description'}
+                </Text>
+              </View>
+            </View>
+
             <TextField
               label="Title *"
               value={title}
               onChangeText={setTitle}
               placeholder={titlePlaceholder}
-              counter={160}
+              icon="create-outline"
             />
             <TextField
               label="Details *"
               value={body}
               onChangeText={setBody}
               placeholder={detailsPlaceholder}
+              icon="document-text-outline"
               multiline
-              counter={4000}
             />
 
             {/* ATTACHMENT FIELD */}
@@ -1504,7 +1482,6 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: radius.sm,
-    backgroundColor: colors.warningSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1531,6 +1508,69 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginBottom: 4,
   },
+
+  // ── Unified field row (icon slot + text slot + optional right action) ──
+  fieldWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  fieldWrapDdlOpen: {
+    borderColor: colors.brand,
+    backgroundColor: '#FFFDF7',
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  fieldIconSlot: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  fieldTextSlot: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  fieldValueText: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    color: colors.text,
+  },
+  fieldPlaceholderText: {
+    fontFamily: fonts.regular,
+    color: colors.textMuted,
+  },
+  fieldInput: {
+    flex: 1,
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    color: colors.text,
+    paddingVertical: 0,
+  },
+  inlineWebDateHint: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: colors.brand,
+    flexShrink: 0,
+  },
+  fieldRightActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    backgroundColor: colors.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+
   ddlTrigger: {
     flexDirection: 'row',
     alignItems: 'center',

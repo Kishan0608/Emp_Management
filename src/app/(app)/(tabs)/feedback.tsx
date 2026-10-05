@@ -16,12 +16,14 @@ import {
 import { useLoad } from '@/hooks/useLoad';
 import { api } from '@/lib/api';
 import { useMe } from '@/providers/AuthProvider';
+import { useOrganization } from '@/providers/OrganizationProvider';
 import { colors, fonts, gradients, radius, shadow, spacing } from '@/theme/tokens';
 
 export type FeedbackScope = 'inbox' | 'mine' | 'blockers' | 'qa';
 
 export default function Feedback() {
-  const { me, isEmployee } = useMe();
+  const { me, isEmployee, isBoss } = useMe();
+  const { selectedOrgId } = useOrganization();
   const isStaff = !isEmployee;
   const params = useLocalSearchParams<{ scope?: FeedbackScope }>();
   const [scope, setScope] = useState<FeedbackScope>(params.scope ?? 'inbox');
@@ -36,8 +38,8 @@ export default function Feedback() {
   }
 
   const { data, loading, refreshing, refresh, error } = useLoad(
-    () => api.feedback(scope, me.id, isStaff),
-    [scope, me.id, isStaff]
+    () => api.feedback(scope, me.id, isStaff, isBoss ? selectedOrgId : null),
+    [scope, me.id, isStaff, selectedOrgId]
   );
 
   const counts = useLoad(

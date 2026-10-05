@@ -62,6 +62,7 @@ export default function PersonProfile() {
             <Text style={type.small}>{p.job_title ?? '—'}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 4 }}>
               <Badge label={roleLabel[p.role]} tone="brand" />
+              {p.organization && <Badge label={p.organization} tone="info" icon="business" />}
               {p.department && <Badge label={p.department} />}
               {!p.is_active && <Badge label="Inactive" tone="danger" />}
             </View>
@@ -80,6 +81,12 @@ export default function PersonProfile() {
           </Card>
 
           <Card padded={false}>
+            {p.organization && (
+              <>
+                <Info icon="business-outline" label="Company" value={p.organization} />
+                <Divider inset={52} />
+              </>
+            )}
             <Info icon="mail-outline" label="Work email" value={p.email} />
             <Divider inset={52} />
             <Info icon="people-outline" label="Reports to" value={p.manager ?? '—'} />

@@ -22,6 +22,7 @@ import {
 } from '@/components/ui';
 import { roleLabel } from '@/lib/format';
 import { useAuth, useMe } from '@/providers/AuthProvider';
+import { useOrganization } from '@/providers/OrganizationProvider';
 import { colors, spacing, type } from '@/theme/tokens';
 
 interface Item {
@@ -36,7 +37,8 @@ interface Item {
 
 export default function More() {
   const { signOut, appLockEnabled, appLockType, biometricEnabled } = useAuth();
-  const { me, department, manager, isBoss, isHR } = useMe();
+  const { me, department, manager, organization, isBoss, isHR } = useMe();
+  const { selectedOrg } = useOrganization();
   const [privacy, setPrivacy] = useState(false);
 
   const confirm = (title: string, message: string, fn: () => void) => {
@@ -55,6 +57,12 @@ export default function More() {
     { icon: 'people-outline', label: 'People directory', href: '/people' },
   ];
   const admin: Item[] = [
+    ...(isBoss ? [{
+      icon: 'business-outline' as const,
+      label: 'Organization',
+      hint: selectedOrg ? `${selectedOrg.name} (Active)` : 'All companies (Consolidated)',
+      href: '/organization' as Href,
+    }] : []),
     ...(isBoss ? [{ icon: 'eye-outline' as const, label: 'Visibility settings', hint: 'Who sees which employee details', href: '/admin/visibility' as Href }] : []),
     ...(isBoss || isHR ? [{ icon: 'calendar-outline' as const, label: 'Attendance', hint: 'All employees · salary', href: '/admin/attendance' as Href }] : []),
     ...(isBoss || isHR ? [{ icon: 'bar-chart-outline' as const, label: 'Analytics & exports', href: '/admin/analytics' as Href }] : []),
@@ -88,6 +96,7 @@ export default function More() {
             <Text style={type.small}>{me.email}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
               <Badge label={roleLabel[me.role]} tone="brand" />
+              {organization && <Badge label={organization.name} tone="info" icon="business" />}
               {department && <Badge label={department} />}
             </View>
             {manager && <Text style={type.small}>Reports to {manager}</Text>}

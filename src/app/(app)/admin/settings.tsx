@@ -23,10 +23,12 @@ export default function Settings() {
   const { refresh } = useAuth();
   const toast = useToast();
   const depts = useLoad(() => api.departments());
+  const orgs = useLoad(() => api.allOrganizations());
   const [name, setName] = useState(settings.company_name);
   const [nums, setNums] = useState<Record<NumKey, string>>(() => Object.fromEntries(NUMBERS.map((n) => [n.key, String(settings[n.key])])) as Record<NumKey, string>);
   const [mfa, setMfa] = useState(settings.require_mfa_admins);
   const [newDept, setNewDept] = useState('');
+  const [newOrg, setNewOrg] = useState('');
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
@@ -52,7 +54,41 @@ export default function Settings() {
     <Screen keyboard header={<PageHeader title="Company settings" />} footer={<Button title="Save settings" size="lg" loading={busy} onPress={save} />}>
       <View style={{ gap: spacing.md }}>
         <Card>
-          <TextField label="Company name" value={name} onChangeText={setName} />
+          <TextField label="Default Company / App Name" value={name} onChangeText={setName} />
+        </Card>
+
+        {/* Organizations & Companies */}
+        <SectionTitle title="Organizations & Companies" />
+        <Card padded={false}>
+          {(orgs.data ?? []).map((o, i) => (
+            <View key={o.id}>
+              {i > 0 && <Divider inset={16} />}
+              <ListRow
+                title={o.name}
+                subtitle={o.is_active ? 'Active company' : 'Inactive'}
+              />
+            </View>
+          ))}
+          <View style={{ flexDirection: 'row', gap: spacing.sm, padding: spacing.lg, alignItems: 'flex-end' }}>
+            <View style={{ flex: 1 }}>
+              <TextField placeholder="Add new company name" value={newOrg} onChangeText={setNewOrg} />
+            </View>
+            <Button
+              title="Add"
+              variant="secondary"
+              disabled={newOrg.trim().length < 2}
+              onPress={async () => {
+                try {
+                  await api.createOrganization(newOrg);
+                  setNewOrg('');
+                  orgs.reload();
+                  toast('Company added');
+                } catch (e) {
+                  toast(errorMessage(e), 'error');
+                }
+              }}
+            />
+          </View>
         </Card>
 
         <SectionTitle title="Feedback & escalation" />

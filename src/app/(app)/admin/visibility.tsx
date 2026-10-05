@@ -7,6 +7,7 @@ import { api, errorMessage } from '@/lib/api';
 import { fieldLabel, roleLabel } from '@/lib/format';
 import type { Role, VisibilityField } from '@/lib/types';
 import { useToast } from '@/providers/ToastProvider';
+import { useOrganization } from '@/providers/OrganizationProvider';
 import { colors, spacing, type } from '@/theme/tokens';
 
 const FIELDS = Object.keys(fieldLabel) as VisibilityField[];
@@ -22,8 +23,9 @@ type Override = 'inherit' | 'allow' | 'deny';
 
 export default function Visibility() {
   const toast = useToast();
+  const { selectedOrgId } = useOrganization();
   const rules = useLoad(() => api.visibilityRules());
-  const people = useLoad(() => api.directory());
+  const people = useLoad(() => api.directory(selectedOrgId), [selectedOrgId]);
   const [mode, setMode] = useState<'role' | 'person'>('role');
   const [role, setRole] = useState<Exclude<Role, 'boss'>>('hr');
   const [person, setPerson] = useState<string | null>(null);

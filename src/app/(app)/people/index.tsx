@@ -9,12 +9,14 @@ import { api } from '@/lib/api';
 import { roleLabel } from '@/lib/format';
 import type { Role } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
+import { useOrganization } from '@/providers/OrganizationProvider';
 import { colors, spacing } from '@/theme/tokens';
 
 export default function People() {
   const { isBoss } = useMe();
-  const people = useLoad(() => api.directory());
-  const depts = useLoad(() => api.departments());
+  const { selectedOrg, selectedOrgId } = useOrganization();
+  const people = useLoad(() => api.directory(isBoss ? selectedOrgId : null), [selectedOrgId]);
+  const depts = useLoad(() => api.departments(isBoss ? selectedOrgId : null), [selectedOrgId]);
   const [q, setQ] = useState('');
   const [role, setRole] = useState<Role | 'all'>('all');
 
@@ -58,7 +60,13 @@ export default function People() {
       header={
         <PageHeader
           title="People"
-          subtitle={people.loading ? 'Loading…' : `${list.length} ${list.length === 1 ? 'person' : 'people'}`}
+          subtitle={
+            people.loading
+              ? 'Loading…'
+              : selectedOrg
+                ? `${selectedOrg.name} · ${list.length} ${list.length === 1 ? 'person' : 'people'}`
+                : `${list.length} ${list.length === 1 ? 'person' : 'people'}`
+          }
         />
       }>
       <View style={{ gap: spacing.md }}>

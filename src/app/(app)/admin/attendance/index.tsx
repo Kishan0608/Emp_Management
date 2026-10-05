@@ -1,39 +1,73 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar, Badge, Banner, Card, EmptyState, ListSkeleton, PageHeader, Screen, TextField } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
 import { api } from '@/lib/api';
 import { formatINR, monthKey, monthLabel, roleLabel, shiftMonth } from '@/lib/format';
+import type { AttendanceOverviewRow, Role } from '@/lib/types';
+import { useOrganization } from '@/providers/OrganizationProvider';
 import { colors, fonts, spacing, type } from '@/theme/tokens';
 
 export default function AttendanceOverview() {
+  const { selectedOrg, selectedOrgId } = useOrganization();
   const [month, setMonth] = useState(() => monthKey());
   const [q, setQ] = useState('');
   const overview = useLoad(() => api.attendanceOverview(month), [month]);
 
   const rows = useMemo(() => {
     const t = q.trim().toLowerCase();
-    return (overview.data ?? []).filter((r) => !t || `${r.full_name} ${r.department ?? ''}`.toLowerCase().includes(t));
-  }, [overview.data, q]);
+    return (overview.data ?? []).filter((r: AttendanceOverviewRow) => {
+      if (selectedOrgId && r.organization_id && r.organization_id !== selectedOrgId) return false;
+      return !t || `${r.full_name} ${r.department ?? ''}`.toLowerCase().includes(t);
+    });
+  }, [overview.data, q, selectedOrgId]);
 
   return (
     <Screen
       refreshing={overview.refreshing}
       onRefresh={overview.refresh}
-      header={<PageHeader title="Attendance" subtitle="All employees" />}>
+      header={
+        <PageHeader
+          title="Attendance"
+          subtitle={
+            overview.loading
+              ? 'Loading…'
+              : selectedOrg
+                ? `${selectedOrg.name} · ${rows.length} ${rows.length === 1 ? 'employee' : 'employees'}`
+                : `${rows.length} ${rows.length === 1 ? 'employee' : 'employees'}`
+          }
+        />
+      }>
       <View style={{ gap: spacing.lg }}>
         {overview.error && <Banner tone="danger">{overview.error}</Banner>}
 
         <View style={styles.monthRow}>
-          <Ionicons name="chevron-back" size={20} color={colors.text} onPress={() => setMonth((m) => shiftMonth(m, -1))} />
+          <Pressable onPress={() => setMonth((m) => shiftMonth(m, -1))} hitSlop={12} accessibilityLabel="Previous month">
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+          </Pressable>
           <Text style={type.h3}>{monthLabel(month)}</Text>
-          <Ionicons name="chevron-forward" size={20} color={colors.text} onPress={() => setMonth((m) => shiftMonth(m, 1))} />
+          <Pressable onPress={() => setMonth((m) => shiftMonth(m, 1))} hitSlop={12} accessibilityLabel="Next month">
+            <Ionicons name="chevron-forward" size={22} color={colors.text} />
+          </Pressable>
         </View>
 
-        <TextField icon="search" placeholder="Search people or department" value={q} onChangeText={setQ} autoCapitalize="none" />
+        <TextField
+          icon="search"
+          placeholder="Search people or department"
+          value={q}
+          onChangeText={setQ}
+          autoCapitalize="none"
+          right={
+            q.length > 0 ? (
+              <Pressable onPress={() => setQ('')} hitSlop={8} accessibilityLabel="Clear search">
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              </Pressable>
+            ) : undefined
+          }
+        />
 
         {overview.loading ? (
           <ListSkeleton rows={5} />
@@ -51,7 +85,7 @@ export default function AttendanceOverview() {
                     {r.full_name}
                   </Text>
                   <Text style={type.small} numberOfLines={1}>
-                    {[roleLabel[r.role], r.department].filter(Boolean).join(' · ')}
+                    {[r.role ? roleLabel[r.role as Role] : null, r.department].filter(Boolean).join(' · ')}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />

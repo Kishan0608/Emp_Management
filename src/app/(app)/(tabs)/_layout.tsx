@@ -1,30 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Tabs, type BottomTabBarProps } from 'expo-router/js-tabs';
-import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import { useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { colors, fonts } from '@/theme/tokens';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
 const TAB_ICONS: Record<string, { active: IconName; inactive: IconName }> = {
-  home: { active: 'grid', inactive: 'grid-outline' },
   tasks: { active: 'checkbox', inactive: 'checkbox-outline' },
   attendance: { active: 'time', inactive: 'time-outline' },
+  home: { active: 'home', inactive: 'home-outline' },
   feedback: { active: 'chatbubbles', inactive: 'chatbubbles-outline' },
   more: { active: 'menu', inactive: 'menu-outline' },
 };
-
-const PILL_W = 52;
-const SPRING = { damping: 20, stiffness: 260, mass: 0.8 };
 
 function TabButton({
   routeName,
@@ -39,34 +30,68 @@ function TabButton({
   onPress: () => void;
   onLongPress: () => void;
 }) {
+  const isHome = routeName === 'home';
   const icons = TAB_ICONS[routeName] ?? { active: 'ellipse', inactive: 'ellipse-outline' };
-  const pressScale = useSharedValue(1);
-  const active = useSharedValue(isFocused ? 1 : 0);
 
-  useEffect(() => {
-    active.set(withSpring(isFocused ? 1 : 0, SPRING));
-  }, [isFocused, active]);
-
-  const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pressScale.get() * interpolate(active.get(), [0, 1], [1, 1.08]) }, { translateY: interpolate(active.get(), [0, 1], [0, -1]) }],
-  }));
+  if (isHome) {
+    return (
+      <Pressable
+        onPress={onPress}
+        onLongPress={onLongPress}
+        unstable_pressDelay={0}
+        android_disableSound
+        accessibilityRole="tab"
+        accessibilityState={isFocused ? { selected: true } : {}}
+        accessibilityLabel={label}
+        hitSlop={{ top: 14, bottom: 4, left: 10, right: 10 }}
+        style={({ pressed }) => [
+          styles.tabItem,
+          styles.centerTabItem,
+          pressed && { opacity: 0.88, transform: [{ scale: 0.95 }] },
+        ]}>
+        <View
+          style={[
+            styles.centerIconCircle,
+            isFocused ? styles.centerIconCircleActive : styles.centerIconCircleInactive,
+          ]}>
+          <Ionicons
+            name={isFocused ? icons.active : icons.inactive}
+            size={24}
+            color={isFocused ? colors.white : colors.textSecondary}
+          />
+        </View>
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.tabLabel,
+            isFocused ? styles.tabLabelActive : styles.tabLabelInactive,
+          ]}>
+          {label}
+        </Text>
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
-      onPressIn={() => pressScale.set(withTiming(0.88, { duration: 90 }))}
-      onPressOut={() => pressScale.set(withSpring(1, { damping: 12, stiffness: 300 }))}
       unstable_pressDelay={0}
       android_disableSound
       accessibilityRole="tab"
       accessibilityState={isFocused ? { selected: true } : {}}
       accessibilityLabel={label}
-      style={styles.tabItem}>
-      <Animated.View style={[styles.iconWrap, iconStyle]}>
-        <Ionicons name={isFocused ? icons.active : icons.inactive} size={22} color={isFocused ? colors.brand : colors.textMuted} />
-      </Animated.View>
-      <Text numberOfLines={1} style={[styles.tabLabel, isFocused ? styles.tabLabelActive : styles.tabLabelInactive]}>
+      style={({ pressed }) => [styles.tabItem, pressed && styles.tabItemPressed]}>
+      <View style={styles.iconWrap}>
+        <Ionicons
+          name={isFocused ? icons.active : icons.inactive}
+          size={22}
+          color={isFocused ? colors.brand : colors.textMuted}
+        />
+      </View>
+      <Text
+        numberOfLines={1}
+        style={[styles.tabLabel, isFocused ? styles.tabLabelActive : styles.tabLabelInactive]}>
         {label}
       </Text>
     </Pressable>
@@ -74,45 +99,72 @@ function TabButton({
 }
 
 function CustomTabBar({ state, descriptors, navigation, insets }: BottomTabBarProps) {
-  const bottomInset = Math.max(insets.bottom, Platform.OS === 'web' ? 10 : 8);
-  const count = state.routes.length;
-  const [width, setWidth] = useState(0);
-  const x = useSharedValue(0);
-  const tabW = width / count;
+  const { width: windowWidth } = useWindowDimensions();
+  const [layoutWidth, setLayoutWidth] = useState(windowWidth);
+  const width = layoutWidth || windowWidth;
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'web' ? 12 : 8);
+  const barHeight = 58;
+  const totalHeight = barHeight + bottomInset;
 
-  // One pill that glides to the selected tab.
-  useEffect(() => {
-    if (!width) return;
-    const target = state.index * tabW + (tabW - PILL_W) / 2;
-    x.set(x.get() === 0 && state.index !== 0 ? target : withSpring(target, SPRING));
-  }, [state.index, tabW, width, x]);
+  // Mountain geometry:
+  // The baseline of the tab bar is at y = 0 of the container.
+  // In the SVG, we place y_base at 22 so that the top edge on left & right is at container y = 0.
+  // The mountain peak curves smoothly UP to y_peak = 2 (which is container y = -20).
+  // The entire area below the line is filled with solid colors.surface (white).
+  // This guarantees ZERO gap on the left and right where page content or background can peek through!
+  const y_base = 22;
+  const y_peak = 2;
+  const svgHeight = totalHeight + y_base;
+  const cx = width / 2;
+  const mountainHalfWidth = 58;
+  const leftRamp = cx - mountainHalfWidth;
+  const rightRamp = cx + mountainHalfWidth;
 
-  // Mount the other tabs quietly once the app has settled, so the first visit is instant.
-  const preloaded = useRef(false);
-  useEffect(() => {
-    if (preloaded.current) return;
-    preloaded.current = true;
-    const t = setTimeout(() => {
-      state.routes.forEach((r, i) => {
-        if (i !== state.index) navigation.dispatch({ type: 'PRELOAD', payload: { name: r.name }, target: state.key });
-      });
-    }, 1500);
-    return () => clearTimeout(t);
-  }, [navigation, state]);
+  // Single continuous seamless mountain curve path with exact C1 horizontal tangents
+  const borderPath = `M 0,${y_base} L ${leftRamp},${y_base} C ${cx - 38},${y_base} ${cx - 24},${y_peak} ${cx},${y_peak} C ${cx + 24},${y_peak} ${cx + 38},${y_base} ${rightRamp},${y_base} L ${width},${y_base}`;
 
-  const pillStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
+  // Solid white fill spanning from the mountain line all the way to the bottom edge
+  const bgPath = `${borderPath} L ${width},${svgHeight} L 0,${svgHeight} Z`;
 
   return (
-    <View style={[styles.barContainer, { paddingBottom: bottomInset }]}>
-      <View style={styles.barInner} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-        {width > 0 && <Animated.View pointerEvents="none" style={[styles.activePill, pillStyle]} />}
+    <View
+      style={[styles.barContainer, { height: totalHeight }]}
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width;
+        if (w && w !== layoutWidth) setLayoutWidth(w);
+      }}>
+      {/* Seamless mountain SVG background and continuous top border */}
+      <Svg
+        width={width}
+        height={svgHeight}
+        style={[
+          styles.svgBackground,
+          {
+            top: -y_base,
+            height: svgHeight,
+            width,
+          },
+        ]}
+        pointerEvents="none">
+        <Path d={bgPath} fill={colors.surface} />
+        <Path d={borderPath} fill="none" stroke={colors.border} strokeWidth={1.5} />
+      </Svg>
+
+      <View style={[styles.barInner, { height: barHeight }]}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
-          const label = typeof options.tabBarLabel === 'string' ? options.tabBarLabel : (options.title ?? route.name);
+          const label =
+            typeof options.tabBarLabel === 'string'
+              ? options.tabBarLabel
+              : (options.title ?? route.name);
 
           const handlePress = () => {
-            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
             if (!isFocused && !event.defaultPrevented) {
               Haptics.selectionAsync().catch(() => {});
               navigation.navigate(route.name, route.params);
@@ -138,16 +190,17 @@ function CustomTabBar({ state, descriptors, navigation, insets }: BottomTabBarPr
 export default function TabsLayout() {
   return (
     <Tabs
+      initialRouteName="home"
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        animation: 'none', // instant switch: no fade, no in-between frames
+        animation: 'none',
         sceneStyle: { backgroundColor: colors.bg },
       }}>
-      <Tabs.Screen name="home" options={{ title: 'Home' }} />
       <Tabs.Screen name="tasks" options={{ title: 'Tasks' }} />
       <Tabs.Screen name="attendance" options={{ title: 'Attendance' }} />
-      <Tabs.Screen name="feedback" options={{ title: 'Feedback' }} />
+      <Tabs.Screen name="home" options={{ title: 'Home' }} />
+      <Tabs.Screen name="feedback" options={{ title: 'Support' }} />
       <Tabs.Screen name="more" options={{ title: 'More' }} />
     </Tabs>
   );
@@ -155,53 +208,90 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   barContainer: {
-    backgroundColor: colors.surface,
-    borderTopWidth: 0,
-    paddingTop: 8,
+    backgroundColor: 'transparent',
+    position: 'relative',
+    overflow: 'visible',
     ...Platform.select({
       ios: {
-        shadowColor: '#0F172A',
-        shadowOpacity: 0.08,
-        shadowRadius: 14,
-        shadowOffset: { width: 0, height: -4 },
+        shadowColor: '#000000',
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: -2 },
       },
       android: {
-        elevation: 10,
+        elevation: 8,
       },
-      default: {},
+      default: {
+        filter: 'drop-shadow(0px -2px 6px rgba(0, 0, 0, 0.04))',
+      },
     }),
+  },
+  svgBackground: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
   },
   barInner: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-around',
+    zIndex: 2,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 2,
+    justifyContent: 'flex-end',
+    paddingBottom: 8,
     position: 'relative',
   },
-  iconWrap: {
+  tabItemPressed: {
+    opacity: 0.7,
+  },
+  centerTabItem: {
+    zIndex: 3,
+    overflow: 'visible',
+  },
+  centerIconCircle: {
     width: 48,
-    height: 30,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
+    marginBottom: 3,
   },
-  activePill: {
-    position: 'absolute',
-    left: 0,
-    top: 2,
-    width: PILL_W,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.brandSoft,
+  centerIconCircleActive: {
+    backgroundColor: colors.brand,
+    borderWidth: 2.5,
+    borderColor: colors.surface,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.brand,
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 },
+      },
+      android: {
+        elevation: 6,
+      },
+      default: {
+        boxShadow: '0 4px 12px rgba(125, 110, 34, 0.35)',
+      } as any,
+    }),
+  },
+  centerIconCircleInactive: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  iconWrap: {
+    width: 32,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
   },
   tabLabel: {
-    fontSize: 11,
-    marginTop: 3,
+    fontSize: 10.5,
     letterSpacing: 0.1,
   },
   tabLabelActive: {

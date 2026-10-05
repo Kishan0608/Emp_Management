@@ -32,6 +32,7 @@ import { api, errorMessage } from '@/lib/api';
 import { formatDate, roleLabel, toDateOnly } from '@/lib/format';
 import type { TaskPriority } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
+import { useOrganization } from '@/providers/OrganizationProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fonts, radius, shadow, spacing } from '@/theme/tokens';
 
@@ -56,9 +57,10 @@ const PRIORITY_OPTIONS: {
 
 export default function NewTask() {
   const { me, isBoss, isHR, isManager, isEmployee } = useMe();
+  const { selectedOrgId } = useOrganization();
   const toast = useToast();
   const insets = useSafeAreaInsets();
-  const people = useLoad(() => api.taskAssignees());
+  const people = useLoad(() => api.taskAssignees(isBoss ? selectedOrgId : null), [selectedOrgId]);
 
   // Task form state
   const [title, setTitle] = useState('');

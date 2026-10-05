@@ -18,15 +18,16 @@ import {
   PromptSheet,
   Screen,
   SectionTitle,
+  Sheet,
   TextField,
 } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
 import { api, errorMessage } from '@/lib/api';
 import { dueLabel, formatDate, formatDateTime, priorityLabel, priorityTone, taskStatusLabel, taskStatusTone } from '@/lib/format';
-import type { ChecklistItem, Task, TaskStatus } from '@/lib/types';
+import type { ChecklistItem, Task, TaskQuestion, TaskStatus } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
-import { colors, fonts, spacing, type } from '@/theme/tokens';
+import { colors, fonts, radius, spacing, type } from '@/theme/tokens';
 
 const FLOW: TaskStatus[] = ['assigned', 'accepted', 'closed'];
 const STEP_LABEL: Partial<Record<TaskStatus, string>> = { assigned: 'Assigned', accepted: 'Accepted', closed: 'Done' };
@@ -39,13 +40,26 @@ export default function TaskDetail() {
   const { me, isBoss } = useMe();
   const toast = useToast();
   const task = useLoad(() => api.task(id), [id]);
+  const questions = useLoad(() => api.taskQuestions(id), [id]);
   const [prompt, setPrompt] = useState<Prompt>(null);
   const [proofLink, setProofLink] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
 
+  // Question sheet & composer state
+  const [showQuestionSheet, setShowQuestionSheet] = useState(false);
+  const [qTitle, setQTitle] = useState('');
+  const [qBody, setQBody] = useState('');
+  const [asking, setAsking] = useState(false);
+
+  // Question reply state
+  const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [replying, setReplying] = useState(false);
+
   const t = task.data;
   const reload = () => {
     task.reload();
+    questions.reload();
   };
 
   const move = async (to: TaskStatus, note?: string, proof?: string) => {
@@ -75,6 +89,11 @@ export default function TaskDetail() {
   const isReviewer = t.reviewer_id === me.id || t.created_by === me.id || isBoss;
   const canEditChecklist = (isAssignee || t.created_by === me.id) && !['approved', 'closed'].includes(t.status);
   const due = dueLabel(t.due_date, t.status);
+
+  const questionRecipientName = isAssignee
+    ? (t.creator?.full_name ?? t.reviewer?.full_name ?? 'Task Assigner')
+    : (t.assignee?.full_name ?? 'Assigned Person');
+  const questionRecipientRole = isAssignee ? 'Task Assigner' : 'Assigned Person';
 
   const toggle = async (i: number) => {
     const next: ChecklistItem[] = t.checklist.map((c, j) => (j === i ? { ...c, done: !c.done } : c));
@@ -112,12 +131,52 @@ export default function TaskDetail() {
     }
   };
 
+  const handleAskQuestion = async () => {
+    const titleTrim = qTitle.trim();
+    const bodyTrim = qBody.trim();
+    if (!titleTrim) return toast('Please enter a question subject', 'error');
+    if (!bodyTrim) return toast('Please enter question details', 'error');
+
+    setAsking(true);
+    try {
+      await api.askTaskQuestion(id, titleTrim, bodyTrim);
+      toast(`Question sent to ${questionRecipientName}`);
+      setQTitle('');
+      setQBody('');
+      setShowQuestionSheet(false);
+      questions.reload();
+    } catch (e) {
+      toast(errorMessage(e), 'error');
+    } finally {
+      setAsking(false);
+    }
+  };
+
+  const handleSendReply = async (questionId: string) => {
+    const text = replyText.trim();
+    if (!text) return toast('Please write a reply', 'error');
+
+    setReplying(true);
+    try {
+      await api.replyTaskQuestion(questionId, text);
+      toast('Reply sent');
+      setReplyText('');
+      setActiveReplyId(null);
+      questions.reload();
+    } catch (e) {
+      toast(errorMessage(e), 'error');
+    } finally {
+      setReplying(false);
+    }
+  };
+
   const actions = buildActions(t, isAssignee);
+  const qList = questions.data ?? [];
 
   return (
     <>
       <Screen
-        refreshing={task.refreshing}
+        refreshing={task.refreshing || questions.refreshing}
         onRefresh={reload}
         header={<PageHeader title={t.is_personal ? 'Personal to-do' : 'Task'} subtitle={`Created ${formatDate(t.created_at)}`} />}
         footer={
@@ -209,8 +268,231 @@ export default function TaskDetail() {
             </Card>
           )}
 
+          {/* Dedicated Questions & Replies Section */}
+          <SectionTitle
+            title={`Questions${qList.length > 0 ? ` · ${qList.length}` : ''}`}
+            action="+ Question"
+            onAction={() => setShowQuestionSheet(true)}
+          />
+
+          {questions.loading && !questions.data ? (
+            <ListSkeleton rows={2} />
+          ) : qList.length === 0 ? (
+            <Card style={styles.emptyQuestionsCard}>
+              <View style={styles.emptyQuestionsIcon}>
+                <Ionicons name="chatbubbles-outline" size={26} color={colors.brand} />
+              </View>
+              <View style={{ alignItems: 'center', gap: 4 }}>
+                <AppText variant="h3" style={{ textAlign: 'center' }}>No questions yet</AppText>
+                <AppText variant="small" color={colors.textSecondary} style={{ textAlign: 'center', maxWidth: 300 }}>
+                  {isAssignee
+                    ? `Have a doubt or need clarification? Ask ${t.creator?.full_name ?? 'your manager'} directly here.`
+                    : `Have a question for ${t.assignee?.full_name ?? 'the assignee'}? Ask here and they will be notified immediately.`}
+                </AppText>
+              </View>
+              <Button
+                title="+ Question"
+                icon="help-circle-outline"
+                variant="secondary"
+                size="sm"
+                onPress={() => setShowQuestionSheet(true)}
+              />
+            </Card>
+          ) : (
+            <View style={{ gap: spacing.md }}>
+              {qList.map((q) => {
+                const isAuthor = q.author_id === me.id;
+                const isRecipient = q.recipient_id === me.id;
+                const isReplyingThis = activeReplyId === q.id;
+
+                return (
+                  <Card key={q.id} style={{ gap: spacing.sm, padding: spacing.lg }}>
+                    {/* Author & status badge */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
+                        <Avatar name={q.author_name} id={q.author_id} size={34} />
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={type.bodyMedium} numberOfLines={1}>
+                              {q.author_name ?? 'Team member'}
+                            </Text>
+                            {isAuthor && <Badge label="You" tone="neutral" />}
+                          </View>
+                          <Text style={type.small}>{formatDateTime(q.created_at)}</Text>
+                        </View>
+                      </View>
+
+                      <Badge
+                        label={q.status === 'answered' ? 'Answered' : 'Open'}
+                        tone={q.status === 'answered' ? 'success' : 'warning'}
+                        icon={q.status === 'answered' ? 'checkmark-circle-outline' : 'time-outline'}
+                      />
+                    </View>
+
+                    {/* Question Subject & Details */}
+                    <View style={{ marginTop: 2, gap: 4 }}>
+                      <Text style={[type.h2, { fontSize: 16, color: colors.text }]}>{q.title}</Text>
+                      <Text style={[type.body, { color: colors.textSecondary, lineHeight: 21 }]}>{q.body}</Text>
+                    </View>
+
+                    {/* Target Recipient Info */}
+                    <View style={styles.recipientPill}>
+                      <Ionicons name="paper-plane-outline" size={13} color={colors.brand} />
+                      <Text style={type.small}>
+                        Sent to:{' '}
+                        <Text style={{ fontFamily: fonts.semibold, color: colors.text }}>
+                          {isRecipient ? 'You' : (q.recipient_name ?? 'Assigned member')}
+                        </Text>
+                      </Text>
+                    </View>
+
+                    {/* Replies Thread */}
+                    {q.replies && q.replies.length > 0 && (
+                      <View style={{ gap: spacing.sm, marginTop: spacing.xs }}>
+                        <Divider />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Ionicons name="chatbubble-ellipses-outline" size={14} color={colors.textSecondary} />
+                          <Text style={[type.small, { fontFamily: fonts.semibold, color: colors.textSecondary }]}>
+                            Replies ({q.replies.length})
+                          </Text>
+                        </View>
+                        {q.replies.map((r) => {
+                          const isMeReply = r.author_id === me.id;
+                          return (
+                            <View key={r.id} style={styles.replyBubble}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, marginBottom: 4 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                  <Avatar name={r.author_name} id={r.author_id} size={22} />
+                                  <Text style={[type.small, { fontFamily: fonts.semibold, color: colors.text }]}>
+                                    {r.author_name}
+                                  </Text>
+                                  {isMeReply && <Badge label="You" tone="neutral" />}
+                                </View>
+                                <Text style={[type.small, { fontSize: 11, color: colors.textMuted }]}>
+                                  {formatDateTime(r.created_at)}
+                                </Text>
+                              </View>
+                              <Text style={[type.body, { fontSize: 13, color: colors.text, lineHeight: 19 }]}>{r.body}</Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+
+                    {/* Inline Reply input / toggle */}
+                    <View style={{ marginTop: spacing.xs }}>
+                      {!isReplyingThis ? (
+                        <Pressable
+                          onPress={() => {
+                            setActiveReplyId(q.id);
+                            setReplyText('');
+                          }}
+                          style={({ pressed }) => [styles.replyToggleBtn, pressed && { opacity: 0.75 }]}>
+                          <Ionicons name="arrow-undo-outline" size={14} color={colors.brand} />
+                          <Text style={[type.small, { color: colors.brand, fontFamily: fonts.semibold }]}>
+                            {q.replies && q.replies.length > 0 ? 'Reply to thread' : 'Reply to question'}
+                          </Text>
+                        </Pressable>
+                      ) : (
+                        <View style={styles.replyInputContainer}>
+                          <TextField
+                            placeholder={`Reply to ${q.author_name?.split(' ')[0] ?? 'this question'}...`}
+                            value={replyText}
+                            onChangeText={setReplyText}
+                            multiline
+                            numberOfLines={3}
+                            style={{ minHeight: 70 }}
+                            autoFocus
+                          />
+                          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm, marginTop: spacing.xs }}>
+                            <Button
+                              title="Cancel"
+                              variant="ghost"
+                              size="sm"
+                              disabled={replying}
+                              onPress={() => {
+                                setActiveReplyId(null);
+                                setReplyText('');
+                              }}
+                            />
+                            <Button
+                              title="Send Reply"
+                              icon="send"
+                              size="sm"
+                              variant="primary"
+                              loading={replying}
+                              disabled={!replyText.trim()}
+                              onPress={() => handleSendReply(q.id)}
+                            />
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  </Card>
+                );
+              })}
+            </View>
+          )}
+
         </View>
       </Screen>
+
+      {/* Ask Question Sheet */}
+      <Sheet visible={showQuestionSheet} onClose={() => setShowQuestionSheet(false)} title="Ask a Question">
+        <View style={{ paddingHorizontal: spacing.lg, gap: spacing.lg, paddingBottom: spacing.md }}>
+          <View style={styles.askRecipientNotice}>
+            <View style={styles.askRecipientIcon}>
+              <Ionicons name="paper-plane" size={18} color={colors.brand} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[type.small, { color: colors.textSecondary }]}>This question will be sent and notified to:</Text>
+              <Text style={[type.bodyMedium, { color: colors.brand, fontFamily: fonts.bold }]}>
+                {questionRecipientName}
+                <Text style={{ fontFamily: fonts.regular, color: colors.textMuted, fontSize: 12 }}>
+                  {` · ${questionRecipientRole}`}
+                </Text>
+              </Text>
+            </View>
+          </View>
+
+          <TextField
+            label="Question Subject"
+            placeholder="e.g. Clarification on requirement, asset format..."
+            value={qTitle}
+            onChangeText={setQTitle}
+            icon="help-circle-outline"
+          />
+
+          <TextField
+            label="Details / Description"
+            placeholder="Provide specific details so they can answer promptly..."
+            value={qBody}
+            onChangeText={setQBody}
+            multiline
+            numberOfLines={4}
+            style={{ minHeight: 90, textAlignVertical: 'top' }}
+          />
+
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
+            <Button
+              title="Cancel"
+              variant="outline"
+              style={{ flex: 1 }}
+              disabled={asking}
+              onPress={() => setShowQuestionSheet(false)}
+            />
+            <Button
+              title="Submit Question"
+              icon="paper-plane"
+              variant="primary"
+              style={{ flex: 1 }}
+              loading={asking}
+              disabled={!qTitle.trim() || !qBody.trim()}
+              onPress={handleAskQuestion}
+            />
+          </View>
+        </View>
+      </Sheet>
 
       {prompt && (
         <PromptSheet
@@ -317,4 +599,71 @@ const styles = StyleSheet.create({
   stepLabel: { marginTop: 8, fontFamily: fonts.semibold, fontSize: 13, color: colors.textMuted, textAlign: 'center' },
   stepHint: { marginTop: 1, fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted, textAlign: 'center' },
   person: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, paddingHorizontal: spacing.lg },
+  emptyQuestionsCard: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surfaceAlt,
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  emptyQuestionsIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recipientPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.brandSoft,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: radius.sm,
+  },
+  replyBubble: {
+    backgroundColor: colors.surfaceAlt,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  replyToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: spacing.xs,
+    alignSelf: 'flex-start',
+  },
+  replyInputContainer: {
+    backgroundColor: colors.surfaceAlt,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.xs,
+  },
+  askRecipientNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.brandSoft,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  askRecipientIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

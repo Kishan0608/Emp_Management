@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json(405, { error: "Method not allowed" });
 
-  let body: { email?: string; password?: string };
+  let body: { email?: string; password?: string; organization_id?: string };
   try {
     body = await req.json();
   } catch {
@@ -23,6 +23,7 @@ Deno.serve(async (req) => {
   }
   const email = String(body.email ?? "").trim().toLowerCase();
   const password = String(body.password ?? "");
+  const organizationId = body.organization_id ? String(body.organization_id).trim() : undefined;
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(400, { error: "Enter a valid email address" });
   const problem = passwordProblem(password);
   if (problem) return json(400, { error: problem });
@@ -42,11 +43,24 @@ Deno.serve(async (req) => {
     userId = existing.id;
     const { error } = await admin.auth.admin.updateUserById(userId, { password });
     if (error) return json(400, { error: error.message });
+    if (organizationId) {
+      await admin.from("users").update({ organization_id: organizationId }).eq("id", userId);
+    }
   } else {
-    const { data: created, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    const userMeta: Record<string, unknown> = {};
+    if (organizationId) userMeta.organization_id = organizationId;
+    const { data: created, error } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: userMeta,
+    });
     if (error || !created.user) return json(400, { error: error?.message ?? "Could not create the account" });
     userId = created.user.id;
     await admin.rpc("mark_email_pending_internal", { p_user: userId });
+    if (organizationId) {
+      await admin.from("users").update({ organization_id: organizationId }).eq("id", userId);
+    }
   }
 
   const { data: code, error: codeError } = await admin.rpc("issue_code_internal", { p_user: userId, p_purpose: "email", p_sent_to: email });

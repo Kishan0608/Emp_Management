@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { TaskCard } from '@/components/cards';
 import { Banner, Card, EmptyState, HeroHeader, IconButton, ListSkeleton, Screen, SectionTitle, Skeleton, StatCard } from '@/components/ui';
@@ -9,12 +10,14 @@ import { api } from '@/lib/api';
 import { greeting, roleLabel } from '@/lib/format';
 import { useMe } from '@/providers/AuthProvider';
 import { useNotifications } from '@/providers/NotificationsProvider';
+import { useOrganization } from '@/providers/OrganizationProvider';
 import { colors, fonts, spacing, type } from '@/theme/tokens';
 
 export default function Home() {
   const { me, isBoss, isHR, isManager } = useMe();
+  const { selectedOrg, selectedOrgId } = useOrganization();
   const { unread } = useNotifications();
-  const stats = useLoad(() => api.dashboard());
+  const stats = useLoad(() => api.dashboard(selectedOrgId), [selectedOrgId]);
   const myTasks = useLoad(() => api.tasks('mine', me.id));
   const s = stats.data;
   const open = (myTasks.data ?? []).filter((t) => !['approved', 'closed'].includes(t.status)).slice(0, 3);
@@ -26,37 +29,50 @@ export default function Home() {
 
   return (
     <Screen
-      refreshing={stats.refreshing}
-      onRefresh={refresh}
-      header={
-        <HeroHeader
-          subtitle={`${greeting()},`}
-          title={me.full_name.split(' ')[0]}
-          right={
-            <IconButton
-              icon="notifications-outline"
-              label="Notifications"
-              color={colors.white}
-              bg="rgba(255,255,255,0.16)"
-              badge={unread}
-              onPress={() => router.push('/notifications')}
-            />
-          }
-          meta={
-            <>
-              <View style={styles.rolePill}>
-                <Ionicons name="shield-half-outline" size={13} color={colors.white} />
-                <Text style={styles.rolePillText}>{roleLabel[me.role]}</Text>
-              </View>
-              {!!me.job_title && (
-                <Text style={styles.heroMetaText} numberOfLines={1}>
-                  {me.job_title}
-                </Text>
-              )}
-            </>
-          }
-        />
-      }>
+        refreshing={stats.refreshing}
+        onRefresh={refresh}
+        header={
+          <HeroHeader
+            subtitle={`${greeting()},`}
+            title={me.full_name.split(' ')[0]}
+            right={
+              <IconButton
+                icon="notifications-outline"
+                label="Notifications"
+                color={colors.white}
+                bg="rgba(255,255,255,0.16)"
+                badge={unread}
+                onPress={() => router.push('/notifications')}
+              />
+            }
+            meta={
+              <>
+                <View style={styles.rolePill}>
+                  <Ionicons name="shield-half-outline" size={13} color={colors.white} />
+                  <Text style={styles.rolePillText}>{roleLabel[me.role]}</Text>
+                </View>
+                {isBoss ? (
+                  <Pressable
+                    onPress={() => router.push('/organization')}
+                    style={styles.orgPill}
+                    accessibilityRole="button"
+                    accessibilityLabel="Select company"
+                    hitSlop={6}>
+                    <Ionicons name="business" size={13} color={colors.white} />
+                    <Text style={styles.orgPillText} numberOfLines={1}>
+                      {selectedOrg ? selectedOrg.name : 'All Companies'}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.7)" />
+                  </Pressable>
+                ) : !!me.job_title ? (
+                  <Text style={styles.heroMetaText} numberOfLines={1}>
+                    {me.job_title}
+                  </Text>
+                ) : null}
+              </>
+            }
+          />
+        }>
       {stats.error && <Banner tone="danger">{stats.error}</Banner>}
 
       {/* personal numbers */}
@@ -184,6 +200,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.18)',
   },
   rolePillText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.white },
+  orgPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    maxWidth: 180,
+  },
+  orgPillText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.white },
   heroMetaText: { flex: 1, fontFamily: fonts.medium, fontSize: 13, color: 'rgba(255,255,255,0.8)' },
   firstSection: { marginTop: 0 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },

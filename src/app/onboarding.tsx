@@ -498,6 +498,20 @@ function ProfileStep({ state, onDone, setError }: { state: OnboardingState; onDo
           autoCapitalize="words"
         />
 
+        {/* Company Placement */}
+        {opts.organization && (
+          <View style={{ gap: 6 }}>
+            <Text style={styles.fieldLabel}>Company</Text>
+            <View style={[styles.ddlTrigger, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+              <Ionicons name="business" size={18} color={colors.brand} />
+              <Text style={[styles.ddlTriggerText, { fontFamily: fonts.semibold }]}>
+                {opts.organization.name}
+              </Text>
+              <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+            </View>
+          </View>
+        )}
+
         {/* Department DDL */}
         <ConnectedDropdown
           label="Department *"

@@ -8,6 +8,7 @@ import { shareCsv, toCsv } from '@/lib/csv';
 import { roleLabel, taskStatusLabel, toDateOnly } from '@/lib/format';
 import type { Role, TaskStatus } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
+import { useOrganization } from '@/providers/OrganizationProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fonts, radius, spacing, type } from '@/theme/tokens';
 
@@ -24,8 +25,9 @@ const STATUS_COLORS: Record<TaskStatus, string> = {
 
 export default function Analytics() {
   const { me, isBoss } = useMe();
+  const { selectedOrgId } = useOrganization();
   const toast = useToast();
-  const stats = useLoad(() => api.dashboard());
+  const stats = useLoad(() => api.dashboard(selectedOrgId), [selectedOrgId]);
   const [busy, setBusy] = useState<string | null>(null);
   const s = stats.data;
 

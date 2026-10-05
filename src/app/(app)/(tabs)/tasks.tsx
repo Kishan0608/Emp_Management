@@ -11,6 +11,7 @@ import { api } from '@/lib/api';
 import { isTaskDone, sortTasks } from '@/lib/format';
 import type { TaskTeam } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
+import { useOrganization } from '@/providers/OrganizationProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fonts, gradients, radius, shadow, spacing } from '@/theme/tokens';
 
@@ -19,6 +20,7 @@ type Filter = 'all' | 'active' | 'done';
 
 export default function Tasks() {
   const { me, isEmployee, isBoss } = useMe();
+  const { selectedOrgId } = useOrganization();
   const toast = useToast();
   const params = useLocalSearchParams<{ scope?: Scope }>();
   const [scope, setScope] = useState<Scope>(isEmployee ? 'mine' : (params.scope ?? 'mine'));
@@ -35,8 +37,8 @@ export default function Tasks() {
 
   const people = scope === 'team' && !isEmployee;
   const { data, loading, refreshing, refresh, error } = useLoad(
-    () => (people ? Promise.resolve([]) : api.tasks(isEmployee ? 'mine' : scope, me.id)),
-    [scope, isEmployee]
+    () => (people ? Promise.resolve([]) : api.tasks(isEmployee ? 'mine' : scope, me.id, isBoss ? selectedOrgId : null)),
+    [scope, isEmployee, selectedOrgId]
   );
   const team = useLoad(() => (people ? api.taskTeam() : Promise.resolve(null)), [people]);
 

@@ -50,9 +50,10 @@ interface TextFieldProps extends TextInputProps {
   icon?: IconName;
   secureToggle?: boolean;
   counter?: number;
+  right?: ReactNode;
 }
 
-export function TextField({ label, hint, error, icon, secureToggle, counter, multiline, style, value, ...rest }: TextFieldProps) {
+export function TextField({ label, hint, error, icon, secureToggle, counter, right, multiline, style, value, ...rest }: TextFieldProps) {
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(!!secureToggle);
   const containerRef = useRef<View>(null);
@@ -99,6 +100,7 @@ export function TextField({ label, hint, error, icon, secureToggle, counter, mul
             <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textMuted} />
           </Pressable>
         )}
+        {right}
       </Pressable>
     </Field>
   );

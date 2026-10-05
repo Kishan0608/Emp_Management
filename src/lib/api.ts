@@ -5,6 +5,9 @@ import type {
   AppSettings,
   AppLockConfig,
   AppLockType,
+  AttendanceDetail,
+  AttendanceOverviewRow,
+  AttendanceToday,
   AuditLog,
   ChecklistItem,
   DashboardStats,
@@ -16,13 +19,17 @@ import type {
   FeedbackReply,
   FeedbackStatus,
   FeedbackType,
+  MyAttendanceMonth,
   MyContext,
   NotificationRow,
+  Organization,
   Role,
   Task,
   TaskTeam,
   TaskEvent,
   TaskPriority,
+  TaskQuestion,
+  TaskQuestionReply,
   TaskStatus,
   TaskVisibility,
   VisibilityField,
@@ -48,6 +55,8 @@ export interface OnboardingState {
 export interface OnboardingOptions {
   departments: { id: string; name: string }[];
   approvers: { id: string; full_name: string; role: Role; job_title: string | null; department: string | null }[];
+  organization?: { id: string; name: string } | null;
+  organizations?: { id: string; name: string }[];
 }
 
 /** Turns any Supabase / network error into one readable sentence. */
@@ -80,9 +89,9 @@ async function invokeFn<T>(name: string, body: Record<string, unknown>): Promise
   return data as T;
 }
 
-const USER_FIELDS = 'id, full_name, email, role, job_title, department_id, manager_id, is_active, is_case_handler';
+const USER_FIELDS = 'id, full_name, email, role, job_title, department_id, organization_id, manager_id, is_active, is_case_handler';
 const TASK_SELECT =
-  '*, assignee:users!tasks_assignee_id_fkey(full_name), creator:users!tasks_created_by_fkey(full_name), reviewer:users!tasks_reviewer_id_fkey(full_name)';
+  '*, assignee:users!tasks_assignee_id_fkey(full_name, organization_id), creator:users!tasks_created_by_fkey(full_name), reviewer:users!tasks_reviewer_id_fkey(full_name)';
 
 export const api = {
   // ---------- session ----------
@@ -93,7 +102,10 @@ export const api = {
   passwordChanged: async () => check(await supabase.rpc('password_changed')),
   savePushToken: async (userId: string, token: string | null) =>
     check(await supabase.from('users').update({ push_token: token }).eq('id', userId)),
-  dashboard: async () => check<DashboardStats>(await supabase.rpc('dashboard_stats')),
+  dashboard: async (orgId?: string | null) => check<DashboardStats>(await supabase.rpc('dashboard_stats', { p_org: orgId ?? null })),
+  organizations: async () => check<Organization[]>(await supabase.from('organizations').select('*').eq('is_active', true).order('name')),
+  allOrganizations: async () => check<Organization[]>(await supabase.from('organizations').select('*').order('name')),
+  createOrganization: async (name: string) => check<string>(await supabase.rpc('create_organization', { p_name: name.trim() })),
   getAppLock: async () => check<AppLockConfig | null>(await supabase.rpc('get_my_app_lock')),
   saveAppLock: async (p: {
     enabled: boolean;
@@ -119,23 +131,27 @@ export const api = {
     check<boolean>(await supabase.rpc('verify_my_app_lock', { p_type: type, p_secret: secret })),
 
   // ---------- people ----------
-  taskAssignees: async () => {
+  taskAssignees: async (orgId?: string | null) => {
     try {
       const res = await supabase.rpc('get_task_assignees');
       if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-        return res.data as DirectoryUser[];
+        return (orgId ? res.data.filter((u: any) => u.organization_id === orgId) : res.data) as DirectoryUser[];
       }
     } catch {}
-    return check<DirectoryUser[]>(await supabase.from('users').select(USER_FIELDS).order('full_name').limit(1000));
+    let q = supabase.from('users').select(USER_FIELDS).order('full_name').limit(1000);
+    if (orgId) q = q.eq('organization_id', orgId);
+    return check<DirectoryUser[]>(await q);
   },
-  directory: async () => {
+  directory: async (orgId?: string | null) => {
     try {
-      const res = await supabase.from('users').select(USER_FIELDS).order('full_name').limit(1000);
+      let q = supabase.from('users').select(USER_FIELDS).order('full_name').limit(1000);
+      if (orgId) q = q.eq('organization_id', orgId);
+      const res = await q;
       if (res.error) {
         try {
           const rpcRes = await supabase.rpc('get_task_assignees');
           if (rpcRes.data && Array.isArray(rpcRes.data) && rpcRes.data.length > 0) {
-            return rpcRes.data as DirectoryUser[];
+            return (orgId ? rpcRes.data.filter((u: any) => u.organization_id === orgId) : rpcRes.data) as DirectoryUser[];
           }
         } catch {}
       }
@@ -144,14 +160,19 @@ export const api = {
       try {
         const rpcRes = await supabase.rpc('get_task_assignees');
         if (rpcRes.data && Array.isArray(rpcRes.data) && rpcRes.data.length > 0) {
-          return rpcRes.data as DirectoryUser[];
+          return (orgId ? rpcRes.data.filter((u: any) => u.organization_id === orgId) : rpcRes.data) as DirectoryUser[];
         }
       } catch {}
       throw err;
     }
   },
-  departments: async () => check<Department[]>(await supabase.from('departments').select('id, name').order('name')),
-  createDepartment: async (name: string) => check(await supabase.from('departments').insert({ name: name.trim() })),
+  departments: async (orgId?: string | null) => {
+    let q = supabase.from('departments').select('id, name, organization_id').order('name');
+    if (orgId) q = q.or(`organization_id.eq.${orgId},organization_id.is.null`);
+    return check<Department[]>(await q);
+  },
+  createDepartment: async (name: string, orgId?: string | null) =>
+    check(await supabase.from('departments').insert({ name: name.trim(), organization_id: orgId ?? null })),
   profile: async (id: string) => check<EmployeeProfile>(await supabase.rpc('get_employee_profile', { p_target: id })),
   teamOverview: async () => check<TeamMemberSummary[]>(await supabase.rpc('team_overview')),
   teamMemberReport: async (id: string) => check<TeamMemberReport>(await supabase.rpc('team_member_report', { p_target: id })),
@@ -226,13 +247,18 @@ export const api = {
     check(await supabase.rpc('admin_clear_person_visibility', { p_viewer_id: viewerId, p_field: field })),
 
   // ---------- tasks ----------
-  tasks: async (scope: 'mine' | 'assigned' | 'review' | 'team' | 'all', me: string) => {
+  tasks: async (scope: 'mine' | 'assigned' | 'review' | 'team' | 'all', me: string, orgId?: string | null) => {
     let q = supabase.from('tasks').select(TASK_SELECT).order('updated_at', { ascending: false }).limit(200);
     if (scope === 'mine') q = q.eq('assignee_id', me);
     if (scope === 'assigned') q = q.eq('created_by', me).neq('assignee_id', me);
     if (scope === 'review') q = q.eq('reviewer_id', me).eq('status', 'submitted').neq('assignee_id', me);
     if (scope === 'team') q = q.neq('assignee_id', me).eq('is_personal', false);
-    return check<Task[]>(await q);
+    const res = await q;
+    const items = check<Task[]>(res);
+    if (orgId && (scope === 'team' || scope === 'all' || scope === 'assigned')) {
+      return items.filter((t: any) => !t.assignee?.organization_id || t.assignee?.organization_id === orgId);
+    }
+    return items;
   },
   task: async (id: string) => check<Task>(await supabase.from('tasks').select(TASK_SELECT).eq('id', id).single()),
   /** A person's team with task counts; no id = my own team (for the Boss: every manager and HR). */
@@ -292,15 +318,22 @@ export const api = {
     if (error) throw new Error(errorMessage(error));
     return data.signedUrl;
   },
+  taskQuestions: async (taskId: string) =>
+    check<TaskQuestion[]>(await supabase.rpc('get_task_questions', { p_task: taskId })),
+  askTaskQuestion: async (taskId: string, title: string, body: string) =>
+    check<string>(await supabase.rpc('ask_task_question', { p_task: taskId, p_title: title, p_body: body })),
+  replyTaskQuestion: async (questionId: string, body: string) =>
+    check<boolean>(await supabase.rpc('reply_task_question', { p_question_id: questionId, p_body: body })),
 
   feedback: async (
     scope: 'inbox' | 'mine' | 'qa' | 'blockers' | 'all',
     me: string,
-    isStaff?: boolean
+    isStaff?: boolean,
+    orgId?: string | null,
   ) => {
     let q = supabase
       .from('feedback_items')
-      .select('*, author:users!feedback_items_author_id_fkey(full_name)')
+      .select('*, author:users!feedback_items_author_id_fkey(full_name, organization_id)')
       .order('created_at', { ascending: false })
       .limit(200);
     if (scope === 'mine') {
@@ -316,7 +349,12 @@ export const api = {
         q = q.or(`author_id.eq.${me},is_published.eq.true`);
       }
     }
-    return check<FeedbackItem[]>(await q);
+    const res = await q;
+    const items = check<FeedbackItem[]>(res);
+    if (orgId && (scope === 'inbox' || scope === 'blockers' || scope === 'all')) {
+      return items.filter((f: any) => !f.author?.organization_id || f.author?.organization_id === orgId);
+    }
+    return items;
   },
   feedbackCounts: async (me: string, isStaff?: boolean) => {
     try {
@@ -386,8 +424,8 @@ export const api = {
     check(await supabase.rpc('set_feedback_published', { p_id: id, p_published: published })),
 
   // ---------- self sign-up & onboarding ----------
-  signupStart: async (email: string, password: string) =>
-    invokeFn<{ ok: true; sent_to: string; test_code?: string }>('signup-start', { email, password }),
+  signupStart: async (email: string, password: string, organizationId?: string) =>
+    invokeFn<{ ok: true; sent_to: string; test_code?: string }>('signup-start', { email, password, organization_id: organizationId }),
   onboardingState: async () => check<OnboardingState>(await supabase.rpc('onboarding_state')),
   sendCode: async (purpose: 'email' | 'approver') =>
     invokeFn<{ ok: true; sent_to: string; test_code?: string }>('onboarding-mail', { purpose }),
@@ -424,6 +462,17 @@ export const api = {
   passwordResetComplete: async (email: string, code: string, password: string) =>
     invokeFn<{ ok: true }>('password-reset', { action: 'complete', email, code, password }),
 
+
+  // ---------- attendance ----------
+  attendanceToday: async () => check<AttendanceToday>(await supabase.rpc('attendance_today')),
+  clockIn: async () => check<AttendanceToday>(await supabase.rpc('clock_in')),
+  breakStart: async () => check<AttendanceToday>(await supabase.rpc('break_start')),
+  breakEnd: async () => check<AttendanceToday>(await supabase.rpc('break_end')),
+  clockOut: async () => check<AttendanceToday>(await supabase.rpc('clock_out')),
+  myAttendance: async (month: string) => check<MyAttendanceMonth>(await supabase.rpc('my_attendance', { p_month: month })),
+  attendanceOverview: async (month: string) => check<AttendanceOverviewRow[]>(await supabase.rpc('attendance_overview', { p_month: month })),
+  attendanceDetail: async (id: string, month: string) => check<AttendanceDetail>(await supabase.rpc('attendance_detail', { p_target: id, p_month: month })),
+  setSalary: async (userId: string, salary: number) => check(await supabase.rpc('admin_set_salary', { p_user_id: userId, p_salary: salary })),
 
   // ---------- notifications ----------
   notifications: async () =>

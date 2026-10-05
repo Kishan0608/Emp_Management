@@ -19,6 +19,7 @@ import { AppLockScreen } from '@/components/AppLockScreen';
 import { ErrorScreen } from '@/components/ErrorScreen';
 import { configError } from '@/lib/supabase';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
+import { OrganizationProvider } from '@/providers/OrganizationProvider';
 import { ToastProvider } from '@/providers/ToastProvider';
 import { colors } from '@/theme/tokens';
 
@@ -52,7 +53,9 @@ export default function RootLayout() {
         ) : (
           <ToastProvider>
             <AuthProvider>
-              <RootNavigator fontsReady={fontsLoaded || !!fontError} />
+              <OrganizationProvider>
+                <RootNavigator fontsReady={fontsLoaded || !!fontError} />
+              </OrganizationProvider>
             </AuthProvider>
           </ToastProvider>
         )}

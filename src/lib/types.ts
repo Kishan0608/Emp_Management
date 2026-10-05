@@ -20,12 +20,22 @@ export interface AppLockConfig {
   biometric_enabled: boolean;
 }
 
+export interface Organization {
+  id: string;
+  name: string;
+  logo_url?: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
 export interface AppUser {
   id: string;
   full_name: string;
   email: string;
   role: Role;
   department_id: string | null;
+  organization_id?: string | null;
+  organization?: string | null;
   manager_id: string | null;
   job_title: string | null;
   is_active: boolean;
@@ -66,6 +76,7 @@ export interface MyContext {
   user: AppUser;
   department: string | null;
   manager: string | null;
+  organization?: { id: string; name: string } | null;
   mfa_required: boolean;
   aal: 'aal1' | 'aal2';
   settings: AppSettings;
@@ -74,6 +85,7 @@ export interface MyContext {
 export interface Department {
   id: string;
   name: string;
+  organization_id?: string | null;
 }
 
 export interface DirectoryUser {
@@ -84,6 +96,8 @@ export interface DirectoryUser {
   job_title: string | null;
   department_id: string | null;
   department?: string | null;
+  organization_id?: string | null;
+  organization?: string | null;
   manager_id: string | null;
   phone?: string | null;
   is_active: boolean;
@@ -135,6 +149,29 @@ export interface TaskEvent {
   proof_url: string | null;
   created_at: string;
   actor?: { full_name: string } | null;
+}
+
+export interface TaskQuestionReply {
+  id: string;
+  author_id: string;
+  author_name: string;
+  body: string;
+  created_at: string;
+}
+
+export interface TaskQuestion {
+  id: string;
+  task_id: string;
+  author_id: string;
+  recipient_id: string | null;
+  title: string;
+  body: string;
+  status: 'open' | 'answered' | 'closed';
+  replies: TaskQuestionReply[];
+  created_at: string;
+  updated_at: string;
+  author_name?: string | null;
+  recipient_name?: string | null;
 }
 
 export interface FeedbackItem {
@@ -191,6 +228,8 @@ export interface EmployeeProfile {
   is_case_handler?: boolean;
   is_committee?: boolean;
   created_at: string;
+  organization_id?: string | null;
+  organization?: string | null;
   visible_fields: VisibilityField[];
   phone?: string | null;
   personal_email?: string | null;
@@ -311,6 +350,8 @@ export interface AttendanceOverviewRow extends SalaryBreakdown {
   full_name: string;
   role: Role;
   department: string | null;
+  organization_id?: string | null;
+  organization?: string | null;
   present: number;
   half_day: number;
   absent: number;
