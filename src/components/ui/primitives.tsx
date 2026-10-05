@@ -208,9 +208,19 @@ export function IconTile({ icon, color, bg, size = 40 }: { icon: IconName; color
 }
 
 // ---------- section title ----------
-export function SectionTitle({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
+export function SectionTitle({
+  title,
+  action,
+  onAction,
+  style,
+}: {
+  title: string;
+  action?: string;
+  onAction?: () => void;
+  style?: StyleProp<ViewStyle>;
+}) {
   return (
-    <View style={styles.sectionRow}>
+    <View style={[styles.sectionRow, style]}>
       <AppText variant="h3">{title}</AppText>
       {action && (
         <Pressable onPress={onAction} hitSlop={8}>

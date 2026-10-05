@@ -1,18 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { TaskCard } from '@/components/cards';
-import { Banner, Card, EmptyState, HeroHeader, IconButton, ListSkeleton, Screen, SectionTitle, Skeleton, StatCard, type IconName } from '@/components/ui';
+import { Banner, Card, EmptyState, HeroHeader, IconButton, ListSkeleton, Screen, SectionTitle, Skeleton, StatCard } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
 import { api } from '@/lib/api';
 import { greeting, roleLabel } from '@/lib/format';
 import { useMe } from '@/providers/AuthProvider';
 import { useNotifications } from '@/providers/NotificationsProvider';
-import { colors, fonts, radius, shadow, spacing, type } from '@/theme/tokens';
+import { colors, fonts, spacing, type } from '@/theme/tokens';
 
 export default function Home() {
-  const { me, isBoss, isHR, isManager, isEmployee } = useMe();
+  const { me, isBoss, isHR, isManager } = useMe();
   const { unread } = useNotifications();
   const stats = useLoad(() => api.dashboard());
   const myTasks = useLoad(() => api.tasks('mine', me.id));
@@ -59,16 +59,8 @@ export default function Home() {
       }>
       {stats.error && <Banner tone="danger">{stats.error}</Banner>}
 
-      {/* quick actions */}
-      <View style={styles.quickRow}>
-        {!isEmployee && (
-          <QuickAction icon="add-circle" label="New task" color={colors.task} bg={colors.taskSoft} onPress={() => router.push('/task/new')} />
-        )}
-        <QuickAction icon="chatbubble-ellipses" label="Ask / Feedback" color={colors.feedback} bg={colors.feedbackSoft} onPress={() => router.push('/feedback/new')} />
-      </View>
-
       {/* personal numbers */}
-      <SectionTitle title="My work" action="All tasks" onAction={() => router.push('/tasks')} />
+      <SectionTitle style={styles.firstSection} title="My work" action="All tasks" onAction={() => router.push('/tasks')} />
       {!s ? (
         <View style={styles.grid}>
           {[0, 1, 2, 3].map((i) => (
@@ -78,9 +70,9 @@ export default function Home() {
       ) : (
         <View style={styles.grid}>
           <StatCard label="Open tasks" value={s.my_tasks.open} icon="layers-outline" tint={colors.brand} soft={colors.brandSoft} onPress={() => router.push('/tasks')} />
-          <StatCard label="Due today" value={s.my_tasks.due_today} icon="today-outline" tint={colors.warning} soft={colors.warningSoft} />
-          <StatCard label="Overdue" value={s.my_tasks.overdue} icon="alarm-outline" tint={colors.danger} soft={colors.dangerSoft} />
-          <StatCard label="Done (30 days)" value={s.my_tasks.done_30d} icon="checkmark-done-outline" tint={colors.success} soft={colors.successSoft} />
+          <StatCard label="Due today" value={s.my_tasks.due_today} icon="today-outline" tint={colors.warning} soft={colors.warningSoft} onPress={() => router.push('/tasks')} />
+          <StatCard label="Overdue" value={s.my_tasks.overdue} icon="alarm-outline" tint={colors.danger} soft={colors.dangerSoft} onPress={() => router.push('/tasks')} />
+          <StatCard label="Done (30 days)" value={s.my_tasks.done_30d} icon="checkmark-done-outline" tint={colors.success} soft={colors.successSoft} onPress={() => router.push('/tasks')} />
         </View>
       )}
 
@@ -170,19 +162,6 @@ export default function Home() {
   );
 }
 
-function QuickAction({ icon, label, color, bg, onPress }: { icon: IconName; label: string; color: string; bg: string; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.quick, pressed && { transform: [{ scale: 0.97 }] }]}>
-      <View style={[styles.quickIcon, { backgroundColor: bg }]}>
-        <Ionicons name={icon} size={22} color={color} />
-      </View>
-      <Text style={styles.quickText} numberOfLines={1}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 function Metric({ label, value, tone }: { label: string; value: number | string; tone?: string }) {
   return (
     <View style={{ flex: 1, minWidth: 56 }}>
@@ -206,20 +185,7 @@ const styles = StyleSheet.create({
   },
   rolePillText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.white },
   heroMetaText: { flex: 1, fontFamily: fonts.medium, fontSize: 13, color: 'rgba(255,255,255,0.8)' },
-  quickRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs },
-  quick: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: spacing.lg,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow.md,
-  },
-  quickIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  quickText: { fontFamily: fonts.semibold, fontSize: 12.5, color: colors.text },
+  firstSection: { marginTop: 0 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   teamCard: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   teamCta: {

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -13,6 +14,7 @@ import {
   feedbackTypeLabel,
   feedbackTypeTone,
   formatDateTime,
+  resolveFeedbackDisplay,
   roleLabel,
 } from '@/lib/format';
 import type { FeedbackStatus } from '@/lib/types';
@@ -34,6 +36,8 @@ export default function FeedbackDetail() {
   if (!f) {
     return <Screen header={<PageHeader title="Feedback" />}>{item.error ? <Banner tone="danger">{item.error}</Banner> : <ListSkeleton rows={3} />}</Screen>;
   }
+
+  const { label, tone, icon, cleanTitle } = resolveFeedbackDisplay(f);
 
   const isAuthor = f.author_id === me.id;
   const canRespond = isBoss || isHR || (me.role === 'manager' && f.recipient_manager_id === me.id && ['manager', 'all'].includes(f.audience));
@@ -77,7 +81,7 @@ export default function FeedbackDetail() {
       keyboard
       refreshing={item.refreshing}
       onRefresh={reload}
-      header={<PageHeader title={feedbackTypeLabel[f.type]} subtitle={formatDateTime(f.created_at)} />}
+      header={<PageHeader title={label} subtitle={formatDateTime(f.created_at)} />}
       footer={
         canReply && f.status !== 'resolved' ? (
           <View style={{ gap: spacing.sm }}>
@@ -96,16 +100,24 @@ export default function FeedbackDetail() {
       <View style={{ gap: spacing.lg }}>
         <Card style={{ gap: spacing.md }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            <Badge label={feedbackTypeLabel[f.type]} tone={feedbackTypeTone[f.type]} />
+            <Badge label={label} tone={tone} icon={icon} />
             <Badge label={feedbackStatusLabel[f.status]} tone={feedbackStatusTone[f.status]} />
             <Badge label={`To ${audienceLabel[f.audience]}`} icon="paper-plane-outline" />
             {f.is_published && <Badge label="On Q&A board" tone="success" icon="globe-outline" />}
             {f.type === 'blocker' && f.escalation_level > 0 && <Badge label={f.escalation_level === 1 ? 'Escalated to HR' : 'Escalated to Boss'} tone="danger" icon="trending-up" />}
           </View>
-          <AppText variant="h1">{f.title}</AppText>
+          <AppText variant="h1">{cleanTitle}</AppText>
           <AppText variant="body" color={colors.textSecondary}>
-            {f.body}
+            {f.body.replace(/\n\n📎 Attachment:\s*.+$/, '').trim()}
           </AppText>
+          {f.body.match(/📎 Attachment:\s*(.+)$/) && (
+            <View style={styles.attachmentBadge}>
+              <Ionicons name="document-attach-outline" size={17} color={colors.brand} />
+              <Text style={styles.attachmentBadgeText}>
+                {f.body.match(/📎 Attachment:\s*(.+)$/)?.[1]}
+              </Text>
+            </View>
+          )}
           <View style={styles.author}>
             {f.is_anonymous ? (
               <Badge label="Anonymous" icon="eye-off-outline" />
@@ -187,4 +199,22 @@ const styles = StyleSheet.create({
   bubbleName: { fontFamily: fonts.semibold, fontSize: 12, color: colors.textSecondary },
   bubbleText: { fontFamily: fonts.regular, fontSize: 14.5, lineHeight: 21, color: colors.text },
   bubbleTime: { fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted, alignSelf: 'flex-end' },
+  attachmentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  attachmentBadgeText: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    color: colors.text,
+  },
 });

@@ -1,16 +1,27 @@
+import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { router, type Href } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, Platform, StyleSheet, Switch, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Platform, StyleSheet, Text, View } from 'react-native';
 
 import { BrandTile } from '@/components/brand/SkflLogo';
 import { COMPANY } from '@/components/brand/skflPaths';
 import { PrivacyNotice } from '@/components/PrivacyNotice';
-import { Avatar, Badge, Card, Divider, HeroHeader, IconTile, ListRow, Screen, SectionTitle, Sheet, type IconName } from '@/components/ui';
-import { getAppLockSupport, lockSupported, type AppLockSupport } from '@/lib/appLock';
+import {
+  Avatar,
+  Badge,
+  Card,
+  Divider,
+  HeroHeader,
+  IconTile,
+  ListRow,
+  Screen,
+  SectionTitle,
+  Sheet,
+  type IconName,
+} from '@/components/ui';
 import { roleLabel } from '@/lib/format';
 import { useAuth, useMe } from '@/providers/AuthProvider';
-import { useToast } from '@/providers/ToastProvider';
 import { colors, spacing, type } from '@/theme/tokens';
 
 interface Item {
@@ -24,7 +35,7 @@ interface Item {
 }
 
 export default function More() {
-  const { signOut } = useAuth();
+  const { signOut, appLockEnabled, appLockType, biometricEnabled } = useAuth();
   const { me, department, manager, isBoss, isHR } = useMe();
   const [privacy, setPrivacy] = useState(false);
 
@@ -94,14 +105,41 @@ export default function More() {
         )}
 
         <SectionTitle title="Privacy & security" />
-        {lockSupported && (
-          <>
-            <AppLockRow />
-            <View style={{ height: spacing.md }} />
-          </>
-        )}
+        <Card style={styles.appLockCard} onPress={() => router.push('/app-lock')}>
+          <View style={styles.appLockCardRow}>
+            <IconTile
+              icon={appLockEnabled ? 'shield-checkmark' : 'shield-outline'}
+              color={appLockEnabled ? colors.brand : colors.textMuted}
+              bg={appLockEnabled ? colors.brandSoft : colors.surfaceAlt}
+              size={40}
+            />
+            <View style={{ flex: 1, gap: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={type.bodyMedium}>App Lock</Text>
+                <Badge
+                  label={appLockEnabled ? (appLockType === 'pattern' ? 'Pattern' : 'Passcode') : 'Disabled'}
+                  tone={appLockEnabled ? 'brand' : 'neutral'}
+                />
+              </View>
+              <Text style={type.small}>
+                {appLockEnabled
+                  ? `Active · ${appLockType === 'pattern' ? '3x3 Pattern' : '4-digit PIN'}${biometricEnabled ? ' + Biometrics' : ''}`
+                  : 'Disabled · Email & password protected only'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </View>
+        </Card>
+
+        <View style={{ height: spacing.sm }} />
+
         {renderItems([
-          ...(lockSupported ? [{ icon: 'keypad-outline' as const, label: 'Change passcode', hint: 'The 4-digit code that opens SKFL', href: '/change-passcode' as Href }] : []),
+          {
+            icon: 'lock-closed-outline',
+            label: 'App lock settings',
+            hint: 'Manage PIN, pattern, and biometrics',
+            href: '/app-lock' as Href,
+          },
           { icon: 'document-lock-outline', label: 'Privacy notice', hint: 'DPDP Act, 2023', onPress: () => setPrivacy(true) },
           {
             icon: 'log-out-outline',
@@ -109,7 +147,7 @@ export default function More() {
             hint: 'Signs out this phone only',
             tint: colors.warning,
             bg: colors.warningSoft,
-            onPress: () => confirm('Sign out?', 'You will need your email and password to sign in again. Your passcode and fingerprint stay set up on this phone.', () => signOut(false)),
+            onPress: () => confirm('Sign out?', 'You will need your email and password to sign in again.', () => signOut(false)),
           },
         ])}
 
@@ -131,54 +169,9 @@ export default function More() {
   );
 }
 
-/** Fingerprint / face switch; the passcode always works as a backup. */
-function AppLockRow() {
-  const { appLockEnabled, setAppLock } = useAuth();
-  const toast = useToast();
-  const [support, setSupport] = useState<AppLockSupport | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    getAppLockSupport().then(setSupport).catch(() => {});
-  }, []);
-
-  const unavailable = support != null && !support.available;
-  return (
-    <Card style={styles.lockRow}>
-      <IconTile icon={support?.icon ?? 'finger-print'} color={colors.brand} bg={colors.brandSoft} size={36} />
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text style={type.bodyMedium}>{support?.method ?? 'Fingerprint'} unlock</Text>
-        <Text style={type.small}>
-          {unavailable
-            ? support?.reason
-            : appLockEnabled
-              ? 'On · passcode works as a backup'
-              : `Open SKFL with ${(support?.method ?? 'fingerprint').toLowerCase()} instead of your passcode`}
-        </Text>
-      </View>
-      <Switch
-        value={appLockEnabled}
-        disabled={busy || unavailable}
-        onValueChange={async (on) => {
-          setBusy(true);
-          try {
-            const err = await setAppLock(on);
-            if (err) toast(err, 'error');
-            else toast(on ? `${support?.method ?? 'Fingerprint'} unlock is on` : `${support?.method ?? 'Fingerprint'} unlock is off`);
-          } finally {
-            setBusy(false);
-          }
-        }}
-        trackColor={{ true: colors.brand, false: colors.borderStrong }}
-        thumbColor={colors.white}
-        accessibilityLabel="App lock"
-      />
-    </Card>
-  );
-}
-
 const styles = StyleSheet.create({
-  lockRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md },
+  appLockCard: { paddingVertical: spacing.md },
+  appLockCardRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   profile: { flexDirection: 'row', gap: spacing.lg, alignItems: 'center' },
   brandFoot: { alignItems: 'center', gap: 6, marginTop: spacing.xxxl },
   brandName: { ...type.h3, marginTop: spacing.sm },

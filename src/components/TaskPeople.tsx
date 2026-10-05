@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { Avatar } from '@/components/ui';
 import { roleLabel } from '@/lib/format';
@@ -28,7 +28,7 @@ export function PersonTaskRow({ m, index = 0 }: { m: TaskTeamMember; index?: num
   const tint = ROLE_TINT[m.role] ?? ROLE_TINT.employee;
 
   return (
-    <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 35).duration(280)}>
+    <Animated.View entering={FadeInUp.delay(Math.min(index, 6) * 25).duration(240)}>
       <Pressable
         onPress={() => router.push(`/task/person/${m.id}`)}
         accessibilityRole="button"

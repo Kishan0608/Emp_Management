@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { setStatusBarStyle } from 'expo-status-bar';
@@ -217,6 +218,58 @@ export function ListSkeleton({ rows = 4 }: { rows?: number }) {
   );
 }
 
+/** Unique, premium header action button for hero headers (replaces floating FAB). */
+export function HeaderAddButton({
+  label = 'New',
+  icon = 'add',
+  onPress,
+  accessibilityLabel,
+  variant = 'white',
+}: {
+  label?: string;
+  icon?: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  accessibilityLabel?: string;
+  variant?: 'white' | 'glass';
+}) {
+  const isGlass = variant === 'glass';
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      onPress={() => {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+      }}
+      style={({ pressed }) => [
+        styles.headerAddBtn,
+        isGlass ? styles.headerAddBtnGlass : styles.headerAddBtnWhite,
+        pressed && { transform: [{ scale: 0.94 }], opacity: 0.9 },
+      ]}>
+      <View style={styles.headerAddBtnInner}>
+        <View
+          style={[
+            styles.headerAddBtnIconWrap,
+            { backgroundColor: isGlass ? 'rgba(255, 255, 255, 0.22)' : 'rgba(15, 23, 42, 0.08)' },
+          ]}>
+          <Ionicons
+            name={icon}
+            size={14}
+            color={isGlass ? colors.white : colors.text}
+          />
+        </View>
+        <Text
+          style={[
+            styles.headerAddBtnText,
+            { color: isGlass ? colors.white : colors.text },
+          ]}>
+          {label}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
 /** Floating action button. */
 export function Fab({ icon = 'add', label, onPress }: { icon?: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
   return (
@@ -267,4 +320,40 @@ const styles = StyleSheet.create({
   fab: { position: 'absolute', right: spacing.lg, bottom: spacing.md, borderRadius: radius.pill, ...shadow.md },
   fabInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: 20, height: 52, borderRadius: radius.pill },
   fabText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
+  headerAddBtn: {
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+  },
+  headerAddBtnWhite: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.95)',
+    ...shadow.sm,
+  },
+  headerAddBtnGlass: {
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.32)',
+  },
+  headerAddBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+  },
+  headerAddBtnIconWrap: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerAddBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    lineHeight: 17,
+    letterSpacing: 0.15,
+  },
 });

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { Avatar, Banner, Card, EmptyState, ListSkeleton, PageHeader, Screen, TextField } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
@@ -61,7 +61,7 @@ export default function Team() {
             const h = health(m);
             const pct = m.total ? m.done / m.total : 0;
             return (
-              <Animated.View key={m.id} entering={FadeInDown.delay(i * 50).duration(350)}>
+              <Animated.View key={m.id} entering={FadeInUp.delay(Math.min(i, 8) * 25).duration(260)}>
                 <Card onPress={() => router.push(`/team/${m.id}` as Href)} style={{ gap: spacing.md }}>
                   <View style={styles.top}>
                     <Avatar name={m.full_name} id={m.id} size={46} />

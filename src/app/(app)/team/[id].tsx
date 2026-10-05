@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { Avatar, Badge, Banner, Button, Card, Divider, ListRow, ListSkeleton, PageHeader, Screen, SectionTitle } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
@@ -34,7 +34,7 @@ export default function MemberReport() {
     <Screen refreshing={report.refreshing} onRefresh={report.refresh} header={<PageHeader title="Team member" subtitle={p.full_name} />}>
       <View style={{ gap: spacing.lg }}>
         {/* Identity */}
-        <Animated.View entering={FadeInDown.duration(350)}>
+        <Animated.View entering={FadeInUp.duration(280)}>
           <Card style={{ gap: spacing.md }}>
             <View style={styles.idRow}>
               <Avatar name={p.full_name} id={p.id} size={62} />
@@ -65,7 +65,7 @@ export default function MemberReport() {
         </Animated.View>
 
         {/* Scorecard */}
-        <Animated.View entering={FadeInDown.delay(60).duration(350)}>
+        <Animated.View entering={FadeInUp.delay(50).duration(280)}>
           <View style={styles.rings}>
             <Ring label="Completion" value={completion} color={colors.brand} />
             <Ring label="On time" value={onTime} color={colors.success} />

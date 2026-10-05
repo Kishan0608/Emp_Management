@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { Banner, Button, Card, EmptyState, ListSkeleton, PageHeader, Screen } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
@@ -67,7 +67,7 @@ export default function Notifications() {
           {(list.data ?? []).map((n, i) => {
             const ic = icon(n.kind);
             return (
-              <Animated.View key={n.id} entering={FadeInDown.delay(Math.min(i, 10) * 30)}>
+              <Animated.View key={n.id} entering={FadeInUp.delay(Math.min(i, 8) * 25).duration(260)}>
                 <Pressable onPress={() => open(n)} style={({ pressed }) => [styles.row, !n.is_read && styles.unread, pressed && { opacity: 0.8 }]}>
                   <View style={[styles.icon, { backgroundColor: ic.bg }]}>
                     <Ionicons name={ic.name} size={18} color={ic.color} />

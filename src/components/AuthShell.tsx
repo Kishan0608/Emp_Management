@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { NavigationBar } from 'expo-navigation-bar';
 import type { ReactNode } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, fonts, gradients, shadow, spacing } from '@/theme/tokens';
@@ -83,7 +83,7 @@ function AuthShellContent({
           ]}
           showsVerticalScrollIndicator={false}>
           <Animated.View
-            entering={FadeInDown.duration(600)}
+            entering={FadeIn.duration(400)}
             style={[styles.brandBlock, (compactLogo || isKeyboardVisible) && { marginBottom: spacing.md }]}>
             <SkflMark width={compactLogo || isKeyboardVisible ? 120 : 200} />
             <Text style={styles.brand} numberOfLines={1} adjustsFontSizeToFit>

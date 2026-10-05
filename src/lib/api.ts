@@ -3,9 +3,8 @@ import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import type {
   AppSettings,
-  AttendanceDetail,
-  AttendanceOverviewRow,
-  AttendanceToday,
+  AppLockConfig,
+  AppLockType,
   AuditLog,
   ChecklistItem,
   DashboardStats,
@@ -17,7 +16,6 @@ import type {
   FeedbackReply,
   FeedbackStatus,
   FeedbackType,
-  MyAttendanceMonth,
   MyContext,
   NotificationRow,
   Role,
@@ -82,7 +80,7 @@ async function invokeFn<T>(name: string, body: Record<string, unknown>): Promise
   return data as T;
 }
 
-const USER_FIELDS = 'id, full_name, email, role, job_title, department_id, manager_id, phone, is_active, is_case_handler';
+const USER_FIELDS = 'id, full_name, email, role, job_title, department_id, manager_id, is_active, is_case_handler';
 const TASK_SELECT =
   '*, assignee:users!tasks_assignee_id_fkey(full_name), creator:users!tasks_created_by_fkey(full_name), reviewer:users!tasks_reviewer_id_fkey(full_name)';
 
@@ -96,6 +94,29 @@ export const api = {
   savePushToken: async (userId: string, token: string | null) =>
     check(await supabase.from('users').update({ push_token: token }).eq('id', userId)),
   dashboard: async () => check<DashboardStats>(await supabase.rpc('dashboard_stats')),
+  getAppLock: async () => check<AppLockConfig | null>(await supabase.rpc('get_my_app_lock')),
+  saveAppLock: async (p: {
+    enabled: boolean;
+    type?: AppLockType;
+    passcode_hash?: string | null;
+    passcode_salt?: string | null;
+    pattern_hash?: string | null;
+    pattern_salt?: string | null;
+    biometric_enabled?: boolean;
+  }) =>
+    check<AppLockConfig>(
+      await supabase.rpc('save_my_app_lock', {
+        p_enabled: p.enabled,
+        p_type: p.type ?? 'passcode',
+        p_passcode_hash: p.passcode_hash ?? null,
+        p_passcode_salt: p.passcode_salt ?? null,
+        p_pattern_hash: p.pattern_hash ?? null,
+        p_pattern_salt: p.pattern_salt ?? null,
+        p_biometric_enabled: p.biometric_enabled ?? false,
+      }),
+    ),
+  verifyAppLock: async (type: 'passcode' | 'pattern', secret: string) =>
+    check<boolean>(await supabase.rpc('verify_my_app_lock', { p_type: type, p_secret: secret })),
 
   // ---------- people ----------
   taskAssignees: async () => {
@@ -107,8 +128,28 @@ export const api = {
     } catch {}
     return check<DirectoryUser[]>(await supabase.from('users').select(USER_FIELDS).order('full_name').limit(1000));
   },
-  directory: async () =>
-    check<DirectoryUser[]>(await supabase.from('users').select(USER_FIELDS).order('full_name').limit(1000)),
+  directory: async () => {
+    try {
+      const res = await supabase.from('users').select(USER_FIELDS).order('full_name').limit(1000);
+      if (res.error) {
+        try {
+          const rpcRes = await supabase.rpc('get_task_assignees');
+          if (rpcRes.data && Array.isArray(rpcRes.data) && rpcRes.data.length > 0) {
+            return rpcRes.data as DirectoryUser[];
+          }
+        } catch {}
+      }
+      return check<DirectoryUser[]>(res);
+    } catch (err) {
+      try {
+        const rpcRes = await supabase.rpc('get_task_assignees');
+        if (rpcRes.data && Array.isArray(rpcRes.data) && rpcRes.data.length > 0) {
+          return rpcRes.data as DirectoryUser[];
+        }
+      } catch {}
+      throw err;
+    }
+  },
   departments: async () => check<Department[]>(await supabase.from('departments').select('id, name').order('name')),
   createDepartment: async (name: string) => check(await supabase.from('departments').insert({ name: name.trim() })),
   profile: async (id: string) => check<EmployeeProfile>(await supabase.rpc('get_employee_profile', { p_target: id })),
@@ -252,18 +293,68 @@ export const api = {
     return data.signedUrl;
   },
 
-  // ---------- feedback ----------
-  feedback: async (scope: 'inbox' | 'mine' | 'qa' | 'blockers' | 'all', me: string) => {
+  feedback: async (
+    scope: 'inbox' | 'mine' | 'qa' | 'blockers' | 'all',
+    me: string,
+    isStaff?: boolean
+  ) => {
     let q = supabase
       .from('feedback_items')
       .select('*, author:users!feedback_items_author_id_fkey(full_name)')
       .order('created_at', { ascending: false })
       .limit(200);
-    if (scope === 'mine') q = q.eq('author_id', me);
-    if (scope === 'qa') q = q.eq('is_published', true);
-    if (scope === 'blockers') q = q.eq('type', 'blocker').in('status', ['open', 'acknowledged']);
-    if (scope === 'inbox') q = q.or(`author_id.is.null,author_id.neq.${me}`);
+    if (scope === 'mine') {
+      q = q.eq('author_id', me);
+    } else if (scope === 'qa') {
+      q = q.eq('is_published', true);
+    } else if (scope === 'blockers') {
+      q = q.eq('type', 'blocker').in('status', ['open', 'acknowledged']);
+    } else if (scope === 'inbox') {
+      if (isStaff) {
+        q = q.or(`author_id.is.null,author_id.neq.${me}`);
+      } else {
+        q = q.or(`author_id.eq.${me},is_published.eq.true`);
+      }
+    }
     return check<FeedbackItem[]>(await q);
+  },
+  feedbackCounts: async (me: string, isStaff?: boolean) => {
+    try {
+      const [inboxRes, mineRes, blockersRes, qaRes] = await Promise.all([
+        isStaff
+          ? supabase
+              .from('feedback_items')
+              .select('*', { count: 'exact', head: true })
+              .or(`author_id.is.null,author_id.neq.${me}`)
+              .in('status', ['open', 'acknowledged'])
+          : supabase
+              .from('feedback_items')
+              .select('*', { count: 'exact', head: true })
+              .eq('author_id', me)
+              .in('status', ['open', 'acknowledged', 'answered']),
+        supabase
+          .from('feedback_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('author_id', me),
+        supabase
+          .from('feedback_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('type', 'blocker')
+          .in('status', ['open', 'acknowledged']),
+        supabase
+          .from('feedback_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_published', true),
+      ]);
+      return {
+        inbox: inboxRes.count ?? 0,
+        mine: mineRes.count ?? 0,
+        blockers: blockersRes.count ?? 0,
+        qa: qaRes.count ?? 0,
+      };
+    } catch {
+      return { inbox: 0, mine: 0, blockers: 0, qa: 0 };
+    }
   },
   feedbackItem: async (id: string) =>
     check<FeedbackItem>(
@@ -342,19 +433,6 @@ export const api = {
   markRead: async (id: string) => check(await supabase.from('notifications').update({ is_read: true }).eq('id', id)),
   markAllRead: async (me: string) =>
     check(await supabase.from('notifications').update({ is_read: true }).eq('user_id', me).eq('is_read', false)),
-
-  // ---------- attendance ----------
-  clockIn: async () => check<AttendanceToday>(await supabase.rpc('clock_in')),
-  breakStart: async () => check<AttendanceToday>(await supabase.rpc('break_start')),
-  breakEnd: async () => check<AttendanceToday>(await supabase.rpc('break_end')),
-  clockOut: async () => check<AttendanceToday>(await supabase.rpc('clock_out')),
-  attendanceToday: async () => check<AttendanceToday>(await supabase.rpc('attendance_today')),
-  myAttendance: async (month: string) => check<MyAttendanceMonth>(await supabase.rpc('my_attendance', { p_month: month })),
-  attendanceOverview: async (month: string) => check<AttendanceOverviewRow[]>(await supabase.rpc('attendance_overview', { p_month: month })),
-  attendanceDetail: async (userId: string, month: string) =>
-    check<AttendanceDetail>(await supabase.rpc('attendance_detail', { p_target: userId, p_month: month })),
-  setSalary: async (userId: string, salary: number) =>
-    check(await supabase.rpc('admin_set_salary', { p_user_id: userId, p_salary: salary })),
 
   // ---------- admin ----------
   updateSettings: async (patch: Partial<AppSettings>) =>

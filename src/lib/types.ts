@@ -10,6 +10,16 @@ export type AttendanceStatus = 'present' | 'half_day' | 'absent';
 export type AttendanceNextAction = 'clock_in' | 'break_start' | 'break_end' | 'clock_out' | 'done';
 export type HalfDayReason = 'early_clockout' | 'late_streak';
 
+export type AppLockType = 'passcode' | 'pattern' | 'biometric';
+
+export interface AppLockConfig {
+  enabled: boolean;
+  type: AppLockType;
+  has_passcode: boolean;
+  has_pattern: boolean;
+  biometric_enabled: boolean;
+}
+
 export interface AppUser {
   id: string;
   full_name: string;
@@ -32,6 +42,12 @@ export interface AppUser {
   performance_rating?: number | null;
   joined_on?: string | null;
   created_at: string;
+  // App Lock
+  app_lock_enabled?: boolean;
+  app_lock_type?: AppLockType;
+  app_lock_biometric_enabled?: boolean;
+  has_passcode?: boolean;
+  has_pattern?: boolean;
 }
 
 export interface AppSettings {

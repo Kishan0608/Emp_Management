@@ -7,20 +7,27 @@ import {
   authenticate,
   clearAppLock,
   getAppLockSupport,
+  getAppLockType,
   getLockOwner,
   hasPasscode,
+  hasPattern,
   isAppLockEnabled,
+  isBiometricEnabled,
   lockSupported,
-  resetPasscodeFails,
+  resetLockFails,
   setAppLockEnabled,
+  setAppLockType,
+  setBiometricEnabled,
   setLockOwner,
   setPasscode,
+  setPattern,
   verifyPasscode,
+  verifyPattern,
 } from '@/lib/appLock';
 import { googleSignIn } from '@/lib/oauth';
 import { registerForPush } from '@/lib/push';
 import { supabase } from '@/lib/supabase';
-import type { MyContext, Role } from '@/lib/types';
+import type { AppLockType, MyContext, Role } from '@/lib/types';
 
 /**
  * Where the signed-in person is in the entry flow. The router shows exactly
@@ -40,18 +47,27 @@ interface AuthValue {
   signOut: (allDevices?: boolean, notice?: string, forgetPasscode?: boolean) => Promise<void>;
   refresh: () => Promise<void>;
   clearNotice: () => void;
-  /** When `locked`, the app shows the passcode / fingerprint screen over everything. */
+  /** When `locked`, the app shows the AppLock screen (Passcode, Pattern, or Fingerprint). */
   locked: boolean;
-  /** Fingerprint / face unlock turned on for this phone. */
+  /** Whether App Lock is active. When false, protected by Email + Password only. */
   appLockEnabled: boolean;
+  appLockType: AppLockType;
+  biometricEnabled: boolean;
+  hasConfiguredPasscode: boolean;
+  hasConfiguredPattern: boolean;
   unlock: () => Promise<string | null>;
   unlockWithPasscode: (pin: string) => Promise<{ ok: boolean; attemptsLeft: number }>;
+  unlockWithPattern: (pattern: string) => Promise<{ ok: boolean; attemptsLeft: number }>;
   setAppLock: (on: boolean) => Promise<string | null>;
-  /** Saves a new app passcode (first setup or change) and optionally turns on fingerprint. */
+  setAppLockTypePref: (type: AppLockType) => Promise<void>;
+  setBiometricPref: (on: boolean) => Promise<string | null>;
+  disableAppLock: () => Promise<void>;
   savePasscode: (pin: string, biometrics?: boolean) => Promise<void>;
+  savePatternLock: (pattern: string, biometrics?: boolean) => Promise<void>;
+  testAppLock: () => void;
 }
 
-// Returning to the app after this long in the background asks for the passcode / fingerprint again.
+// Returning to the app after this long in the background asks for the passcode / pattern / fingerprint again.
 const BACKGROUND_LOCK_MS = 15_000;
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -63,8 +79,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
   const [appLockEnabled, setAppLockState] = useState(false);
+  const [appLockType, setAppLockTypeState] = useState<AppLockType>('passcode');
+  const [biometricEnabled, setBiometricState] = useState(false);
+  const [hasConfiguredPasscode, setHasConfiguredPasscode] = useState(false);
+  const [hasConfiguredPattern, setHasConfiguredPattern] = useState(false);
+
   const freshSignIn = useRef(false); // true right after typing the password: no need to unlock again
   const pushRegistered = useRef(false);
+
+  const syncLocalLockFlags = useCallback(async () => {
+    const [enabled, type, bio, pass, pat] = await Promise.all([
+      isAppLockEnabled(),
+      getAppLockType(),
+      isBiometricEnabled(),
+      hasPasscode(),
+      hasPattern(),
+    ]);
+    setAppLockState(enabled);
+    setAppLockTypeState(type);
+    setBiometricState(bio);
+    setHasConfiguredPasscode(pass);
+    setHasConfiguredPattern(pat);
+  }, []);
 
   const signOut = useCallback(async (allDevices = false, message?: string, forgetPasscode = false) => {
     try {
@@ -76,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (forgetPasscode) {
       await clearAppLock();
       setAppLockState(false);
+      setBiometricState(false);
     }
     pushRegistered.current = false;
     setLocked(false);
@@ -109,24 +146,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         setCtx(c);
-        if (lockSupported) {
-          const owner = await getLockOwner();
-          if (owner && owner !== c.user.id) {
-            // A different account signed in on this phone: the old passcode is not theirs.
-            await clearAppLock();
-            setAppLockState(false);
-          } else if (!owner && (await hasPasscode())) {
-            await setLockOwner(c.user.id);
-          }
+
+        // Check DB for App Lock preference
+        const dbLockEnabled = !!c.user.app_lock_enabled;
+        const dbLockType = (c.user.app_lock_type as AppLockType) || 'passcode';
+        const dbBio = !!c.user.app_lock_biometric_enabled;
+        const dbHasPasscode = !!c.user.has_passcode;
+        const dbHasPattern = !!c.user.has_pattern;
+
+        setHasConfiguredPasscode(dbHasPasscode);
+        setHasConfiguredPattern(dbHasPattern);
+
+        // Manage ownership and sync DB state with local device storage
+        const owner = await getLockOwner();
+        if (owner && owner !== c.user.id) {
+          // Different user on this phone
+          await clearAppLock();
+          await setLockOwner(c.user.id);
+        } else if (!owner) {
+          await setLockOwner(c.user.id);
         }
+
+        if (dbLockEnabled) {
+          await setAppLockEnabled(true);
+          await setAppLockType(dbLockType);
+          await setBiometricEnabled(dbBio);
+          setAppLockState(true);
+          setAppLockTypeState(dbLockType);
+          setBiometricState(dbBio);
+        } else {
+          // Explicitly disabled in DB
+          await setAppLockEnabled(false);
+          setAppLockState(false);
+        }
+
         const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-        if (c.mfa_required && aal?.currentLevel !== 'aal2') setStatus('needsMfa');
-        else if (c.user.must_change_password) setStatus('needsPassword');
-        else if ((c.user.consent_version ?? 0) < c.settings.privacy_notice_version) setStatus('needsConsent');
-        else if (lockSupported && !(await hasPasscode())) setStatus('needsPasscode');
-        else {
-          // Session restored from the phone (not typed just now) → ask for passcode / fingerprint.
-          if (lockSupported && !freshSignIn.current) setLocked(true);
+        if (c.mfa_required && aal?.currentLevel !== 'aal2') {
+          setStatus('needsMfa');
+        } else if (c.user.must_change_password) {
+          setStatus('needsPassword');
+        } else if ((c.user.consent_version ?? 0) < c.settings.privacy_notice_version) {
+          setStatus('needsConsent');
+        } else {
+          // NO FORCED NEEDS_PASSCODE!
+          // If App Lock is enabled AND this is a restored session (not freshly typed password),
+          // show the App Lock screen.
+          if (dbLockEnabled && !freshSignIn.current) {
+            setLocked(true);
+          } else {
+            setLocked(false);
+          }
           freshSignIn.current = false;
           setStatus('ready');
         }
@@ -138,8 +207,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    Promise.all([isAppLockEnabled(), supabase.auth.getSession()]).then(([bio, { data }]) => {
-      setAppLockState(bio);
+    syncLocalLockFlags();
+    supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       resolve(data.session);
     });
@@ -152,7 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === 'MFA_CHALLENGE_VERIFIED') resolve(s);
     });
     return () => sub.subscription.unsubscribe();
-  }, [resolve]);
+  }, [resolve, syncLocalLockFlags]);
 
   // Record the login once the person is fully in, then register for push.
   useEffect(() => {
@@ -164,20 +233,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, [status, ctx]);
 
-  // No inactivity sign-out: the session stays until the person signs out.
-  // Coming back after a while in the background locks the app instead.
+  // Background timer: lock the app when returning after a while if app lock is enabled
   useEffect(() => {
-    if (!lockSupported || status !== 'ready') return;
+    if (status !== 'ready' || !appLockEnabled) return;
     let backgroundAt = 0;
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'background') backgroundAt = Date.now();
       if (state === 'active') {
-        if (backgroundAt > 0 && Date.now() - backgroundAt > BACKGROUND_LOCK_MS) setLocked(true);
+        if (backgroundAt > 0 && Date.now() - backgroundAt > BACKGROUND_LOCK_MS) {
+          setLocked(true);
+        }
         backgroundAt = 0;
       }
     });
     return () => sub.remove();
-  }, [status]);
+  }, [status, appLockEnabled]);
 
   const unlock = useCallback(async () => {
     const r = await authenticate('Unlock SKFL');
@@ -191,40 +261,151 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const unlockWithPasscode = useCallback(
     async (pin: string) => {
       const r = await verifyPasscode(pin);
-      if (r.ok) setLocked(false);
-      else if (r.attemptsLeft === 0) await signOut(false, 'Too many wrong passcodes. Sign in with your email and password.', true);
+      if (r.ok) {
+        setLocked(false);
+      } else if (r.attemptsLeft === 0) {
+        await signOut(false, 'Too many wrong passcodes. Sign in with your email and password.', true);
+      }
       return r;
     },
     [signOut],
   );
 
-  const setAppLock = useCallback(async (on: boolean) => {
-    if (on) {
-      const support = await getAppLockSupport();
-      if (!support.available) return support.reason ?? 'Fingerprint unlock is not available on this phone.';
-      const r = await authenticate(`Turn on ${support.method.toLowerCase()} unlock`);
-      if (!r.ok) return r.error ?? `${support.method} unlock was not turned on.`;
-    }
-    await setAppLockEnabled(on);
-    setAppLockState(on);
-    return null;
-  }, []);
+  const unlockWithPattern = useCallback(
+    async (pattern: string) => {
+      const r = await verifyPattern(pattern);
+      if (r.ok) {
+        setLocked(false);
+      } else if (r.attemptsLeft === 0) {
+        await signOut(false, 'Too many wrong pattern attempts. Sign in with your email and password.', true);
+      }
+      return r;
+    },
+    [signOut],
+  );
 
   const savePasscode = useCallback(
     async (pin: string, biometrics?: boolean) => {
-      await setPasscode(pin);
+      const { hash, salt } = await setPasscode(pin);
       if (ctx) await setLockOwner(ctx.user.id);
+      await setAppLockEnabled(true);
+      await setAppLockType('passcode');
+      setAppLockState(true);
+      setAppLockTypeState('passcode');
+      setHasConfiguredPasscode(true);
+
+      const bio = biometrics !== undefined ? biometrics : biometricEnabled;
       if (biometrics !== undefined) {
-        await setAppLockEnabled(biometrics);
-        setAppLockState(biometrics);
+        await setBiometricEnabled(biometrics);
+        setBiometricState(biometrics);
       }
+
+      // Persist to Supabase Database
+      try {
+        await api.saveAppLock({
+          enabled: true,
+          type: 'passcode',
+          passcode_hash: hash,
+          passcode_salt: salt,
+          biometric_enabled: bio,
+        });
+      } catch {}
+
       if (status === 'needsPasscode') {
         freshSignIn.current = false;
         setStatus('ready');
       }
     },
-    [status, ctx],
+    [status, ctx, biometricEnabled],
   );
+
+  const savePatternLock = useCallback(
+    async (pattern: string, biometrics?: boolean) => {
+      const { hash, salt } = await setPattern(pattern);
+      if (ctx) await setLockOwner(ctx.user.id);
+      await setAppLockEnabled(true);
+      await setAppLockType('pattern');
+      setAppLockState(true);
+      setAppLockTypeState('pattern');
+      setHasConfiguredPattern(true);
+
+      const bio = biometrics !== undefined ? biometrics : biometricEnabled;
+      if (biometrics !== undefined) {
+        await setBiometricEnabled(biometrics);
+        setBiometricState(biometrics);
+      }
+
+      // Persist to Supabase Database
+      try {
+        await api.saveAppLock({
+          enabled: true,
+          type: 'pattern',
+          pattern_hash: hash,
+          pattern_salt: salt,
+          biometric_enabled: bio,
+        });
+      } catch {}
+
+      if (status === 'needsPasscode') {
+        freshSignIn.current = false;
+        setStatus('ready');
+      }
+    },
+    [status, ctx, biometricEnabled],
+  );
+
+  const disableAppLock = useCallback(async () => {
+    await setAppLockEnabled(false);
+    setAppLockState(false);
+    setLocked(false);
+    try {
+      await api.saveAppLock({ enabled: false });
+    } catch {}
+  }, []);
+
+  const setAppLockTypePref = useCallback(async (type: AppLockType) => {
+    await setAppLockType(type);
+    setAppLockTypeState(type);
+    try {
+      await api.saveAppLock({ enabled: true, type });
+    } catch {}
+  }, []);
+
+  const setBiometricPref = useCallback(async (on: boolean) => {
+    if (on) {
+      const support = await getAppLockSupport();
+      if (!support.available) return support.reason ?? 'Biometrics not available on this device.';
+      const r = await authenticate(`Turn on ${support.method.toLowerCase()} unlock`);
+      if (!r.ok) return r.error ?? `${support.method} was not verified.`;
+    }
+    await setBiometricEnabled(on);
+    setBiometricState(on);
+    try {
+      await api.saveAppLock({ enabled: true, biometric_enabled: on });
+    } catch {}
+    return null;
+  }, []);
+
+  const setAppLock = useCallback(
+    async (on: boolean) => {
+      if (on) {
+        await setAppLockEnabled(true);
+        setAppLockState(true);
+        try {
+          await api.saveAppLock({ enabled: true, type: appLockType });
+        } catch {}
+        return null;
+      } else {
+        await disableAppLock();
+        return null;
+      }
+    },
+    [appLockType, disableAppLock],
+  );
+
+  const testAppLock = useCallback(() => {
+    setLocked(true);
+  }, []);
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -234,7 +415,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error.status === 429) throw new Error('Too many attempts. Please wait a few minutes and try again.');
         throw new Error(error.message === 'Invalid login credentials' ? 'Incorrect email or password.' : error.message);
       }
-      await resetPasscodeFails();
+      await resetLockFails();
       freshSignIn.current = true;
       setSession(data.session);
       await resolve(data.session);
@@ -246,7 +427,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setNotice(null);
     const session = await googleSignIn();
     if (!session) return; // cancelled
-    await resetPasscodeFails();
+    await resetLockFails();
     freshSignIn.current = true;
     setSession(session);
     await resolve(session);
@@ -271,12 +452,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearNotice: () => setNotice(null),
       locked,
       appLockEnabled,
+      appLockType,
+      biometricEnabled,
+      hasConfiguredPasscode,
+      hasConfiguredPattern,
       unlock,
       unlockWithPasscode,
+      unlockWithPattern,
       setAppLock,
+      setAppLockTypePref,
+      setBiometricPref,
+      disableAppLock,
       savePasscode,
+      savePatternLock,
+      testAppLock,
     }),
-    [status, session, ctx, notice, signIn, signInWithGoogle, signOut, refresh, locked, appLockEnabled, unlock, unlockWithPasscode, setAppLock, savePasscode],
+    [
+      status,
+      session,
+      ctx,
+      notice,
+      signIn,
+      signInWithGoogle,
+      signOut,
+      refresh,
+      locked,
+      appLockEnabled,
+      appLockType,
+      biometricEnabled,
+      hasConfiguredPasscode,
+      hasConfiguredPattern,
+      unlock,
+      unlockWithPasscode,
+      unlockWithPattern,
+      setAppLock,
+      setAppLockTypePref,
+      setBiometricPref,
+      disableAppLock,
+      savePasscode,
+      savePatternLock,
+      testAppLock,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
