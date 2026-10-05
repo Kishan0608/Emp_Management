@@ -18,6 +18,7 @@ type IconName = keyof typeof Ionicons.glyphMap;
 const TAB_ICONS: Record<string, { active: IconName; inactive: IconName }> = {
   home: { active: 'grid', inactive: 'grid-outline' },
   tasks: { active: 'checkbox', inactive: 'checkbox-outline' },
+  attendance: { active: 'time', inactive: 'time-outline' },
   feedback: { active: 'chatbubbles', inactive: 'chatbubbles-outline' },
   more: { active: 'menu', inactive: 'menu-outline' },
 };
@@ -145,6 +146,7 @@ export default function TabsLayout() {
       }}>
       <Tabs.Screen name="home" options={{ title: 'Home' }} />
       <Tabs.Screen name="tasks" options={{ title: 'Tasks' }} />
+      <Tabs.Screen name="attendance" options={{ title: 'Attendance' }} />
       <Tabs.Screen name="feedback" options={{ title: 'Feedback' }} />
       <Tabs.Screen name="more" options={{ title: 'More' }} />
     </Tabs>

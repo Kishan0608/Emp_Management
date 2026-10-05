@@ -1,6 +1,7 @@
 import { colors } from '@/theme/tokens';
 
 import type {
+  AttendanceStatus,
   FeedbackAudience,
   FeedbackStatus,
   FeedbackType,
@@ -134,6 +135,38 @@ export function greeting(): string {
   if (h < 12) return 'Good morning';
   if (h < 17) return 'Good afternoon';
   return 'Good evening';
+}
+
+export const attendanceStatusLabel: Record<AttendanceStatus, string> = { present: 'Present', half_day: 'Half day', absent: 'Absent' };
+export const attendanceStatusTone: Record<AttendanceStatus, Tone> = { present: 'success', half_day: 'warning', absent: 'danger' };
+
+export function formatClockTime(value: string | null | undefined): string {
+  if (!value) return '—';
+  const d = new Date(value);
+  const hh = d.getHours() % 12 || 12;
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm} ${d.getHours() < 12 ? 'AM' : 'PM'}`;
+}
+
+export function formatDayLabel(value: string): string {
+  const d = new Date(`${value}T00:00:00`);
+  return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+/** First-of-month key ('YYYY-MM-01') used end to end for month-scoped attendance RPCs. */
+export function monthKey(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+export function shiftMonth(key: string, delta: number): string {
+  const d = new Date(`${key}T00:00:00`);
+  d.setMonth(d.getMonth() + delta);
+  return monthKey(d);
+}
+
+export function monthLabel(key: string): string {
+  const d = new Date(`${key}T00:00:00`);
+  return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 export function formatINR(value: number | null | undefined): string {

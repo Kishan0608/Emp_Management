@@ -3,6 +3,9 @@ import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import type {
   AppSettings,
+  AttendanceDetail,
+  AttendanceOverviewRow,
+  AttendanceToday,
   AuditLog,
   ChecklistItem,
   DashboardStats,
@@ -14,6 +17,7 @@ import type {
   FeedbackReply,
   FeedbackStatus,
   FeedbackType,
+  MyAttendanceMonth,
   MyContext,
   NotificationRow,
   Role,
@@ -338,6 +342,19 @@ export const api = {
   markRead: async (id: string) => check(await supabase.from('notifications').update({ is_read: true }).eq('id', id)),
   markAllRead: async (me: string) =>
     check(await supabase.from('notifications').update({ is_read: true }).eq('user_id', me).eq('is_read', false)),
+
+  // ---------- attendance ----------
+  clockIn: async () => check<AttendanceToday>(await supabase.rpc('clock_in')),
+  breakStart: async () => check<AttendanceToday>(await supabase.rpc('break_start')),
+  breakEnd: async () => check<AttendanceToday>(await supabase.rpc('break_end')),
+  clockOut: async () => check<AttendanceToday>(await supabase.rpc('clock_out')),
+  attendanceToday: async () => check<AttendanceToday>(await supabase.rpc('attendance_today')),
+  myAttendance: async (month: string) => check<MyAttendanceMonth>(await supabase.rpc('my_attendance', { p_month: month })),
+  attendanceOverview: async (month: string) => check<AttendanceOverviewRow[]>(await supabase.rpc('attendance_overview', { p_month: month })),
+  attendanceDetail: async (userId: string, month: string) =>
+    check<AttendanceDetail>(await supabase.rpc('attendance_detail', { p_target: userId, p_month: month })),
+  setSalary: async (userId: string, salary: number) =>
+    check(await supabase.rpc('admin_set_salary', { p_user_id: userId, p_salary: salary })),
 
   // ---------- admin ----------
   updateSettings: async (patch: Partial<AppSettings>) =>
