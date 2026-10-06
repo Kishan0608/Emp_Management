@@ -115,3 +115,9 @@ export function routeUrl(points: LocationPoint[], stops: Stop[]): string | null 
   const waypoints = middle.length ? `&waypoints=${middle.map(ll).join('%7C')}` : '';
   return `https://www.google.com/maps/dir/?api=1&origin=${ll(origin)}&destination=${ll(destination)}${waypoints}&travelmode=driving`;
 }
+
+/** Friendly label for horizontal accuracy: under 30m is high accuracy, otherwise approximate. */
+export function formatAccuracy(accuracyM?: number | null): string {
+  if (accuracyM == null) return '';
+  return accuracyM <= 30 ? 'High accuracy' : 'Approximate';
+}

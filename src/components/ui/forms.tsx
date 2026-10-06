@@ -1,19 +1,29 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import * as Haptics from 'expo-haptics';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
   type TextInputProps,
 } from 'react-native';
-import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  ZoomIn,
+  ZoomOut,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatDate, toDateOnly } from '@/lib/format';
@@ -75,7 +85,14 @@ export function TextField({ label, hint, error, icon, secureToggle, counter, rig
           focused && styles.inputFocused,
           !!error && { borderColor: colors.danger },
         ]}>
-        {icon && <Ionicons name={icon} size={18} color={focused ? colors.brand : colors.textMuted} style={multiline ? { marginTop: 2 } : null} />}
+        {icon && (
+          <Ionicons
+            name={icon}
+            size={18}
+            color={focused ? colors.brand : colors.textMuted}
+            style={multiline ? styles.iconMultiline : undefined}
+          />
+        )}
         <TextInput
           ref={inputRef}
           placeholderTextColor={colors.textMuted}
@@ -93,7 +110,7 @@ export function TextField({ label, hint, error, icon, secureToggle, counter, rig
             setFocused(false);
             rest.onBlur?.(e);
           }}
-          style={[styles.input, multiline && { minHeight: 110, textAlignVertical: 'top' }, style]}
+          style={[styles.input, multiline && styles.inputMultiline, style]}
         />
         {secureToggle && (
           <Pressable onPress={() => setHidden((h) => !h)} hitSlop={10} accessibilityLabel={hidden ? 'Show password' : 'Hide password'}>
@@ -194,50 +211,160 @@ export function ChoiceChips<T extends string>({
   );
 }
 
-// ---------- switch row ----------
-export function SwitchRow({ label, description, value, onChange, disabled }: { label: string; description?: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+// ---------- luxury animated switch ----------
+export function AppSwitch({
+  value,
+  onValueChange,
+  disabled,
+  color,
+}: {
+  value: boolean;
+  onValueChange?: (val: boolean) => void;
+  disabled?: boolean;
+  color?: string;
+}) {
+  const offset = useSharedValue(value ? 20 : 0);
+
+  useEffect(() => {
+    offset.set(
+      withTiming(value ? 20 : 0, {
+        duration: 200,
+        easing: Easing.bezier(0.2, 0, 0, 1),
+      }),
+    );
+  }, [value, offset]);
+
+  const thumbStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: offset.get() }],
+  }));
+
+  const handlePress = () => {
+    if (disabled) return;
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync().catch(() => {});
+    }
+    onValueChange?.(!value);
+  };
+
+  const activeColor = color ?? colors.brand;
+
   return (
-    <View style={styles.switchRow}>
-      <View style={{ flex: 1, gap: 2 }}>
+    <Pressable
+      onPress={handlePress}
+      disabled={disabled}
+      hitSlop={8}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value, disabled }}
+      style={[
+        styles.switchTrack,
+        value
+          ? [styles.switchTrackOn, color ? { backgroundColor: activeColor, borderColor: activeColor } : null]
+          : styles.switchTrackOff,
+        disabled && { opacity: 0.45 },
+      ]}>
+      <Animated.View style={[styles.switchThumb, thumbStyle]} />
+    </Pressable>
+  );
+}
+
+// ---------- switch row ----------
+export function SwitchRow({
+  label,
+  description,
+  value,
+  onChange,
+  disabled,
+  color,
+}: {
+  label: string;
+  description?: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+  color?: string;
+}) {
+  return (
+    <Pressable
+      onPress={() => !disabled && onChange(!value)}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.switchRow,
+        pressed && !disabled && { opacity: 0.8 },
+      ]}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value, disabled }}
+      accessibilityLabel={label}>
+      <View style={{ flex: 1, gap: 2, paddingRight: spacing.md }}>
         <Text style={type.bodyMedium}>{label}</Text>
         {description && <Text style={type.small}>{description}</Text>}
       </View>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        disabled={disabled}
-        trackColor={{ true: colors.brand, false: colors.borderStrong }}
-        thumbColor={colors.white}
-        accessibilityLabel={label}
-      />
-    </View>
+      <View pointerEvents="none">
+        <AppSwitch value={value} disabled={disabled} color={color} />
+      </View>
+    </Pressable>
   );
 }
 
 // ---------- bottom sheet ----------
-export function Sheet({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title: string; children: ReactNode }) {
+export function Sheet({
+  visible,
+  onClose,
+  title,
+  children,
+  scroll = true,
+  placement = 'bottom',
+}: {
+  visible: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  /** Scrolls the content when it is taller than the screen (so buttons at the bottom stay reachable). Turn off when the content is its own list. */
+  scroll?: boolean;
+  /** 'bottom' slides up from the bottom edge; 'center' shows a centred card (dialogs and day details). */
+  placement?: 'bottom' | 'center';
+}) {
   const insets = useSafeAreaInsets();
+  const centered = placement === 'center';
+  const body = (
+    <>
+      {!centered && <View style={styles.grabber} />}
+      <View style={styles.sheetHeader}>
+        <AppText variant="h2" style={{ flex: 1 }}>
+          {title}
+        </AppText>
+        <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Close">
+          <Ionicons name="close" size={24} color={colors.textSecondary} />
+        </Pressable>
+      </View>
+      {scroll ? (
+        <ScrollView style={styles.sheetScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} bounces={false}>
+          {children}
+        </ScrollView>
+      ) : (
+        children
+      )}
+    </>
+  );
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(150)} style={styles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
         </Animated.View>
-        <Animated.View
-          entering={ZoomIn.springify().damping(16).mass(0.7)}
-          exiting={ZoomOut.duration(150)}
-          style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
-          <View style={styles.grabber} />
-          <View style={styles.sheetHeader}>
-            <AppText variant="h2" style={{ flex: 1 }}>
-              {title}
-            </AppText>
-            <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Close">
-              <Ionicons name="close" size={24} color={colors.textSecondary} />
-            </Pressable>
+        {centered ? (
+          <View style={styles.centerWrap} pointerEvents="box-none">
+            <Animated.View entering={ZoomIn.springify().damping(16).mass(0.7)} exiting={ZoomOut.duration(150)} style={styles.dialog}>
+              {body}
+            </Animated.View>
           </View>
-          {children}
-        </Animated.View>
+        ) : (
+          <Animated.View
+            entering={ZoomIn.springify().damping(16).mass(0.7)}
+            exiting={ZoomOut.duration(150)}
+            style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
+            {body}
+          </Animated.View>
+        )}
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -294,7 +421,7 @@ export function SelectField({
         </View>
         <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
       </Pressable>
-      <Sheet visible={open} onClose={() => setOpen(false)} title={label ?? placeholder}>
+      <Sheet visible={open} onClose={() => setOpen(false)} title={label ?? placeholder} scroll={false}>
         {options.length > 7 && (
           <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
             <TextField icon="search" placeholder="Search" value={q} onChangeText={setQ} autoCorrect={false} />
@@ -463,13 +590,28 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   inputFocused: { borderColor: colors.brand, backgroundColor: '#FFFDF7' },
+  iconMultiline: {
+    marginTop: 2,
+  },
   input: {
     flex: 1,
     fontFamily: fonts.regular,
     fontSize: 15,
     color: colors.text,
     paddingVertical: Platform.OS === 'web' ? 12 : 10,
+    paddingHorizontal: 0,
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
+  },
+  inputMultiline: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+    paddingTop: 0,
+    paddingBottom: 0,
+    lineHeight: 22,
+    includeFontPadding: false,
+    ...(Platform.OS === 'web'
+      ? ({ outlineStyle: 'none', resize: 'none' } as object)
+      : null),
   },
   segWrap: { backgroundColor: '#EFECE4', borderRadius: radius.md, padding: 4, gap: 4 },
   segWrapDark: { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(229,227,172,0.2)' },
@@ -500,7 +642,36 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   chipText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.textSecondary },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 14 },
+  switchTrack: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    padding: 2.5,
+    justifyContent: 'center',
+    borderWidth: 1.5,
+  },
+  switchTrackOn: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brandDark,
+  },
+  switchTrackOff: {
+    backgroundColor: '#E5E2D9',
+    borderColor: '#D4CFC3',
+  },
+  switchThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.white,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.16,
+    shadowRadius: 2.5,
+    elevation: 3,
+  },
   backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.overlay },
   sheet: {
     position: 'absolute',
@@ -516,7 +687,18 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.xl,
     ...shadow.lg,
   },
+  centerWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
+  dialog: {
+    width: '100%',
+    maxWidth: 520,
+    maxHeight: '86%',
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    ...shadow.lg,
+  },
   grabber: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: colors.border, marginTop: spacing.sm },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  sheetScroll: { flexGrow: 0, flexShrink: 1 },
   option: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: 14 },
 });

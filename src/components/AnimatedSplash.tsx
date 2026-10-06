@@ -63,8 +63,9 @@ export function AnimatedSplash({ ready, onFinish }: { ready: boolean; onFinish: 
   const cx = W / 2;
   const cy = H * 0.40;
 
-  // Center logo sized to fit harmoniously inside the inner sanctum of the rangoli
-  const logoW = Math.min(118, W * 0.29);
+  // Centre logo sized to sit inside the rangoli's centre round with a margin at every
+  // corner. RangoliMandala's CENTRE_GUIDE_R depends on this ratio — change them together.
+  const logoW = Math.min(104, W * 0.26);
   const logoH = (logoW * SKFL_VIEWBOX.height) / SKFL_VIEWBOX.width;
 
   const [minElapsed, setMinElapsed] = useState(false);
@@ -181,9 +182,6 @@ export function AnimatedSplash({ ready, onFinish }: { ready: boolean; onFinish: 
           />
         </View>
 
-        {/* ── Center Golden Aura Bloom (seamless, feathered) ── */}
-        <CentreGlow cx={cx} cy={cy} size={logoW * 1.6} glowValue={glowVal} logoIn={logoIn} />
-
         {/* ── Center SKFL Logo (framed directly at the heart of the rangoli) ── */}
         <Animated.View
           style={[
@@ -226,51 +224,6 @@ export function AnimatedSplash({ ready, onFinish }: { ready: boolean; onFinish: 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sub-components
 // ─────────────────────────────────────────────────────────────────────────────
-
-/** Golden aura blooming seamlessly at the central heart behind SKFL */
-function CentreGlow({
-  cx,
-  cy,
-  size,
-  glowValue,
-  logoIn,
-}: {
-  cx: number;
-  cy: number;
-  size: number;
-  glowValue: SharedValue<number>;
-  logoIn: SharedValue<number>;
-}) {
-  const style = useAnimatedStyle(() => {
-    const baseGlow = logoIn.get() * 0.42;
-    const breathe = glowValue.get() * 0.38;
-    const opacity = baseGlow + breathe * logoIn.get();
-    const scale = 0.90 + (0.12 * logoIn.get()) + (0.08 * glowValue.get());
-
-    return {
-      opacity,
-      transform: [{ scale }],
-    };
-  });
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        {
-          position: 'absolute',
-          left: cx - size / 2,
-          top: cy - size / 2,
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: 'rgba(229, 227, 172, 0.20)',
-        },
-        style,
-      ]}
-    />
-  );
-}
 
 /** Horizontal luxury shimmer sweep across SKFL */
 function ShimmerSweep({ logoIn, w, h }: { logoIn: SharedValue<number>; w: number; h: number }) {

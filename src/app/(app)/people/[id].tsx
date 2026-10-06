@@ -23,15 +23,17 @@ import {
 } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
 import { api, errorMessage } from '@/lib/api';
-import { fieldLabel, formatDate, formatDateTime, formatINR, roleLabel, taskStatusLabel } from '@/lib/format';
+import { fieldLabel, formatDate, formatINR, roleLabel } from '@/lib/format';
 import type { EmployeeProfile, Role, VisibilityField } from '@/lib/types';
 import { useAuth, useMe } from '@/providers/AuthProvider';
+import { useOrganization } from '@/providers/OrganizationProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fonts, spacing, type } from '@/theme/tokens';
 
 export default function PersonProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { me, isBoss, isHR } = useMe();
+  const { selectedOrg, organizations } = useOrganization();
   const { refresh: refreshMe } = useAuth();
   const toast = useToast();
   const profile = useLoad(() => api.profile(id), [id]);
@@ -48,7 +50,10 @@ export default function PersonProfile() {
 
   const isMe = p.id === me.id;
   const visible = new Set(p.visible_fields);
-  const hidden = (Object.keys(fieldLabel) as VisibilityField[]).filter((f) => !visible.has(f));
+  const hidden = (Object.keys(fieldLabel) as VisibilityField[]).filter((f) => f !== 'task_history' && !visible.has(f));
+  const orgName = (isMe && isBoss && selectedOrg)
+    ? selectedOrg.name
+    : (p.organization || (p.organization_id ? organizations.find((o) => o.id === p.organization_id)?.name : null) || (isMe && selectedOrg ? selectedOrg.name : null));
 
   return (
     <>
@@ -62,7 +67,7 @@ export default function PersonProfile() {
             <Text style={type.small}>{p.job_title ?? '—'}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 4 }}>
               <Badge label={roleLabel[p.role]} tone="brand" />
-              {p.organization && <Badge label={p.organization} tone="info" icon="business" />}
+              {orgName && <Badge label={orgName} tone="info" icon="business" />}
               {p.department && <Badge label={p.department} />}
               {!p.is_active && <Badge label="Inactive" tone="danger" />}
             </View>
@@ -98,11 +103,11 @@ export default function PersonProfile() {
             <>
               <SectionTitle title="Contact" />
               <Card padded={false}>
-                <Info icon="call-outline" label="Phone" value={p.phone ?? '—'} />
+                <Info icon="call-outline" label="Phone" value={p.phone} placeholder="No phone added" />
                 <Divider inset={52} />
-                <Info icon="at-outline" label="Personal email" value={p.personal_email ?? '—'} />
+                <Info icon="at-outline" label="Personal email" value={p.personal_email} placeholder="No personal email added" />
                 <Divider inset={52} />
-                <Info icon="home-outline" label="Address" value={p.address ?? '—'} />
+                <Info icon="home-outline" label="Address" value={p.address} placeholder="No address added" />
                 <Divider inset={52} />
                 <Info icon="briefcase-outline" label="Joined" value={formatDate(p.joined_on)} />
               </Card>
@@ -117,41 +122,6 @@ export default function PersonProfile() {
                 {visible.has('attendance') && <Metric label="Attendance" value={p.attendance_pct != null ? `${p.attendance_pct}%` : '—'} icon="time-outline" />}
                 {visible.has('performance') && <Metric label="Performance" value={p.performance_rating != null ? `${p.performance_rating} / 5` : '—'} icon="star-outline" />}
               </View>
-            </>
-          )}
-
-          {visible.has('task_history') && p.task_stats && (
-            <>
-              <SectionTitle title="Task history" />
-              <Card style={{ gap: spacing.lg }}>
-                <View style={styles.metricsRow}>
-                  <Stat label="Completed" value={p.task_stats.completed} color={colors.success} />
-                  <Stat label="On time" value={p.task_stats.on_time} color={colors.task} />
-                  <Stat label="Overdue" value={p.task_stats.overdue} color={colors.danger} />
-                  <Stat label="Returned" value={p.task_stats.returned} color={colors.warning} />
-                </View>
-                {p.task_stats.completed > 0 && (
-                  <Text style={type.small}>{Math.round((p.task_stats.on_time / p.task_stats.completed) * 100)}% of completed tasks were on time.</Text>
-                )}
-              </Card>
-              {(p.timeline ?? []).length > 0 && (
-                <Card padded={false}>
-                  {(p.timeline ?? []).slice(0, 12).map((e, i) => (
-                    <View key={`${e.task_id}-${e.created_at}`}>
-                      {i > 0 && <Divider inset={16} />}
-                      <View style={styles.tl}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={type.bodyMedium} numberOfLines={1} onPress={() => router.push(`/task/${e.task_id}`)}>
-                            {e.title}
-                          </Text>
-                          <Text style={type.small}>{formatDateTime(e.created_at)}</Text>
-                        </View>
-                        <Badge label={taskStatusLabel[e.to_status]} />
-                      </View>
-                    </View>
-                  ))}
-                </Card>
-              )}
             </>
           )}
 
@@ -298,10 +268,10 @@ function EditRecordSheet({
         <Banner tone="info">You can only edit the fields you are allowed to see. Every change is recorded in the audit log.</Banner>
         {visible.has('contact') && (
           <>
-            <TextField label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-            <TextField label="Personal email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-            <TextField label="Address" value={address} onChangeText={setAddress} />
-            <TextField label="Joined (YYYY-MM-DD)" value={joined} onChangeText={setJoined} />
+            <TextField label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" icon="call-outline" placeholder="e.g. +91 98765 43210" />
+            <TextField label="Personal email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" icon="at-outline" placeholder="e.g. yourname@gmail.com" />
+            <TextField label="Address" value={address} onChangeText={setAddress} icon="home-outline" multiline placeholder="e.g. 102, Green Valley, Surat, Gujarat" />
+            <TextField label="Joined (YYYY-MM-DD)" value={joined} onChangeText={setJoined} icon="calendar-outline" placeholder="YYYY-MM-DD" />
           </>
         )}
         {visible.has('salary') && <TextField label="Salary / month (₹)" value={salary} onChangeText={setSalary} keyboardType="numeric" />}
@@ -357,9 +327,9 @@ function EditMyContactSheet({
     <Sheet visible onClose={onClose} title="Edit my details">
       <View style={{ paddingHorizontal: spacing.lg, gap: spacing.md }}>
         <Banner tone="info">Your phone, personal email, address and joining date. Salary, attendance and performance are managed by HR.</Banner>
-        <TextField label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" icon="call-outline" />
-        <TextField label="Personal email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" icon="at-outline" />
-        <TextField label="Address" value={address} onChangeText={setAddress} icon="home-outline" multiline />
+        <TextField label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" icon="call-outline" placeholder="e.g. +91 98765 43210" />
+        <TextField label="Personal email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" icon="at-outline" placeholder="e.g. yourname@gmail.com" />
+        <TextField label="Address" value={address} onChangeText={setAddress} icon="home-outline" multiline placeholder="e.g. 102, Green Valley, Surat, Gujarat" />
         <TextField label="Joined (YYYY-MM-DD)" value={joined} onChangeText={setJoined} icon="calendar-outline" placeholder="YYYY-MM-DD" />
         <Button
           title="Save my details"
@@ -386,14 +356,16 @@ function EditMyContactSheet({
   );
 }
 
-function Info({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+function Info({ icon, label, value, placeholder = '—' }: { icon: keyof typeof Ionicons.glyphMap; label: string; value?: string | null; placeholder?: string }) {
+  const displayVal = value && value !== '—' ? value : placeholder;
+  const isPlaceholder = !value || value === '—';
   return (
     <View style={styles.info}>
       <Ionicons name={icon} size={20} color={colors.textMuted} />
       <View style={{ flex: 1 }}>
         <Text style={type.small}>{label}</Text>
-        <Text style={type.bodyMedium} selectable>
-          {value}
+        <Text style={[type.bodyMedium, isPlaceholder && { color: colors.textMuted }]} selectable>
+          {displayVal}
         </Text>
       </View>
     </View>
@@ -410,19 +382,8 @@ function Metric({ label, value, icon }: { label: string; value: string; icon: ke
   );
 }
 
-function Stat({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text style={{ fontFamily: fonts.bold, fontSize: 22, color }}>{value}</Text>
-      <Text style={[type.small, { fontSize: 12 }]}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   info: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, paddingHorizontal: spacing.lg },
   metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  metricsRow: { flexDirection: 'row' },
-  tl: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, paddingHorizontal: spacing.lg },
   hidden: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surfaceAlt },
 });

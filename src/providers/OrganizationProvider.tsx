@@ -35,6 +35,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     }
     return [{ id: '7d6560a3-b9d6-46b5-b8bf-685cf8dce53d', name: 'Shree Karni Fabcom Ltd', is_active: true, created_at: '' }];
   });
+  const [selectedOrgObj, setSelectedOrgObj] = useState<Organization | null>(null);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(
     ctx?.user.organization_id || ctx?.organization?.id || '7d6560a3-b9d6-46b5-b8bf-685cf8dce53d',
   );
@@ -44,7 +45,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const list = await api.organizations();
-      if (list && list.length > 0) {
+      if (list && Array.isArray(list)) {
         setOrganizations(list);
       }
       return list;
@@ -68,31 +69,53 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     }
   }, [ctx?.organization, ctx?.user.organization_id, selectedOrgId]);
 
-  // Load saved organization choice on boot / sign-in
+  // Load saved organization choice on boot / sign-in without overwriting
   useEffect(() => {
     if (!session) {
       return;
     }
-    loadOrganizations().then(async (list) => {
+    let active = true;
+
+    async function init() {
+      let savedId: string | null = null;
       try {
-        const savedId = await AsyncStorage.getItem(STORAGE_KEY);
-        if (savedId && savedId !== 'ALL') {
-          const found = list.find((o) => o.id === savedId);
-          if (found) {
-            setSelectedOrgId(savedId);
-            return;
-          }
+        savedId = await AsyncStorage.getItem(STORAGE_KEY);
+        if (savedId && savedId !== 'ALL' && active) {
+          setSelectedOrgId(savedId);
         }
       } catch {}
 
-      // Default to user's company or first available company
-      const defaultId = ctx?.user.organization_id || list[0]?.id || '7d6560a3-b9d6-46b5-b8bf-685cf8dce53d';
-      setSelectedOrgId(defaultId);
-    });
+      const list = await loadOrganizations();
+      if (!active) return;
+
+      if (savedId && savedId !== 'ALL') {
+        const found = (list || []).find((o) => o.id === savedId);
+        if (found) {
+          setSelectedOrgObj(found);
+          setSelectedOrgId(savedId);
+          return;
+        }
+      }
+
+      if (!savedId) {
+        const defaultId = ctx?.user.organization_id || list?.[0]?.id || '7d6560a3-b9d6-46b5-b8bf-685cf8dce53d';
+        setSelectedOrgId(defaultId);
+        const foundDefault = (list || []).find((o) => o.id === defaultId);
+        if (foundDefault) {
+          setSelectedOrgObj(foundDefault);
+        }
+      }
+    }
+
+    init();
+    return () => {
+      active = false;
+    };
   }, [session, ctx?.user.organization_id, loadOrganizations]);
 
   const setSelectedOrg = useCallback(
     async (org: Organization | null) => {
+      setSelectedOrgObj(org);
       setSelectedOrgId(org ? org.id : null);
       try {
         if (org) {
@@ -106,7 +129,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   );
 
   const selectedOrg = useMemo<Organization>(() => {
-    const orgId = selectedOrgId || ctx?.user.organization_id;
+    const orgId = selectedOrgId || selectedOrgObj?.id || ctx?.user.organization_id;
     if (orgId) {
       const found = organizations.find((o) => o.id === orgId);
       if (found) return found;
@@ -114,11 +137,14 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         return { id: ctx.organization.id, name: ctx.organization.name, is_active: true, created_at: '' };
       }
     }
-    if (ctx?.organization) {
-      return { id: ctx.organization.id, name: ctx.organization.name, is_active: true, created_at: '' };
+    if (selectedOrgObj) {
+      return selectedOrgObj;
     }
     if (organizations.length > 0) {
       return organizations[0];
+    }
+    if (ctx?.organization) {
+      return { id: ctx.organization.id, name: ctx.organization.name, is_active: true, created_at: '' };
     }
     return {
       id: '7d6560a3-b9d6-46b5-b8bf-685cf8dce53d',
@@ -126,7 +152,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       is_active: true,
       created_at: '',
     };
-  }, [organizations, selectedOrgId, ctx?.user.organization_id, ctx?.organization]);
+  }, [selectedOrgObj, selectedOrgId, organizations, ctx?.user.organization_id, ctx?.organization]);
 
   const refreshOrganizations = useCallback(async () => {
     await loadOrganizations();

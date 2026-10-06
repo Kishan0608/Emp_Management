@@ -1,13 +1,14 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, Text } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View } from 'react-native';
 
-import { AuthLink, GoogleButton, OrDivider } from '@/components/auth-kit';
+import { AuthLink, GoogleButton, OrDivider, TextLink } from '@/components/auth-kit';
 import { AuthShell } from '@/components/AuthShell';
 import { Banner, Button, TextField } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
+import { primeOrganizations } from '@/lib/orgCache';
 import { useAuth } from '@/providers/AuthProvider';
-import { colors, fonts } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 
 export default function SignIn() {
   const { signIn, signInWithGoogle, notice, clearNotice } = useAuth();
@@ -15,6 +16,12 @@ export default function SignIn() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<'password' | 'google' | null>(null);
+
+  // The sign-up form needs the company list; start fetching it now so it is
+  // usually already on hand by the time someone taps "Create account" below.
+  useEffect(() => {
+    primeOrganizations().catch(() => {});
+  }, []);
 
   const submit = async () => {
     setError(null);
@@ -55,7 +62,7 @@ export default function SignIn() {
         icon="mail-outline"
         value={email}
         onChangeText={setEmail}
-        placeholder="you@gmail.com"
+        placeholder="name@company.com"
         autoCapitalize="none"
         autoComplete="email"
         keyboardType="email-address"
@@ -74,10 +81,10 @@ export default function SignIn() {
         returnKeyType="go"
         onSubmitEditing={submit}
       />
+      <View style={{ marginTop: -spacing.sm }}>
+        <TextLink label="Forgot password?" align="flex-end" onPress={() => router.push('/forgot-password')} />
+      </View>
       <Button title="Sign in" icon="arrow-forward" size="lg" loading={busy === 'password'} disabled={!!busy} onPress={submit} />
-      <Pressable onPress={() => router.push('/forgot-password')} hitSlop={8} style={{ alignSelf: 'center' }}>
-        <Text style={{ fontFamily: fonts.semibold, fontSize: 14, color: colors.brand }}>Forgot password?</Text>
-      </Pressable>
       <OrDivider />
       <GoogleButton onPress={google} loading={busy === 'google'} />
     </AuthShell>

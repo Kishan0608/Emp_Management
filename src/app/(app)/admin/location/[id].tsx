@@ -8,8 +8,8 @@ import { useLoad } from '@/hooks/useLoad';
 import { usePolling } from '@/hooks/usePolling';
 import { api } from '@/lib/api';
 import { dayKey, formatClockTime, formatDayLabel, shiftDay } from '@/lib/format';
-import { detectStops, formatDistance, formatMinutes, mapsUrl, routeUrl, travelledMeters } from '@/lib/geo';
-import { colors, spacing, type } from '@/theme/tokens';
+import { detectStops, formatAccuracy, formatDistance, formatMinutes, mapsUrl, routeUrl, travelledMeters } from '@/lib/geo';
+import { colors, fonts, radius, spacing, type } from '@/theme/tokens';
 
 const REFRESH_MS = 30_000;
 /** Rows shown before "Show all"; a full day can hold several hundred updates. */
@@ -58,23 +58,35 @@ export default function LocationTrail() {
       refreshing={trail.refreshing}
       onRefresh={trail.refresh}
       header={<PageHeader title={trail.data?.person.full_name ?? 'Location trail'} subtitle={formatDayLabel(date)} />}>
-      <View style={{ gap: spacing.lg }}>
+      <View style={styles.responsiveContainer}>
         {trail.error && <Banner tone="danger">{trail.error}</Banner>}
 
-        <View style={styles.dayRow}>
-          <Pressable onPress={() => { setShowAll(false); setDate((d) => shiftDay(d, -1)); }} hitSlop={12} accessibilityLabel="Previous day">
-            <Ionicons name="chevron-back" size={22} color={colors.text} />
+        <Card style={styles.dayCard}>
+          <Pressable
+            onPress={() => { setShowAll(false); setDate((d) => shiftDay(d, -1)); }}
+            hitSlop={12}
+            accessibilityLabel="Previous day"
+            style={({ pressed }) => [styles.dayBtn, pressed && { opacity: 0.7 }]}>
+            <Ionicons name="chevron-back" size={20} color={colors.text} />
           </Pressable>
-          <Text style={type.h3}>{isToday ? 'Today' : formatDayLabel(date)}</Text>
+          <View style={styles.dayInfo}>
+            <Ionicons name="calendar-outline" size={16} color={colors.brand} />
+            <Text style={styles.dayTitle}>{isToday ? 'Today' : formatDayLabel(date)}</Text>
+            {isToday && (
+              <View style={styles.todayBadge}>
+                <Text style={styles.todayBadgeText}>Active</Text>
+              </View>
+            )}
+          </View>
           <Pressable
             onPress={() => { setShowAll(false); setDate((d) => shiftDay(d, 1)); }}
             disabled={isToday}
             hitSlop={12}
             accessibilityLabel="Next day"
-            style={{ opacity: isToday ? 0.3 : 1 }}>
-            <Ionicons name="chevron-forward" size={22} color={colors.text} />
+            style={({ pressed }) => [styles.dayBtn, isToday ? { opacity: 0.25 } : pressed && { opacity: 0.7 }]}>
+            <Ionicons name="chevron-forward" size={20} color={colors.text} />
           </Pressable>
-        </View>
+        </Card>
 
         {trail.data && !trail.data.person.sharing_enabled && (
           <Banner tone="warning" icon="alert-circle-outline">
@@ -90,45 +102,96 @@ export default function LocationTrail() {
           </Card>
         ) : (
           <>
-            <Card style={{ gap: spacing.sm }}>
-              <Text style={type.small}>Latest position</Text>
-              <Text style={type.bodyMedium}>
-                {latest.latitude.toFixed(5)}, {latest.longitude.toFixed(5)}
-              </Text>
-              <Text style={type.small}>
-                {formatClockTime(latest.recorded_at)}
-                {latest.accuracy_m != null ? ` · ±${Math.round(latest.accuracy_m)} m` : ''}
-              </Text>
-              <Button
-                title="Open in maps"
-                icon="map-outline"
-                variant="secondary"
-                full
-                onPress={() => open(mapsUrl(latest.latitude, latest.longitude))}
-              />
-              {route && <Button title="View day's route" icon="git-commit-outline" variant="secondary" full onPress={() => open(route)} />}
+            {/* Latest Position Card */}
+            <Card style={styles.latestCard}>
+              <View style={styles.latestHeader}>
+                <View style={styles.latestIconWrap}>
+                  <Ionicons name="navigate" size={18} color={colors.brand} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.latestHeading}>Latest Position</Text>
+                  <Text style={type.small}>
+                    Recorded at {formatClockTime(latest.recorded_at)}
+                    {latest.accuracy_m != null ? ` · ${formatAccuracy(latest.accuracy_m)}` : ''}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.latestCoordBox}>
+                <Text style={styles.coordNumbers}>
+                  {latest.latitude.toFixed(5)}, {latest.longitude.toFixed(5)}
+                </Text>
+              </View>
+
+              <View style={styles.actionBtnsRow}>
+                <Button
+                  title="Open in Maps"
+                  icon="map-outline"
+                  variant="primary"
+                  style={{ flex: 1 }}
+                  onPress={() => open(mapsUrl(latest.latitude, latest.longitude))}
+                />
+                {route && (
+                  <Button
+                    title="Day's Route"
+                    icon="git-commit-outline"
+                    variant="outline"
+                    style={{ flex: 1 }}
+                    onPress={() => open(route)}
+                  />
+                )}
+              </View>
             </Card>
 
-            <View style={styles.stats}>
-              <Stat label="Distance travelled" value={formatDistance(summary.meters)} />
-              <Stat label="Visits (10+ min)" value={String(stops.length)} />
-              <Stat label="First seen" value={formatClockTime(summary.first)} />
-              <Stat label="Last seen" value={formatClockTime(summary.last)} />
+            {/* Day Telemetry Stats */}
+            <View style={styles.statsGrid}>
+              <StatItem
+                icon="speedometer-outline"
+                label="Distance travelled"
+                value={formatDistance(summary.meters)}
+                color={colors.brand}
+              />
+              <StatItem
+                icon="business-outline"
+                label="Visits (10+ min)"
+                value={String(stops.length)}
+                color="#2563EB"
+              />
+              <StatItem
+                icon="time-outline"
+                label="First fix seen"
+                value={formatClockTime(summary.first)}
+                color="#0D9488"
+              />
+              <StatItem
+                icon="checkmark-done-outline"
+                label="Last fix seen"
+                value={formatClockTime(summary.last)}
+                color="#16A34A"
+              />
             </View>
 
             {stops.length > 0 && (
               <>
-                <SectionTitle title="Visits" />
-                <Card padded={false}>
+                <SectionTitle title={`Visits & Stops (${stops.length})`} />
+                <Card padded={false} style={styles.timelineCard}>
                   {stops.map((st, i) => (
                     <View key={st.arrived_at}>
                       {i > 0 && <Divider inset={16} />}
-                      <Pressable style={styles.pointRow} onPress={() => open(mapsUrl(st.latitude, st.longitude))} accessibilityLabel="Open visit in maps">
-                        <Text style={[type.bodyMedium, { width: 74 }]}>{formatClockTime(st.arrived_at)}</Text>
-                        <Text style={[type.small, { flex: 1 }]}>
-                          Stayed {formatMinutes(st.minutes)} · left {formatClockTime(st.left_at)}
-                        </Text>
-                        <Ionicons name="map-outline" size={18} color={colors.textMuted} />
+                      <Pressable
+                        style={({ pressed }) => [styles.pointRow, pressed && { backgroundColor: colors.surfaceAlt }]}
+                        onPress={() => open(mapsUrl(st.latitude, st.longitude))}
+                        accessibilityLabel="Open visit in maps">
+                        <View style={styles.timeTag}>
+                          <Text style={styles.timeTagText}>{formatClockTime(st.arrived_at)}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[type.bodyMedium, { fontFamily: fonts.semibold, fontSize: 14 }]}>
+                            Stayed {formatMinutes(st.minutes)}
+                          </Text>
+                          <Text style={type.small}>Departed at {formatClockTime(st.left_at)}</Text>
+                        </View>
+                        <Ionicons name="map-outline" size={18} color={colors.brand} />
                       </Pressable>
                     </View>
                   ))}
@@ -136,24 +199,36 @@ export default function LocationTrail() {
               </>
             )}
 
-            <SectionTitle title={`Updates (${summary.count}), newest first`} />
-            <Card padded={false}>
+            <SectionTitle title={`All Updates (${summary.count}), newest first`} />
+            <Card padded={false} style={styles.timelineCard}>
               {listed.map((p, i) => (
                 <View key={p.recorded_at}>
                   {i > 0 && <Divider inset={16} />}
                   <View style={styles.pointRow}>
-                    <Text style={[type.bodyMedium, { width: 74 }]}>{formatClockTime(p.recorded_at)}</Text>
-                    <Text style={[type.small, { flex: 1 }]}>
-                      {p.latitude.toFixed(5)}, {p.longitude.toFixed(5)}
-                      {p.accuracy_m != null ? ` · ±${Math.round(p.accuracy_m)} m` : ''}
-                      {p.speed_mps != null ? ` · ${Math.round(p.speed_mps * 3.6)} km/h` : ''}
-                    </Text>
+                    <View style={styles.timeTag}>
+                      <Text style={styles.timeTagText}>{formatClockTime(p.recorded_at)}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[type.bodyMedium, { fontSize: 13, fontFamily: fonts.medium }]}>
+                        {p.latitude.toFixed(5)}, {p.longitude.toFixed(5)}
+                      </Text>
+                      <Text style={type.small}>
+                        {formatAccuracy(p.accuracy_m)}
+                        {p.speed_mps != null && p.speed_mps > 0.5 ? ` · ${Math.round(p.speed_mps * 3.6)} km/h` : ''}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               ))}
             </Card>
+
             {!showAll && newestFirst.length > LIST_LIMIT && (
-              <Button title={`Show all ${newestFirst.length} updates`} variant="secondary" full onPress={() => setShowAll(true)} />
+              <Button
+                title={`Show all ${newestFirst.length} updates`}
+                variant="secondary"
+                full
+                onPress={() => setShowAll(true)}
+              />
             )}
           </>
         )}
@@ -162,19 +237,154 @@ export default function LocationTrail() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function StatItem({ icon, label, value, color }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; color: string }) {
   return (
-    <View style={styles.stat}>
-      <Text style={styles.statValue}>{value}</Text>
+    <Card style={styles.statTile}>
+      <View style={styles.statTileHeader}>
+        <Ionicons name={icon} size={18} color={color} />
+        <Text style={styles.statTileValue}>{value}</Text>
+      </View>
       <Text style={type.small}>{label}</Text>
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  dayRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  stat: { flexBasis: '46%', flexGrow: 1, gap: 2 },
-  statValue: { ...type.h3 },
-  pointRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: 16, paddingVertical: 12 },
+  responsiveContainer: {
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
+    gap: spacing.lg,
+  },
+
+  // Day Card
+  dayCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  dayBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  dayTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    color: colors.text,
+  },
+  todayBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: radius.pill,
+  },
+  todayBadgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    color: '#15803D',
+  },
+
+  // Latest Position Card
+  latestCard: {
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  latestHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  latestIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  latestHeading: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    color: colors.text,
+  },
+  latestCoordBox: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  coordNumbers: {
+    fontFamily: fonts.bold,
+    fontSize: 18,
+    color: colors.text,
+    letterSpacing: 0.5,
+  },
+  actionBtnsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+
+  // Stats Grid
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  statTile: {
+    flex: 1,
+    minWidth: 140,
+    padding: spacing.md,
+    gap: 4,
+  },
+  statTileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  statTileValue: {
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    color: colors.text,
+  },
+
+  // Timeline & Point Row
+  timelineCard: {
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+  },
+  pointRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  timeTag: {
+    backgroundColor: colors.surfaceAlt,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  timeTagText: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
 });

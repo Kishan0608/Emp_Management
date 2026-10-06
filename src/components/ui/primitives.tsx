@@ -362,13 +362,14 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
-  badgeText: { fontFamily: fonts.semibold, fontSize: 11.5, letterSpacing: 0.2 },
+  badgeText: { fontFamily: fonts.semibold, fontSize: 11.5, letterSpacing: 0.2, textAlign: 'center' },
   badgeDot: {
     position: 'absolute',
     top: -2,

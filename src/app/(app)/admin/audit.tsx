@@ -40,7 +40,7 @@ export default function Audit() {
               <View key={l.id}>
                 {i > 0 && <Divider inset={16} />}
                 <View style={{ padding: spacing.md, paddingHorizontal: spacing.lg, gap: 4 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm }}>
                     <Badge label={l.action} tone={tone(l.action)} />
                     <Text style={[type.small, { marginLeft: 'auto' }]}>{formatDateTime(l.created_at)}</Text>
                   </View>

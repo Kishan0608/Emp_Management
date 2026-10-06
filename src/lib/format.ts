@@ -1,15 +1,6 @@
 import { colors } from '@/theme/tokens';
 
-import type {
-  AttendanceStatus,
-  FeedbackAudience,
-  FeedbackStatus,
-  FeedbackType,
-  Role,
-  TaskPriority,
-  TaskStatus,
-  VisibilityField,
-} from './types';
+import type { AttendanceStatus, FeedbackAudience, FeedbackStatus, FeedbackType, HolidayKind, LeaveType, Role, TaskPriority, TaskStatus, VisibilityField } from './types';
 
 export type Tone = 'neutral' | 'brand' | 'info' | 'success' | 'warning' | 'danger';
 
@@ -99,12 +90,12 @@ export interface FeedbackDisplay {
 }
 
 export function resolveFeedbackDisplay(item: { type: FeedbackType; title: string }): FeedbackDisplay {
-  if (item.title.startsWith('[Leave]')) {
+  if (item.title.startsWith('[Leave]') || item.title.toLowerCase().startsWith('[leave]')) {
     return {
       label: 'Leave',
       tone: 'warning',
       icon: 'calendar-outline',
-      cleanTitle: item.title.replace(/^\[Leave\]\s*/, ''),
+      cleanTitle: item.title.replace(/^\[Leave\]\s*/i, ''),
     };
   }
   if (item.type === 'question') {
@@ -116,14 +107,12 @@ export function resolveFeedbackDisplay(item: { type: FeedbackType; title: string
         cleanTitle: item.title.replace(/^\[(Work Question|Work)\]\s*/, ''),
       };
     }
-    if (item.title.startsWith('[General Question]') || item.title.startsWith('[General]')) {
-      return {
-        label: 'General question',
-        tone: 'info',
-        icon: 'help-circle-outline',
-        cleanTitle: item.title.replace(/^\[(General Question|General)\]\s*/, ''),
-      };
-    }
+    return {
+      label: 'General question',
+      tone: 'info',
+      icon: 'help-circle-outline',
+      cleanTitle: item.title.replace(/^\[(General Question|General)\]\s*/i, ''),
+    };
   }
   return {
     label: feedbackTypeLabel[item.type] ?? 'Feedback',
@@ -232,6 +221,8 @@ export function greeting(): string {
 
 export const attendanceStatusLabel: Record<AttendanceStatus, string> = { present: 'Present', half_day: 'Half day', absent: 'Absent', leave: 'Leave' };
 export const attendanceStatusTone: Record<AttendanceStatus, Tone> = { present: 'success', half_day: 'warning', absent: 'danger', leave: 'info' };
+export const leaveTypeLabel: Record<LeaveType, string> = { sick: 'Sick', casual: 'Casual', emergency: 'Emergency', other: 'Other' };
+export const holidayKindLabel: Record<HolidayKind, string> = { festival: 'Festival', national: 'National', company: 'Company', other: 'Other' };
 
 export function formatClockTime(value: string | null | undefined): string {
   if (!value) return '—';

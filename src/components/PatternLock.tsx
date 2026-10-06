@@ -15,7 +15,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, Line, Polyline } from 'react-native-svg';
+import Svg, { Circle, G, Line, Polyline } from 'react-native-svg';
 
 import { colors, fonts, spacing } from '@/theme/tokens';
 
@@ -191,18 +191,46 @@ export function PatternLock({
     }, 500);
   }, [disabled, status, selectedIds, minPoints, onPatternComplete, triggerShake]);
 
+  const containerRef = useRef<View>(null);
+
+  const getCoordinates = useCallback(
+    (evt: any) => {
+      const native = evt?.nativeEvent || evt;
+      if (Platform.OS === 'web' && containerRef.current) {
+        // @ts-ignore
+        const node = containerRef.current as any;
+        const rect = node?.getBoundingClientRect?.();
+        if (rect) {
+          const clientX = native.clientX ?? native.touches?.[0]?.clientX ?? native.pageX;
+          const clientY = native.clientY ?? native.touches?.[0]?.clientY ?? native.pageY;
+          if (clientX != null && clientY != null) {
+            return {
+              x: clientX - rect.left,
+              y: clientY - rect.top,
+            };
+          }
+        }
+      }
+      return {
+        x: native?.locationX ?? native?.x ?? 0,
+        y: native?.locationY ?? native?.y ?? 0,
+      };
+    },
+    []
+  );
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => !disabled,
         onMoveShouldSetPanResponder: () => !disabled,
         onPanResponderGrant: (evt) => {
-          const { locationX, locationY } = evt.nativeEvent;
-          handleTouch(locationX, locationY);
+          const { x, y } = getCoordinates(evt);
+          handleTouch(x, y);
         },
         onPanResponderMove: (evt) => {
-          const { locationX, locationY } = evt.nativeEvent;
-          handleTouch(locationX, locationY);
+          const { x, y } = getCoordinates(evt);
+          handleTouch(x, y);
         },
         onPanResponderRelease: () => {
           handleEnd();
@@ -211,7 +239,7 @@ export function PatternLock({
           handleEnd();
         },
       }),
-    [disabled, handleTouch, handleEnd]
+    [disabled, getCoordinates, handleTouch, handleEnd]
   );
 
   const onLayout = (evt: LayoutChangeEvent) => {
@@ -253,11 +281,34 @@ export function PatternLock({
       )}
 
       <View
-        style={[styles.container, { width: size, height: size }]}
+        ref={containerRef}
+        style={[
+          styles.container,
+          { width: size, height: size },
+          Platform.OS === 'web' && ({ userSelect: 'none', cursor: 'crosshair', touchAction: 'none' } as any),
+        ]}
         onLayout={onLayout}
+        {...(Platform.OS === 'web'
+          ? {
+              onMouseDown: (e: any) => {
+                if (disabled) return;
+                const { x, y } = getCoordinates(e);
+                handleTouch(x, y);
+              },
+              onMouseMove: (e: any) => {
+                if (disabled || e.buttons !== 1) return;
+                const { x, y } = getCoordinates(e);
+                handleTouch(x, y);
+              },
+              onMouseUp: () => {
+                if (disabled) return;
+                handleEnd();
+              },
+            }
+          : {})}
         {...panResponder.panHandlers}
       >
-        <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
+        <Svg width={size} height={size} style={StyleSheet.absoluteFill} pointerEvents="none">
           {/* Completed lines */}
           {polylinePoints ? (
             <Polyline
@@ -303,7 +354,7 @@ export function PatternLock({
                 : colors.border;
 
             return (
-              <View key={p.id}>
+              <G key={p.id}>
                 {/* Outer touch halo ring */}
                 <Circle
                   cx={p.x}
@@ -321,7 +372,7 @@ export function PatternLock({
                   r={isSelected ? (isLast ? 9 : 8) : 6}
                   fill={dotFill}
                 />
-              </View>
+              </G>
             );
           })}
         </Svg>

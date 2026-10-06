@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PasscodeSetup } from '@/components/PasscodeSetup';
 import { PatternSetup } from '@/components/PatternSetup';
-import { Button, Card, Divider, IconTile, PageHeader, Screen, SectionTitle, Sheet, type IconName } from '@/components/ui';
+import { AppSwitch, Button, Card, Divider, IconTile, PageHeader, Screen, SectionTitle, Sheet, type IconName } from '@/components/ui';
 import { getAppLockSupport, type AppLockSupport } from '@/lib/appLock';
 import type { AppLockType } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
@@ -113,13 +113,10 @@ export default function AppLockSettingsScreen() {
             title="App Lock"
             subtitle={appLockEnabled ? 'On' : pending ? 'Choose a lock method' : 'Off'}
             right={
-              <Switch
+              <AppSwitch
                 value={switchOn}
                 disabled={busy}
                 onValueChange={toggle}
-                trackColor={{ true: colors.brand, false: colors.borderStrong }}
-                thumbColor={colors.white}
-                accessibilityLabel="Turn app lock on or off"
               />
             }
           />

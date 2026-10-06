@@ -1,15 +1,12 @@
-import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Banner, Button, Card, ListSkeleton, PageHeader, Screen, SectionTitle, StatCard } from '@/components/ui';
+import { Banner, Card, ListSkeleton, PageHeader, Screen, SectionTitle, StatCard } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
-import { api, errorMessage } from '@/lib/api';
-import { shareCsv, toCsv } from '@/lib/csv';
-import { roleLabel, taskStatusLabel, toDateOnly } from '@/lib/format';
+import { api } from '@/lib/api';
+import { roleLabel, taskStatusLabel } from '@/lib/format';
 import type { Role, TaskStatus } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
 import { useOrganization } from '@/providers/OrganizationProvider';
-import { useToast } from '@/providers/ToastProvider';
 import { colors, fonts, radius, spacing, type } from '@/theme/tokens';
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
@@ -24,30 +21,16 @@ const STATUS_COLORS: Record<TaskStatus, string> = {
 };
 
 export default function Analytics() {
-  const { me, isBoss } = useMe();
+  const { isBoss } = useMe();
   const { selectedOrgId } = useOrganization();
-  const toast = useToast();
   const stats = useLoad(() => api.dashboard(selectedOrgId), [selectedOrgId]);
-  const [busy, setBusy] = useState<string | null>(null);
   const s = stats.data;
-
-  const run = async (key: string, fn: () => Promise<void>) => {
-    setBusy(key);
-    try {
-      await fn();
-    } catch (e) {
-      toast(errorMessage(e), 'error');
-    } finally {
-      setBusy(null);
-    }
-  };
-  const today = toDateOnly(new Date());
 
   const statusEntries = Object.entries(s?.tasks_by_status ?? {}) as [TaskStatus, number][];
   const totalTasks = statusEntries.reduce((a, [, n]) => a + n, 0) || 1;
 
   return (
-    <Screen refreshing={stats.refreshing} onRefresh={stats.refresh} header={<PageHeader title="Analytics & exports" />}>
+    <Screen refreshing={stats.refreshing} onRefresh={stats.refresh} header={<PageHeader title="Analytics" />}>
       {stats.error && <Banner tone="danger">{stats.error}</Banner>}
       {!s ? (
         <ListSkeleton rows={3} />
@@ -92,95 +75,6 @@ export default function Analytics() {
               </Card>
             </>
           )}
-
-          <SectionTitle title="Exports (CSV)" />
-          <Card style={{ gap: spacing.sm }}>
-            <Text style={type.small}>Exports include only what your role can see. Each file opens in Excel or Google Sheets.</Text>
-            <Button
-              title="Tasks"
-              icon="download-outline"
-              variant="outline"
-              loading={busy === 'tasks'}
-              onPress={() =>
-                run('tasks', async () => {
-                  const rows = await api.tasks('all', me.id);
-                  await shareCsv(
-                    `tasks-${today}.csv`,
-                    toCsv(
-                      rows.map((t) => ({ ...t, assignee: t.assignee?.full_name, creator: t.creator?.full_name, reviewer: t.reviewer?.full_name, status: taskStatusLabel[t.status] })),
-                      [
-                        { key: 'title', label: 'Title' },
-                        { key: 'status', label: 'Status' },
-                        { key: 'priority', label: 'Priority' },
-                        { key: 'assignee', label: 'Assignee' },
-                        { key: 'creator', label: 'Assigned by' },
-                        { key: 'reviewer', label: 'Reviewer' },
-                        { key: 'due_date', label: 'Due' },
-                        { key: 'submitted_at', label: 'Submitted' },
-                        { key: 'approved_at', label: 'Approved' },
-                      ],
-                    ),
-                  );
-                })
-              }
-            />
-            <Button
-              title="Feedback & questions"
-              icon="download-outline"
-              variant="outline"
-              loading={busy === 'feedback'}
-              onPress={() =>
-                run('feedback', async () => {
-                  const rows = await api.feedback('all', me.id);
-                  await shareCsv(
-                    `feedback-${today}.csv`,
-                    toCsv(
-                      rows.map((f) => ({ ...f, author: f.is_anonymous ? 'Anonymous' : f.author?.full_name })),
-                      [
-                        { key: 'type', label: 'Type' },
-                        { key: 'title', label: 'Title' },
-                        { key: 'body', label: 'Details' },
-                        { key: 'author', label: 'From' },
-                        { key: 'audience', label: 'To' },
-                        { key: 'status', label: 'Status' },
-                        { key: 'escalation_level', label: 'Escalation' },
-                        { key: 'created_at', label: 'Created' },
-                      ],
-                    ),
-                  );
-                })
-              }
-            />
-            {isBoss && (
-              <>
-                <Button
-                  title="Audit log"
-                  icon="download-outline"
-                  variant="outline"
-                  loading={busy === 'audit'}
-                  onPress={() =>
-                    run('audit', async () => {
-                      const rows = await api.auditLogs(1000);
-                      await shareCsv(
-                        `audit-${today}.csv`,
-                        toCsv(
-                          rows.map((r) => ({ ...r, actor: r.actor?.full_name })),
-                          [
-                            { key: 'created_at', label: 'When' },
-                            { key: 'actor', label: 'Who' },
-                            { key: 'action', label: 'Action' },
-                            { key: 'entity', label: 'Entity' },
-                            { key: 'entity_id', label: 'Entity id' },
-                            { key: 'meta', label: 'Details' },
-                          ],
-                        ),
-                      );
-                    })
-                  }
-                />
-              </>
-            )}
-          </Card>
         </View>
       )}
     </Screen>

@@ -174,7 +174,7 @@ export interface Task {
   approved_at: string | null;
   created_at: string;
   updated_at: string;
-  assignee?: { full_name: string } | null;
+  assignee?: { full_name: string; organization_id?: string | null; department_id?: string | null } | null;
   creator?: { full_name: string } | null;
   reviewer?: { full_name: string } | null;
 }
@@ -345,10 +345,13 @@ export interface AttendanceRecord {
   late_minutes: number | null;
   worked_minutes: number | null;
   auto_closed?: boolean;
+  leave_type?: LeaveType | null;
   leave_reason?: string | null;
   leave_paid?: boolean | null;
   leave_attachment_path?: string | null;
 }
+
+export type LeaveType = 'sick' | 'casual' | 'emergency' | 'other';
 
 export interface LeaveBalance {
   year: number;
@@ -365,8 +368,32 @@ export interface AttendanceThresholds {
   warning_limit: number;
 }
 
+export type HolidayKind = 'festival' | 'national' | 'company' | 'other';
+
+/** A paid day off for everyone in scope (organization_id null = every company). Never counts as leave. */
+export interface Holiday {
+  id: string;
+  holiday_date: string;
+  name: string;
+  kind: HolidayKind;
+  organization_id: string | null;
+  organization?: string | null;
+}
+
+/** One row of a punching-machine export, as sent to import_punch_records. Times are the company's local time. */
+export interface PunchRow {
+  email: string;
+  work_date: string; // YYYY-MM-DD
+  clock_in: string; // HH:MM
+  break_start?: string | null;
+  break_end?: string | null;
+  clock_out?: string | null;
+}
+
 export interface AttendanceToday {
   record: AttendanceRecord | null;
+  /** Set when today is a holiday for this person (absent until the holidays migration is applied). */
+  holiday?: Holiday | null;
   next_action: AttendanceNextAction;
   late_count_this_month: number;
   thresholds: AttendanceThresholds;
@@ -377,10 +404,13 @@ export interface AttendanceMonthSummary {
   half_day: number;
   absent: number;
   late: number;
+  leave?: number;
+  holiday?: number;
 }
 
 export interface MyAttendanceMonth {
   records: AttendanceRecord[];
+  holidays?: Holiday[];
   summary: AttendanceMonthSummary;
 }
 
@@ -392,6 +422,7 @@ export interface SalaryBreakdown {
   half_days: number;
   paid_leave_days: number;
   unpaid_leave_days: number;
+  holiday_days?: number;
   deduction: number;
   payable_salary: number;
   /** Last date the deduction actually covers — equals the month's end once it's fully elapsed. */
@@ -409,11 +440,13 @@ export interface AttendanceOverviewRow extends SalaryBreakdown {
   half_day: number;
   absent: number;
   late: number;
+  leave?: number;
 }
 
 export interface AttendanceDetail {
   person: { id: string; full_name: string; role: Role };
   records: AttendanceRecord[];
+  holidays?: Holiday[];
   salary: SalaryBreakdown;
 }
 

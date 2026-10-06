@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeInRight, ZoomIn, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -107,7 +107,9 @@ function Stepper({ index }: { index: number }) {
               <View style={[styles.dot, complete && styles.dotDone, current && styles.dotCurrent]}>
                 {complete ? <Ionicons name="checkmark" size={13} color={colors.white} /> : <Text style={[styles.dotNum, current && { color: colors.ink }]}>{i + 1}</Text>}
               </View>
-              <Text style={[styles.stepLabel, (complete || current) && { color: colors.text }]}>{s}</Text>
+              <Text style={[styles.stepLabel, (complete || current) && { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
+                {s}
+              </Text>
             </View>
           );
         })}
@@ -253,6 +255,9 @@ function QrScanner({ onScan, onClose }: { onScan: (text: string) => void; onClos
   const [permission, requestPermission] = useCameraPermissions();
   const [handled, setHandled] = useState(false);
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  // Scan frame: 240px on a normal phone, smaller on narrow ones.
+  const frame = Math.min(240, width * 0.7);
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -279,7 +284,7 @@ function QrScanner({ onScan, onClose }: { onScan: (text: string) => void; onClos
               }
             />
             <Animated.View entering={FadeIn} style={styles.scanFrameWrap} pointerEvents="none">
-              <View style={styles.scanFrame} />
+              <View style={[styles.scanFrame, { width: frame, height: frame }]} />
               <Text style={styles.scanHint}>Point at the QR code</Text>
             </Animated.View>
             <Pressable onPress={onClose} style={[styles.closeBtn, { top: insets.top + 12 }]} accessibilityLabel="Close scanner">
@@ -504,7 +509,7 @@ function ProfileStep({ state, onDone, setError }: { state: OnboardingState; onDo
             <Text style={styles.fieldLabel}>Company</Text>
             <View style={[styles.ddlTrigger, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
               <Ionicons name="business" size={18} color={colors.brand} />
-              <Text style={[styles.ddlTriggerText, { fontFamily: fonts.semibold }]}>
+              <Text style={[styles.ddlTriggerText, { fontFamily: fonts.semibold }]} numberOfLines={1}>
                 {opts.organization.name}
               </Text>
               <Ionicons name="checkmark-circle" size={18} color={colors.success} />
@@ -599,8 +604,10 @@ function ApproverStep({ state, onDone, onChange, setError }: { state: Onboarding
       <View style={styles.approverCard}>
         <Ionicons name="mail-open-outline" size={22} color={colors.brand} />
         <View style={{ flex: 1 }}>
-          <Text style={{ fontFamily: fonts.semibold, fontSize: 14, color: colors.text }}>{state.approver_name}</Text>
-          <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textSecondary }}>
+          <Text style={{ fontFamily: fonts.semibold, fontSize: 14, color: colors.text }} numberOfLines={1}>
+            {state.approver_name}
+          </Text>
+          <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textSecondary }} numberOfLines={2}>
             {state.approver_role ? roleLabel[state.approver_role] : ''} · {state.code_sent_to ?? 'email sent'}
           </Text>
         </View>
@@ -687,6 +694,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    maxWidth: '100%',
     marginTop: spacing.xs,
     paddingVertical: 5,
     paddingHorizontal: 12,
@@ -696,6 +704,7 @@ const styles = StyleSheet.create({
     borderColor: colors.brandTint,
   },
   emailBadgeText: {
+    flexShrink: 1,
     fontFamily: fonts.semibold,
     fontSize: 13,
     color: colors.brand,

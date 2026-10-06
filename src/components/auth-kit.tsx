@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
@@ -124,6 +125,62 @@ export function OrDivider() {
   );
 }
 
+/** Password rules shared by sign-up and password reset (the server enforces the same). */
+export const PASSWORD_RULES: [string, (p: string) => boolean][] = [
+  ['10+ characters', (p) => p.length >= 10],
+  ['Upper & lower case', (p) => /[A-Z]/.test(p) && /[a-z]/.test(p)],
+  ['A number', (p) => /\d/.test(p)],
+  ['A symbol', (p) => /[^A-Za-z0-9]/.test(p)],
+];
+
+export const passwordMeetsRules = (p: string) => PASSWORD_RULES.every(([, ok]) => ok(p));
+
+const STRENGTH = [
+  { label: 'Too weak', color: colors.danger },
+  { label: 'Weak', color: colors.danger },
+  { label: 'Fair', color: colors.warning },
+  { label: 'Good', color: '#65A30D' },
+  { label: 'Strong', color: colors.success },
+] as const;
+
+/** Four-segment strength bar plus a compact two-column checklist of the rules. */
+export function PasswordStrength({ password }: { password: string }) {
+  const met = PASSWORD_RULES.filter(([, ok]) => ok(password)).length;
+  const level = STRENGTH[met];
+  return (
+    <View style={styles.strength}>
+      <View style={styles.strengthHead}>
+        <View style={styles.strengthBar}>
+          {PASSWORD_RULES.map((_, i) => (
+            <View key={i} style={[styles.strengthSeg, i < met && { backgroundColor: level.color }]} />
+          ))}
+        </View>
+        <Text style={[styles.strengthLabel, { color: level.color }]}>{level.label}</Text>
+      </View>
+      <View style={styles.rules}>
+        {PASSWORD_RULES.map(([label, ok]) => {
+          const pass = ok(password);
+          return (
+            <View key={label} style={styles.rule}>
+              <Ionicons name={pass ? 'checkmark-circle' : 'ellipse-outline'} size={15} color={pass ? colors.success : colors.textMuted} />
+              <Text style={[styles.ruleText, pass && { color: colors.text }]}>{label}</Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+/** Small brand-coloured text link inside the auth card. */
+export function TextLink({ label, onPress, align = 'center' }: { label: string; onPress: () => void; align?: 'center' | 'flex-end' | 'flex-start' }) {
+  return (
+    <Pressable onPress={onPress} hitSlop={8} accessibilityRole="link" style={{ alignSelf: align }}>
+      {({ pressed }) => <Text style={[styles.link, { fontSize: 13.5 }, pressed && { opacity: 0.6 }]}>{label}</Text>}
+    </Pressable>
+  );
+}
+
 /** Light text link for below the auth card: "New here? Create account". */
 export function AuthLink({ lead, action, onPress }: { lead: string; action: string; onPress: () => void }) {
   return (
@@ -174,6 +231,14 @@ const styles = StyleSheet.create({
   or: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   orLine: { flex: 1, height: 1, backgroundColor: colors.border },
   orText: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
+  strength: { gap: 10, marginTop: -4 },
+  strengthHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  strengthBar: { flex: 1, flexDirection: 'row', gap: 4 },
+  strengthSeg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.border },
+  strengthLabel: { fontFamily: fonts.semibold, fontSize: 12, minWidth: 56, textAlign: 'right' },
+  rules: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 6 },
+  rule: { width: '50%', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ruleText: { fontFamily: fonts.regular, fontSize: 12.5, color: colors.textSecondary },
   leadText: { fontFamily: fonts.regular, fontSize: 14, color: 'rgba(255,255,255,0.75)' },
   actionText: { fontFamily: fonts.bold, fontSize: 14, color: colors.goldLight },
 });

@@ -20,7 +20,10 @@ import type {
   FeedbackReply,
   FeedbackStatus,
   FeedbackType,
+  Holiday,
+  HolidayKind,
   LeaveBalance,
+  LeaveType,
   LiveLocation,
   LocationDeviceStatus,
   LocationDay,
@@ -42,6 +45,7 @@ import type {
   VisibilityRule,
   TeamMemberReport,
   TeamMemberSummary,
+  PunchRow,
 } from './types';
 
 export type OnboardingStatus = 'invited' | 'email_pending' | 'email_verified' | 'key_verified' | 'approver_pending' | 'awaiting_approval' | 'active';
@@ -97,7 +101,7 @@ async function invokeFn<T>(name: string, body: Record<string, unknown>): Promise
 
 const USER_FIELDS = 'id, full_name, email, role, job_title, department_id, organization_id, manager_id, is_active, is_case_handler';
 const TASK_SELECT =
-  '*, assignee:users!tasks_assignee_id_fkey(full_name, organization_id), creator:users!tasks_created_by_fkey(full_name), reviewer:users!tasks_reviewer_id_fkey(full_name)';
+  '*, assignee:users!tasks_assignee_id_fkey(full_name, organization_id, department_id), creator:users!tasks_created_by_fkey(full_name), reviewer:users!tasks_reviewer_id_fkey(full_name)';
 
 export const api = {
   // ---------- session ----------
@@ -112,6 +116,26 @@ export const api = {
   organizations: async () => check<Organization[]>(await supabase.from('organizations').select('*').eq('is_active', true).order('name')),
   allOrganizations: async () => check<Organization[]>(await supabase.from('organizations').select('*').order('name')),
   createOrganization: async (name: string) => check<string>(await supabase.rpc('create_organization', { p_name: name.trim() })),
+  updateOrganization: async (id: string, name: string) => {
+    try {
+      const res = await supabase.rpc('update_organization', { p_id: id, p_name: name.trim() });
+      if (!res.error) return res.data;
+    } catch {}
+    return check(await supabase.from('organizations').update({ name: name.trim() }).eq('id', id));
+  },
+  deleteOrganization: async (id: string) => {
+    const countRes = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('organization_id', id);
+    if ((countRes.count ?? 0) > 0) {
+      throw new Error(`Cannot delete this company: ${(countRes.count ?? 0)} ${(countRes.count ?? 0) === 1 ? 'employee is' : 'employees are'} currently assigned to it.`);
+    }
+    try {
+      const res = await supabase.rpc('delete_organization', { p_id: id });
+      if (!res.error) return res.data;
+    } catch {}
+    const delRes = await supabase.from('organizations').delete().eq('id', id);
+    if (!delRes.error) return check(delRes);
+    return check(await supabase.from('organizations').update({ is_active: false }).eq('id', id));
+  },
   getAppLock: async () => check<AppLockConfig | null>(await supabase.rpc('get_my_app_lock')),
   saveAppLock: async (p: {
     enabled: boolean;
@@ -141,23 +165,23 @@ export const api = {
     try {
       const res = await supabase.rpc('get_task_assignees');
       if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-        return (orgId ? res.data.filter((u: any) => u.organization_id === orgId) : res.data) as DirectoryUser[];
+        return (orgId ? res.data.filter((u: any) => !u.organization_id || u.organization_id === orgId || u.role === 'boss') : res.data) as DirectoryUser[];
       }
     } catch {}
     let q = supabase.from('users').select(USER_FIELDS).order('full_name').limit(1000);
-    if (orgId) q = q.eq('organization_id', orgId);
+    if (orgId) q = q.or(`organization_id.eq.${orgId},role.eq.boss,organization_id.is.null`);
     return check<DirectoryUser[]>(await q);
   },
   directory: async (orgId?: string | null) => {
     try {
       let q = supabase.from('users').select(USER_FIELDS).order('full_name').limit(1000);
-      if (orgId) q = q.eq('organization_id', orgId);
+      if (orgId) q = q.or(`organization_id.eq.${orgId},role.eq.boss,organization_id.is.null`);
       const res = await q;
       if (res.error) {
         try {
           const rpcRes = await supabase.rpc('get_task_assignees');
           if (rpcRes.data && Array.isArray(rpcRes.data) && rpcRes.data.length > 0) {
-            return (orgId ? rpcRes.data.filter((u: any) => u.organization_id === orgId) : rpcRes.data) as DirectoryUser[];
+            return (orgId ? rpcRes.data.filter((u: any) => !u.organization_id || u.organization_id === orgId || u.role === 'boss') : rpcRes.data) as DirectoryUser[];
           }
         } catch {}
       }
@@ -166,7 +190,7 @@ export const api = {
       try {
         const rpcRes = await supabase.rpc('get_task_assignees');
         if (rpcRes.data && Array.isArray(rpcRes.data) && rpcRes.data.length > 0) {
-          return (orgId ? rpcRes.data.filter((u: any) => u.organization_id === orgId) : rpcRes.data) as DirectoryUser[];
+          return (orgId ? rpcRes.data.filter((u: any) => !u.organization_id || u.organization_id === orgId || u.role === 'boss') : rpcRes.data) as DirectoryUser[];
         }
       } catch {}
       throw err;
@@ -179,6 +203,7 @@ export const api = {
   },
   createDepartment: async (name: string, orgId?: string | null) =>
     check(await supabase.from('departments').insert({ name: name.trim(), organization_id: orgId ?? null })),
+  deleteDepartment: async (id: string) => check(await supabase.from('departments').delete().eq('id', id)),
   profile: async (id: string) => check<EmployeeProfile>(await supabase.rpc('get_employee_profile', { p_target: id })),
   teamOverview: async () => check<TeamMemberSummary[]>(await supabase.rpc('team_overview')),
   teamMemberReport: async (id: string) => check<TeamMemberReport>(await supabase.rpc('team_member_report', { p_target: id })),
@@ -463,6 +488,15 @@ export const api = {
 
   // ---------- attendance ----------
   attendanceToday: async () => check<AttendanceToday>(await supabase.rpc('attendance_today')),
+  /** 'app' = employees punch in the app; 'machine' = the company's punching machine is the source. */
+  orgAttendanceSource: async (orgId: string) =>
+    check<{ attendance_source: 'app' | 'machine' }>(await supabase.from('organizations').select('attendance_source').eq('id', orgId).single()),
+  setAttendanceSource: async (orgId: string, source: 'app' | 'machine') =>
+    check(await supabase.rpc('set_attendance_source', { p_org: orgId, p_source: source })),
+  importPunchRecords: async (orgId: string, rows: PunchRow[]) =>
+    check<{ imported: number; skipped: { email: string; reason: string }[] }>(
+      await supabase.rpc('import_punch_records', { p_org: orgId, p_rows: rows }),
+    ),
   clockIn: async () => check<AttendanceToday>(await supabase.rpc('clock_in')),
   breakStart: async () => check<AttendanceToday>(await supabase.rpc('break_start')),
   breakEnd: async () => check<AttendanceToday>(await supabase.rpc('break_end')),
@@ -496,11 +530,32 @@ export const api = {
         p_clock_out: punches.clock_out_at,
       }),
     ),
-  /** HR/Boss only: mark a day as leave. Beyond the paid-leave quota it's unpaid and deducted like an absent day. */
-  hrMarkLeave: async (userId: string, workDate: string, reason: string, attachmentPath: string | null) =>
+  /**
+   * HR/Boss only: approve a day as leave. `paid` null follows the yearly quota (paid while it lasts);
+   * true/false is HR's own choice. Unpaid leave is deducted like an absent day.
+   */
+  hrMarkLeave: async (userId: string, workDate: string, reason: string, attachmentPath: string | null, leaveType: LeaveType, paid: boolean | null) =>
     check<AttendanceRecord>(
-      await supabase.rpc('hr_mark_leave', { p_user_id: userId, p_work_date: workDate, p_reason: reason, p_attachment_path: attachmentPath }),
+      await supabase.rpc('hr_mark_leave', {
+        p_user_id: userId,
+        p_work_date: workDate,
+        p_reason: reason,
+        p_attachment_path: attachmentPath,
+        p_leave_type: leaveType,
+        p_paid: paid,
+      }),
     ),
+  // ---------- holidays ----------
+  /** The year's holidays: Boss/HR see every company's, everyone else the ones that apply to them. */
+  listHolidays: async (year: number) => check<Holiday[]>(await supabase.rpc('list_holidays', { p_year: year })),
+  /** Boss/HR: add one day or a range (`to` inclusive). Returns how many days were saved. */
+  addHoliday: async (h: { name: string; from: string; to: string | null; kind: HolidayKind; organizationId: string | null }) =>
+    check<number>(
+      await supabase.rpc('hr_add_holiday', { p_name: h.name, p_from: h.from, p_to: h.to, p_kind: h.kind, p_org: h.organizationId }),
+    ),
+  updateHoliday: async (id: string, name: string, kind: HolidayKind) =>
+    check(await supabase.rpc('hr_update_holiday', { p_id: id, p_name: name, p_kind: kind })),
+  deleteHoliday: async (id: string) => check(await supabase.rpc('hr_delete_holiday', { p_id: id })),
   hrCancelLeave: async (userId: string, workDate: string) => check(await supabase.rpc('hr_cancel_leave', { p_user_id: userId, p_work_date: workDate })),
   /** HR/Boss see any employee's balance; an employee can see their own. */
   leaveBalance: async (userId: string, year?: number) =>

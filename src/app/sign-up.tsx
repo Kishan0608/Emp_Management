@@ -3,27 +3,23 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { AuthLink, GoogleButton, OrDivider } from '@/components/auth-kit';
+import { AuthLink, GoogleButton, OrDivider, PasswordStrength, passwordMeetsRules } from '@/components/auth-kit';
 import { AuthShell } from '@/components/AuthShell';
 import { Banner, Button, TextField } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { loadOrganizationsFast, peekOrganizations } from '@/lib/orgCache';
 import type { Organization } from '@/lib/types';
 import { useAuth } from '@/providers/AuthProvider';
 import { colors, fonts, radius, shadow, spacing } from '@/theme/tokens';
 
-const RULES: [string, (p: string) => boolean][] = [
-  ['At least 10 characters', (p) => p.length >= 10],
-  ['Upper and lower case letters', (p) => /[A-Z]/.test(p) && /[a-z]/.test(p)],
-  ['A number', (p) => /\d/.test(p)],
-  ['A symbol', (p) => /[^A-Za-z0-9]/.test(p)],
-];
-
 /** Step 1 of self sign-up with organization selection from DB. */
 export default function SignUp() {
   const { signIn, signInWithGoogle } = useAuth();
-  const [orgs, setOrgs] = useState<Organization[]>([]);
-  const [selectedOrgId, setSelectedOrgId] = useState<string>('');
-  const [loadingOrgs, setLoadingOrgs] = useState(true);
+  // The sign-in screen already started this fetch; if it has landed, skip the spinner entirely.
+  const [orgs, setOrgs] = useState<Organization[]>(() => peekOrganizations() ?? []);
+  const [selectedOrgId, setSelectedOrgId] = useState<string>(() => peekOrganizations()?.[0]?.id ?? '');
+  const [loadingOrgs, setLoadingOrgs] = useState(() => !peekOrganizations());
+  const [orgsError, setOrgsError] = useState(false);
   const [openOrgDdl, setOpenOrgDdl] = useState(false);
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
@@ -32,20 +28,39 @@ export default function SignUp() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api
-      .organizations()
+    let cancelled = false;
+    loadOrganizationsFast()
       .then((list) => {
+        if (cancelled) return;
         setOrgs(list);
-        if (list.length > 0) {
-          setSelectedOrgId(list[0].id);
-        }
+        setSelectedOrgId((prev) => prev || list[0]?.id || '');
+        setOrgsError(false);
       })
-      .catch(() => {})
-      .finally(() => setLoadingOrgs(false));
+      .catch(() => {
+        if (!cancelled) setOrgsError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingOrgs(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  const retryOrgs = () => {
+    setLoadingOrgs(true);
+    setOrgsError(false);
+    loadOrganizationsFast()
+      .then((list) => {
+        setOrgs(list);
+        setSelectedOrgId((prev) => prev || list[0]?.id || '');
+      })
+      .catch(() => setOrgsError(true))
+      .finally(() => setLoadingOrgs(false));
+  };
+
   const selectedOrg = orgs.find((o) => o.id === selectedOrgId);
-  const valid = /^\S+@\S+\.\S+$/.test(email.trim()) && RULES.every(([, f]) => f(pw)) && pw === confirm && !!selectedOrgId;
+  const valid = /^\S+@\S+\.\S+$/.test(email.trim()) && passwordMeetsRules(pw) && pw === confirm && !!selectedOrgId;
 
   const create = async () => {
     setError(null);
@@ -75,6 +90,7 @@ export default function SignUp() {
   return (
     <AuthShell
       compactLogo
+      eyebrow="New employee"
       title="Create account"
       subtitle={selectedOrg ? `Join ${selectedOrg.name}` : 'Select your company to join your team'}
       below={<AuthLink lead="Already have an account?" action="Sign in" onPress={() => router.replace('/sign-in')} />}>
@@ -82,7 +98,7 @@ export default function SignUp() {
 
       {/* Organization DDL */}
       <View style={{ gap: 6 }}>
-        <Text style={styles.fieldLabel}>Company / Organization *</Text>
+        <Text style={styles.fieldLabel}>Company</Text>
         <Pressable
           onPress={() => setOpenOrgDdl(!openOrgDdl)}
           style={[styles.ddlTrigger, openOrgDdl && styles.ddlTriggerActive]}>
@@ -101,8 +117,15 @@ export default function SignUp() {
           <View style={styles.ddlContainer}>
             <ScrollView nestedScrollEnabled style={{ maxHeight: 200 }} keyboardShouldPersistTaps="handled">
               {orgs.length === 0 ? (
-                <View style={{ padding: spacing.md, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted }}>No companies found</Text>
+                <View style={{ padding: spacing.md, alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted }}>
+                    {orgsError ? 'Could not load companies. Check your connection.' : 'No companies found'}
+                  </Text>
+                  {orgsError && (
+                    <Pressable onPress={retryOrgs} hitSlop={8}>
+                      <Text style={{ fontFamily: fonts.semibold, fontSize: 13, color: colors.brand }}>Retry</Text>
+                    </Pressable>
+                  )}
                 </View>
               ) : (
                 orgs.map((org, idx) => {
@@ -134,7 +157,7 @@ export default function SignUp() {
         )}
       </View>
 
-      <TextField label="Email" icon="mail-outline" value={email} onChangeText={setEmail} placeholder="you@gmail.com" autoCapitalize="none" autoComplete="email" keyboardType="email-address" />
+      <TextField label="Work email" icon="mail-outline" value={email} onChangeText={setEmail} placeholder="name@company.com" autoCapitalize="none" autoComplete="email" keyboardType="email-address" />
       <TextField
         label="Password"
         icon="lock-closed-outline"
@@ -145,16 +168,7 @@ export default function SignUp() {
         autoComplete="new-password"
         textContentType="newPassword"
       />
-      {pw.length > 0 && (
-        <View style={{ gap: 6 }}>
-          {RULES.map(([label, fn]) => (
-            <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Ionicons name={fn(pw) ? 'checkmark-circle' : 'ellipse-outline'} size={16} color={fn(pw) ? colors.success : colors.textMuted} />
-              <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: fn(pw) ? colors.text : colors.textSecondary }}>{label}</Text>
-            </View>
-          ))}
-        </View>
-      )}
+      {pw.length > 0 && <PasswordStrength password={pw} />}
       <TextField
         label="Confirm password"
         icon="lock-closed-outline"
@@ -172,10 +186,12 @@ export default function SignUp() {
 }
 
 const styles = StyleSheet.create({
+  // Matches the label style of TextField (components/ui/forms.tsx).
   fieldLabel: {
     fontFamily: fonts.semibold,
-    fontSize: 13.5,
-    color: colors.text,
+    fontSize: 13,
+    color: colors.textSecondary,
+    letterSpacing: 0.1,
   },
   ddlTrigger: {
     flexDirection: 'row',

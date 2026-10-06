@@ -15,24 +15,35 @@ import { useOrganization } from '@/providers/OrganizationProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fonts, gradients, radius, shadow, spacing } from '@/theme/tokens';
 
-type Scope = 'mine' | 'assigned' | 'team';
+type Scope = 'mine' | 'assigned' | 'team' | 'all';
 type Filter = 'all' | 'active' | 'done';
 
 export default function Tasks() {
   const { me, isEmployee, isBoss } = useMe();
-  const { selectedOrgId } = useOrganization();
+  const { selectedOrgId, selectedOrg } = useOrganization();
   const toast = useToast();
-  const params = useLocalSearchParams<{ scope?: Scope }>();
-  const [scope, setScope] = useState<Scope>(isEmployee ? 'mine' : (params.scope ?? 'mine'));
+  const params = useLocalSearchParams<{ scope?: Scope; dept?: string }>();
+  const [scope, setScope] = useState<Scope>(
+    params.dept ? (isBoss ? 'all' : 'assigned') : isEmployee ? 'mine' : (params.scope ?? 'mine')
+  );
   const [filter, setFilter] = useState<Filter>('all');
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(params.dept ?? '');
   const [filterOpen, setFilterOpen] = useState(false);
 
-  // Follow deep links like /tasks?scope=review without an effect.
+  // Follow deep links like /tasks?scope=all or /tasks?dept=Engineering
   const [lastParam, setLastParam] = useState(params.scope);
   if (params.scope !== lastParam) {
     setLastParam(params.scope);
     if (params.scope) setScope(isEmployee ? 'mine' : params.scope);
+  }
+
+  const [lastDeptParam, setLastDeptParam] = useState(params.dept);
+  if (params.dept !== lastDeptParam) {
+    setLastDeptParam(params.dept);
+    if (params.dept) {
+      setQ(params.dept);
+      if (!isEmployee) setScope(isBoss ? 'all' : 'assigned');
+    }
   }
 
   const people = scope === 'team' && !isEmployee;
@@ -48,7 +59,12 @@ export default function Tasks() {
       const done = isTaskDone(t.status);
       if (filter === 'active' && done) return false;
       if (filter === 'done' && !done) return false;
-      return !term || t.title.toLowerCase().includes(term) || t.assignee?.full_name.toLowerCase().includes(term);
+      return (
+        !term ||
+        t.title.toLowerCase().includes(term) ||
+        (t.description?.toLowerCase().includes(term) ?? false) ||
+        (t.assignee?.full_name.toLowerCase().includes(term) ?? false)
+      );
     });
   }, [data, filter, q]);
 
@@ -61,6 +77,17 @@ export default function Tasks() {
   }[] = isEmployee
     ? []
     : [
+        ...(isBoss
+          ? [
+              {
+                value: 'all' as Scope,
+                label: 'All Tasks',
+                sublabel: 'All company tasks',
+                icon: 'layers-outline' as const,
+                color: colors.brand,
+              },
+            ]
+          : []),
         {
           value: 'mine',
           label: 'Mine',
@@ -86,11 +113,13 @@ export default function Tasks() {
 
   const searchPlaceholder = isEmployee
     ? 'Search my tasks…'
-    : scope === 'team'
-      ? 'Search team members…'
-      : scope === 'assigned'
-        ? 'Search assigned tasks…'
-        : 'Search my tasks…';
+    : scope === 'all'
+      ? 'Search all tasks…'
+      : scope === 'team'
+        ? 'Search team members…'
+        : scope === 'assigned'
+          ? 'Search assigned tasks…'
+          : 'Search my tasks…';
 
   return (
     <View style={{ flex: 1 }}>
@@ -100,7 +129,13 @@ export default function Tasks() {
         header={
           <HeroHeader
             title="Tasks"
-            subtitle={isEmployee ? 'Tasks assigned to you' : isBoss ? 'All company tasks' : 'Team tasks & reviews'}
+            subtitle={
+              isEmployee
+                ? 'Tasks assigned to you'
+                : isBoss
+                  ? (selectedOrg ? `${selectedOrg.name} · All tasks` : 'All company tasks')
+                  : 'Team tasks & reviews'
+            }
             colorsOverride={gradients.task}
             right={
               !isEmployee ? (
