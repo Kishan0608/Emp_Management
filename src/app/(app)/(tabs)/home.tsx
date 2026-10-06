@@ -37,7 +37,7 @@ export default function Home() {
     () => (isBoss ? api.tasks('all', me.id, selectedOrgId) : Promise.resolve([])),
     [isBoss, selectedOrgId]
   );
-  const departments = useLoad(() => api.departments(selectedOrgId), [selectedOrgId]);
+  const departments = useLoad(() => api.departments());
   const feedbackItems = useLoad(
     () => api.feedback('all', me.id, true, selectedOrgId),
     [selectedOrgId]

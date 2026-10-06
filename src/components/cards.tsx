@@ -20,6 +20,7 @@ import {
 import type { FeedbackItem, Task } from '@/lib/types';
 import { colors, fonts, radius, spacing, type } from '@/theme/tokens';
 
+import { RichText } from './RichText';
 import { Avatar, Badge, Card } from './ui';
 
 const PRIORITY_BAR: Record<Task['priority'], string> = {
@@ -108,9 +109,7 @@ export function FeedbackCard({
         <Text style={styles.title} numberOfLines={2}>
           {cleanTitle}
         </Text>
-        <Text style={type.small} numberOfLines={2}>
-          {item.body}
-        </Text>
+        <RichText text={item.body} style={type.small} numberOfLines={2} />
         <View style={styles.metaRow}>
           <View style={styles.meta}>
             <Ionicons name={item.is_anonymous ? 'eye-off-outline' : 'person-outline'} size={14} color={colors.textMuted} />

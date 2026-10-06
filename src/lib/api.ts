@@ -106,6 +106,8 @@ const TASK_SELECT =
 export const api = {
   // ---------- session ----------
   myContext: async () => check<MyContext>(await supabase.rpc('my_context')),
+  syncGoogleUser: async (orgId?: string) =>
+    check<MyContext>(await supabase.rpc('sync_google_user', { p_org: orgId ?? null })),
   recordLogin: async () => check(await supabase.rpc('record_login')),
   recordLogout: async (allDevices: boolean) => check(await supabase.rpc('record_logout', { p_all_devices: allDevices })),
   acceptPrivacy: async () => check(await supabase.rpc('accept_privacy_notice')),
@@ -196,13 +198,8 @@ export const api = {
       throw err;
     }
   },
-  departments: async (orgId?: string | null) => {
-    let q = supabase.from('departments').select('id, name, organization_id').order('name');
-    if (orgId) q = q.or(`organization_id.eq.${orgId},organization_id.is.null`);
-    return check<Department[]>(await q);
-  },
-  createDepartment: async (name: string, orgId?: string | null) =>
-    check(await supabase.from('departments').insert({ name: name.trim(), organization_id: orgId ?? null })),
+  departments: async () => check<Department[]>(await supabase.from('departments').select('id, name').order('name')),
+  createDepartment: async (name: string) => check(await supabase.from('departments').insert({ name: name.trim() })),
   deleteDepartment: async (id: string) => check(await supabase.from('departments').delete().eq('id', id)),
   profile: async (id: string) => check<EmployeeProfile>(await supabase.rpc('get_employee_profile', { p_target: id })),
   teamOverview: async () => check<TeamMemberSummary[]>(await supabase.rpc('team_overview')),

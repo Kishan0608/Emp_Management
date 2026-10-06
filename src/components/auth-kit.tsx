@@ -184,7 +184,7 @@ export function TextLink({ label, onPress, align = 'center' }: { label: string; 
 /** Light text link for below the auth card: "New here? Create account". */
 export function AuthLink({ lead, action, onPress }: { lead: string; action: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} hitSlop={8} style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
+    <Pressable onPress={onPress} hitSlop={10} style={styles.authLinkPressable}>
       <Text style={styles.leadText}>{lead} </Text>
       <Text style={styles.actionText}>{action}</Text>
     </Pressable>
@@ -220,17 +220,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    height: 52,
+    gap: 10,
+    height: 46,
     borderRadius: radius.md,
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  googleText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.text },
-  or: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  googleText: { fontFamily: fonts.semibold, fontSize: 14.5, color: colors.text },
+  or: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginVertical: 2 },
   orLine: { flex: 1, height: 1, backgroundColor: colors.border },
-  orText: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
+  orText: { fontFamily: fonts.medium, fontSize: 11.5, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
   strength: { gap: 10, marginTop: -4 },
   strengthHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   strengthBar: { flex: 1, flexDirection: 'row', gap: 4 },
@@ -239,6 +239,14 @@ const styles = StyleSheet.create({
   rules: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 6 },
   rule: { width: '50%', flexDirection: 'row', alignItems: 'center', gap: 6 },
   ruleText: { fontFamily: fonts.regular, fontSize: 12.5, color: colors.textSecondary },
-  leadText: { fontFamily: fonts.regular, fontSize: 14, color: 'rgba(255,255,255,0.75)' },
-  actionText: { fontFamily: fonts.bold, fontSize: 14, color: colors.goldLight },
+  authLinkPressable: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  leadText: { fontFamily: fonts.regular, fontSize: 13.5, color: 'rgba(255,255,255,0.80)' },
+  actionText: { fontFamily: fonts.bold, fontSize: 13.5, color: colors.goldLight },
 });

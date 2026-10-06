@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { NavigationBar } from 'expo-navigation-bar';
 import { useId, useState, type ReactNode } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
@@ -65,12 +65,13 @@ function AuthShellContent({
   icon?: string;
 }) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const { scrollRef, onScroll, keyboardHeight, isKeyboardVisible } = useKeyboardScroll();
-  // Dense: form-heavy screens (sign-up, reset, onboarding) that should fit on one phone
-  // screen. Slim logo header unless the medallion fits, tighter card spacing.
-  const dense = !!compactLogo;
+  // Dense: form-heavy screens or standard mobile screens where everything should fit on one screen
+  const isShortScreen = windowHeight > 0 && windowHeight < 840;
+  const dense = !!compactLogo || isShortScreen;
   const compact = dense || isKeyboardVisible;
-  const logoWidth = compact ? 112 : 168;
+  const logoWidth = compact ? 110 : 160;
 
   // The logo and company name must sit entirely inside the rangoli's plain centre, so no
   // line crosses the text: measure them and size the rangoli from their corners.
@@ -81,16 +82,16 @@ function AuthShellContent({
   };
   const medallionSize = brandBox ? rangoliSizeForClearRadius(Math.hypot(brandBox.w / 2, brandBox.h / 2) + MEDALLION_MARGIN) : 0;
   const beadRadius = rangoliBeadRadius(medallionSize);
-  // Room above for the whole medallion; below, the card overlaps its lower edge.
-  const medallionPadTop = Math.max(spacing.xxxl, beadRadius - (brandBox?.h ?? 0) / 2 + spacing.sm);
-  const padTop = insets.top + (compact ? spacing.md : spacing.lg);
-  const padBottom = insets.bottom + (isKeyboardVisible ? keyboardHeight + spacing.xxl : dense ? spacing.md : spacing.xl);
+  // Room above for the medallion; below, the card overlaps its lower edge.
+  const medallionPadTop = Math.max(spacing.lg, beadRadius - (brandBox?.h ?? 0) / 2 + spacing.xs);
+  const padTop = insets.top + (compact ? spacing.xs : spacing.md);
+  const padBottom = Math.max(insets.bottom, 12) + (isKeyboardVisible ? keyboardHeight + spacing.xl : dense ? spacing.xs : spacing.md);
   const showMedallion = !!brandBox && !isKeyboardVisible;
 
   // Dense screens keep the slim header's height: their smaller medallion overlaps the top
   // and sides of the page instead of adding space above the logo.
-  const brandPadTop = showMedallion && !dense ? medallionPadTop : spacing.sm;
-  const brandPadBottom = showMedallion && !dense ? spacing.lg : spacing.sm;
+  const brandPadTop = showMedallion && !dense ? medallionPadTop : spacing.xs;
+  const brandPadBottom = showMedallion && !dense ? spacing.md : spacing.xs;
 
   return (
     <View style={styles.root}>
@@ -112,13 +113,13 @@ function AuthShellContent({
           ]}
           showsVerticalScrollIndicator={false}>
           <View style={styles.column}>
-            <View style={[styles.brandBlock, { paddingTop: brandPadTop, paddingBottom: brandPadBottom }, (!showMedallion || dense) && { marginBottom: spacing.md }]}>
+            <View style={[styles.brandBlock, { paddingTop: brandPadTop, paddingBottom: brandPadBottom }, (!showMedallion || dense) && { marginBottom: spacing.xs }]}>
               {/* Glow and rangoli sit behind the logo and spill past the screen edges; the card covers the bottom */}
               <View pointerEvents="none" style={[StyleSheet.absoluteFill, { top: brandPadTop, bottom: brandPadBottom }]}>
                 <BrandGlow size={Math.max(logoWidth * 2.6, showMedallion ? beadRadius * 2.4 : 0)} />
                 {showMedallion && <RangoliWatermark size={medallionSize} />}
               </View>
-              <Animated.View entering={FadeIn.duration(500)} onLayout={onBrandLayout} style={{ alignItems: 'center', gap: compact ? 8 : 10 }}>
+              <Animated.View entering={FadeIn.duration(500)} onLayout={onBrandLayout} style={{ alignItems: 'center', gap: compact ? 6 : 10 }}>
                 <SkflMark width={logoWidth} />
                 <Text style={styles.brand} numberOfLines={1} adjustsFontSizeToFit>
                   {COMPANY.name.toUpperCase()}
@@ -131,13 +132,13 @@ function AuthShellContent({
               style={[styles.card, dense && styles.cardDense, narrow && styles.cardNarrow]}>
               <LinearGradient colors={gradients.gold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.accentBar} />
               {!!eyebrow && <Text style={styles.eyebrow}>{eyebrow}</Text>}
-              <Text style={[styles.title, dense && { fontSize: 23 }, narrow && { fontSize: 22 }]}>{title}</Text>
-              {!!subtitle && <Text style={[styles.subtitle, dense && { marginTop: 4 }]}>{subtitle}</Text>}
-              <View style={{ gap: dense ? spacing.md : spacing.lg, marginTop: dense || narrow ? spacing.lg : spacing.xl }}>{children}</View>
+              <Text style={[styles.title, dense && styles.titleDense, narrow && { fontSize: 22 }]}>{title}</Text>
+              {!!subtitle && <Text style={[styles.subtitle, dense && styles.subtitleDense]}>{subtitle}</Text>}
+              <View style={{ gap: dense ? 10 : spacing.lg, marginTop: dense || narrow ? spacing.md : spacing.xl }}>{children}</View>
             </Animated.View>
 
             {below && (
-              <Animated.View entering={FadeInUp.delay(350).duration(600)} style={[styles.below, dense && { marginTop: spacing.md }]}>
+              <Animated.View entering={FadeInUp.delay(350).duration(600)} style={[styles.below, dense && styles.belowDense]}>
                 {below}
               </Animated.View>
             )}
@@ -177,7 +178,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: '100%',
     maxWidth: 460,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xs,
   },
   brand: { fontFamily: fonts.semibold, fontSize: 12, letterSpacing: 3, color: colors.goldLight, textAlign: 'center' },
   card: {
@@ -187,12 +188,17 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: 'rgba(229, 227, 172, 0.55)',
-    padding: spacing.xxl,
-    paddingTop: spacing.xxl + 6,
+    padding: spacing.xl,
+    paddingTop: spacing.xl + 6,
     overflow: 'hidden',
     ...shadow.lg,
   },
-  cardDense: { padding: spacing.xl, paddingTop: spacing.xl + 4 },
+  cardDense: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md + 2,
+    paddingTop: spacing.lg + 4,
+    borderRadius: 20,
+  },
   cardNarrow: { maxWidth: 360, padding: spacing.lg, paddingTop: spacing.xl, borderRadius: 22 },
   accentBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
   eyebrow: {
@@ -202,9 +208,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: colors.brand,
     textAlign: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   title: { fontFamily: fonts.extrabold, fontSize: 26, color: colors.text, letterSpacing: -0.5, textAlign: 'center' },
+  titleDense: { fontSize: 22, letterSpacing: -0.4 },
   subtitle: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.textSecondary, marginTop: 6, textAlign: 'center' },
-  below: { width: '100%', maxWidth: 460, alignItems: 'center', marginTop: spacing.xl, gap: spacing.sm },
+  subtitleDense: { fontSize: 13, lineHeight: 18, marginTop: 3 },
+  below: { width: '100%', maxWidth: 460, alignItems: 'center', marginTop: spacing.md, gap: spacing.xs },
+  belowDense: { marginTop: spacing.sm + 2 },
 });

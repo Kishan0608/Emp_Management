@@ -52,6 +52,7 @@ export default function SignIn() {
 
   return (
     <AuthShell
+      compactLogo
       title="Welcome back"
       subtitle="Sign in to continue to your workspace"
       below={<AuthLink lead="New to SKFL?" action="Create account" onPress={() => router.push('/sign-up')} />}>
@@ -81,10 +82,10 @@ export default function SignIn() {
         returnKeyType="go"
         onSubmitEditing={submit}
       />
-      <View style={{ marginTop: -spacing.sm }}>
+      <View style={{ marginTop: -spacing.xs, marginBottom: 2 }}>
         <TextLink label="Forgot password?" align="flex-end" onPress={() => router.push('/forgot-password')} />
       </View>
-      <Button title="Sign in" icon="arrow-forward" size="lg" loading={busy === 'password'} disabled={!!busy} onPress={submit} />
+      <Button title="Sign in" icon="arrow-forward" size="md" loading={busy === 'password'} disabled={!!busy} onPress={submit} />
       <OrDivider />
       <GoogleButton onPress={google} loading={busy === 'google'} />
     </AuthShell>

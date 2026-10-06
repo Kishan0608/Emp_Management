@@ -68,6 +68,9 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
   const { status, locked } = useAuth();
   const [splashDone, setSplashDone] = useState(false);
 
+  // Screens measure text on first render; wait for Inter so nothing is laid out with the system font.
+  if (!fontsReady) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+
   return (
     <View style={{ flex: 1 }}>
       <StatusBar style="light" />

@@ -41,17 +41,17 @@ const GOLD       = '#E5E3AC';
 const GOLD_MID   = '#C9B96A';
 
 // ── Timing (Slow, Stately, Professional) ───────────────────────────────────────
-const MIN_VISIBLE_MS = 3800;
+const MIN_VISIBLE_MS = 5000;
 
 // Phase 1: Multi-directional sacred arrival (center outward, outer inward, mid orbital sweep)
-const RINGS_AT   = 120; // Center rounds expand OUTWARD from the center
-const OUTER_D_AT = 480; // Grand outer crown converges INWARD from the outside!
-const MID_D_AT   = 880; // Mid diamond garland sweeps along the ORBITAL track
-const INNER_D_AT = 1280; // Inner diamond star & spoke rays radiate outward to bridge layers
+const RINGS_AT   = 150; // Center rounds expand OUTWARD from the center
+const OUTER_D_AT = 700; // Grand outer crown converges INWARD from the outside!
+const MID_D_AT   = 1200; // Mid diamond garland sweeps along the ORBITAL track
+const INNER_D_AT = 1700; // Inner diamond star & spoke rays radiate outward to bridge layers
 
 // Phase 2: SKFL comes in center at the convergence heart
-const LOGO_AT    = 2050;
-const NAME_AT    = 2550;
+const LOGO_AT    = 2800;
+const NAME_AT    = 3300;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Component
@@ -60,8 +60,11 @@ export function AnimatedSplash({ ready, onFinish }: { ready: boolean; onFinish: 
   const { width: W, height: H } = useWindowDimensions();
 
   const rangoliSize = Math.min(W * 0.94, 380);
+  const nameGap = 18;
+  const nameHeight = 22;
+  const groupTop = (H - (rangoliSize + nameGap + nameHeight)) / 2;
   const cx = W / 2;
-  const cy = H * 0.40;
+  const cy = groupTop + rangoliSize / 2;
 
   // Centre logo sized to sit inside the rangoli's centre round with a margin at every
   // corner. RangoliMandala's CENTRE_GUIDE_R depends on this ratio — change them together.
@@ -88,7 +91,7 @@ export function AnimatedSplash({ ready, onFinish }: { ready: boolean; onFinish: 
     clock.set(withRepeat(withTiming(1, { duration: 60_000, easing: Easing.linear }), -1, false));
 
     // 2. Active orbital loading comet tracer (sweeps smoothly around diamond round)
-    cometProgress.set(withRepeat(withTiming(1, { duration: 3800, easing: Easing.linear }), -1, false));
+    cometProgress.set(withRepeat(withTiming(1, { duration: 5000, easing: Easing.linear }), -1, false));
 
     // 3. Dynamic breathing "Glow & Unglow" loop (smooth 4.4s sinusoidal breath)
     glowVal.set(
@@ -105,13 +108,13 @@ export function AnimatedSplash({ ready, onFinish }: { ready: boolean; onFinish: 
     );
 
     // 4. Phase 1: Apply rangoli round and all the diamonds make (slow, stately, professional)
-    ringsScale.set(withDelay(RINGS_AT, withTiming(1, { duration: 1100, easing: Easing.out(Easing.cubic) })));
-    innerDiamondsScale.set(withDelay(INNER_D_AT, withTiming(1, { duration: 1100, easing: Easing.out(Easing.cubic) })));
-    midDiamondsScale.set(withDelay(MID_D_AT, withTiming(1, { duration: 1100, easing: Easing.out(Easing.cubic) })));
-    outerDiamondsScale.set(withDelay(OUTER_D_AT, withTiming(1, { duration: 1100, easing: Easing.out(Easing.cubic) })));
+    ringsScale.set(withDelay(RINGS_AT, withTiming(1, { duration: 1400, easing: Easing.out(Easing.cubic) })));
+    innerDiamondsScale.set(withDelay(INNER_D_AT, withTiming(1, { duration: 1400, easing: Easing.out(Easing.cubic) })));
+    midDiamondsScale.set(withDelay(MID_D_AT, withTiming(1, { duration: 1400, easing: Easing.out(Easing.cubic) })));
+    outerDiamondsScale.set(withDelay(OUTER_D_AT, withTiming(1, { duration: 1400, easing: Easing.out(Easing.cubic) })));
 
     // 5. Phase 2: Then SKFL comes in center (after all diamonds are made)
-    logoIn.set(withDelay(LOGO_AT, withTiming(1, { duration: 850, easing: Easing.out(Easing.cubic) })));
+    logoIn.set(withDelay(LOGO_AT, withTiming(1, { duration: 1100, easing: Easing.out(Easing.cubic) })));
 
     const t1 = setTimeout(() => setMinElapsed(true), MIN_VISIBLE_MS);
 
@@ -142,7 +145,7 @@ export function AnimatedSplash({ ready, onFinish }: { ready: boolean; onFinish: 
   });
 
   const letters = COMPANY.name.toUpperCase().split('');
-  const nameBlockTop = cy + rangoliSize / 2 + 18;
+  const nameBlockTop = cy + rangoliSize / 2 + nameGap;
 
   return (
     <Animated.View
@@ -312,6 +315,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
+    paddingLeft: 2.8,
   },
   letter: {
     fontFamily: fonts.semibold,

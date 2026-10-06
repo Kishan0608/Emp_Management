@@ -79,7 +79,7 @@ export default function SignUp() {
     setError(null);
     setBusy('google');
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(selectedOrgId || undefined);
     } catch (e) {
       setError(errorMessage(e));
     } finally {

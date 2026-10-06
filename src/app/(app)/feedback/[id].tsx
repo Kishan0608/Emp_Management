@@ -18,6 +18,7 @@ import {
   roleLabel,
 } from '@/lib/format';
 import type { FeedbackStatus } from '@/lib/types';
+import { RichText } from '@/components/RichText';
 import { useMe } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fonts, radius, spacing, type } from '@/theme/tokens';
@@ -101,9 +102,7 @@ export default function FeedbackDetail() {
             {f.type === 'blocker' && f.escalation_level > 0 && <Badge label={f.escalation_level === 1 ? 'Escalated to HR' : 'Escalated to Boss'} tone="danger" icon="trending-up" />}
           </View>
           <AppText variant="h1">{cleanTitle}</AppText>
-          <AppText variant="body" color={colors.textSecondary}>
-            {f.body.replace(/\n\n📎 Attachment:\s*.+$/, '').trim()}
-          </AppText>
+          <RichText text={f.body.replace(/\n\n📎 Attachment:\s*.+$/, '').trim()} style={[type.body, { color: colors.textSecondary }]} />
           {f.body.match(/📎 Attachment:\s*(.+)$/) && (
             <View style={styles.attachmentBadge}>
               <Ionicons name="document-attach-outline" size={17} color={colors.brand} />

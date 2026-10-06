@@ -1,4 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 
@@ -43,7 +44,7 @@ interface AuthValue {
   role: Role | null;
   notice: string | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (organizationId?: string) => Promise<void>;
   /** `forgetPasscode` also removes this phone's passcode and fingerprint setting. */
   signOut: (allDevices?: boolean, notice?: string, forgetPasscode?: boolean) => Promise<void>;
   refresh: () => Promise<void>;
@@ -140,7 +141,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       try {
-        const c = await api.myContext();
+        let c: MyContext;
+        try {
+          c = await api.myContext();
+        } catch (ctxErr) {
+          // If "Account not found", self-heal by provisioning/linking via syncGoogleUser
+          if (errorMessage(ctxErr).toLowerCase().includes('account not found')) {
+            const pendingOrg = await AsyncStorage.getItem('pending_signup_org').catch(() => null);
+            await AsyncStorage.removeItem('pending_signup_org').catch(() => {});
+            c = await api.syncGoogleUser(pendingOrg || undefined);
+          } else {
+            throw ctxErr;
+          }
+        }
         if (!c.user.is_active) {
           await signOut(false, 'This account is deactivated. Contact your administrator.');
           return;
@@ -458,15 +471,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [resolve],
   );
 
-  const signInWithGoogle = useCallback(async () => {
-    setNotice(null);
-    const session = await googleSignIn();
-    if (!session) return; // cancelled
-    await resetLockFails();
-    freshSignIn.current = true;
-    setSession(session);
-    await resolve(session);
-  }, [resolve]);
+  const signInWithGoogle = useCallback(
+    async (organizationId?: string) => {
+      setNotice(null);
+      if (organizationId) {
+        await AsyncStorage.setItem('pending_signup_org', organizationId).catch(() => {});
+      }
+      const session = await googleSignIn();
+      if (!session) return; // cancelled
+      await resetLockFails();
+      freshSignIn.current = true;
+      setSession(session);
+      await resolve(session);
+    },
+    [resolve],
+  );
 
   const refresh = useCallback(async () => {
     const { data } = await supabase.auth.getSession();

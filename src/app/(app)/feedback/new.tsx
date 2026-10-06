@@ -895,13 +895,9 @@ export default function NewFeedback() {
                         {formatLeaveDate(leaveStartDate)}
                       </Text>
                     </View>
-                    <Pressable
-                      onPress={openStartDatePicker}
-                      accessibilityRole="button"
-                      accessibilityLabel="Open calendar"
-                      style={({ pressed }) => [styles.fieldRightActionBtn, pressed && { opacity: 0.7 }]}>
+                    <View style={styles.fieldRightActionBtn}>
                       <Ionicons name="calendar" size={18} color={colors.brand} />
-                    </Pressable>
+                    </View>
                   </Pressable>
                 </View>
 
@@ -922,13 +918,9 @@ export default function NewFeedback() {
                           {formatLeaveDate(leaveEndDate)}
                         </Text>
                       </View>
-                      <Pressable
-                        onPress={openEndDatePicker}
-                        accessibilityRole="button"
-                        accessibilityLabel="Open calendar"
-                        style={({ pressed }) => [styles.fieldRightActionBtn, pressed && { opacity: 0.7 }]}>
+                      <View style={styles.fieldRightActionBtn}>
                         <Ionicons name="calendar" size={18} color={colors.brand} />
-                      </Pressable>
+                      </View>
                     </Pressable>
                   </View>
                 )}

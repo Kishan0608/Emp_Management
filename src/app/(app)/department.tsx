@@ -21,7 +21,7 @@ export default function DepartmentTasks() {
   const [tab, setTab] = useState<Tab>('all');
 
   const allTasks = useLoad(() => (isBoss ? api.tasks('all', me.id, selectedOrgId) : Promise.resolve([])), [isBoss, selectedOrgId]);
-  const departments = useLoad(() => api.departments(selectedOrgId), [selectedOrgId]);
+  const departments = useLoad(() => api.departments());
   const directory = useLoad(() => api.directory(selectedOrgId), [selectedOrgId]);
 
   const today = new Date().toISOString().slice(0, 10);

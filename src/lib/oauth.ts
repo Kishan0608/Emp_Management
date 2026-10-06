@@ -27,9 +27,18 @@ export async function googleSignIn(): Promise<Session | null> {
   if (result.type !== 'success') return null;
 
   const url = new URL(result.url);
-  const errDesc = url.searchParams.get('error_description');
+  let errDesc = url.searchParams.get('error_description');
+  if (!errDesc && url.hash) {
+    const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+    errDesc = hashParams.get('error_description');
+  }
   if (errDesc) throw new Error(friendly(errDesc));
-  const code = url.searchParams.get('code');
+
+  let code = url.searchParams.get('code');
+  if (!code && url.hash) {
+    const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+    code = hashParams.get('code');
+  }
   if (!code) throw new Error('Google sign-in did not complete. Please try again.');
 
   const { data: exchanged, error: exErr } = await supabase.auth.exchangeCodeForSession(code);
