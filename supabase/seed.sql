@@ -54,8 +54,6 @@ begin
   from (select user_id as uid, row_number() over (order by user_id) as row_number from public.employee_details) x
   where employee_details.user_id = x.uid;
 
-  insert into public.committee_members (user_id, added_by) values (v_hr, v_boss);
-
   -- Default visibility (the Boss can change all of these in the app)
   insert into public.visibility_rules (viewer_role, field_name, allowed, set_by) values
     ('hr', 'contact', true, v_boss), ('hr', 'attendance', true, v_boss), ('hr', 'task_history', true, v_boss),
@@ -90,13 +88,14 @@ begin
   values ('Book dentist appointment', 'low', current_date + 5, v_e1, v_e1, v_e1, true) returning id into v_task;
   insert into public.task_events (task_id, actor_id, to_status, note) values (v_task, v_e1, 'assigned', 'Task created');
 
-  -- Sample feedback with an answer
-  insert into public.feedback_items (type, audience, title, body, author_id, recipient_manager_id, department_id, status, answered_at, acknowledged_at)
+  -- Sample feedback with an answer (replies live in feedback_items.replies)
+  insert into public.feedback_items (type, audience, title, body, author_id, recipient_manager_id, department_id, status, answered_at, acknowledged_at, replies)
   values ('question', 'hr', 'How do I claim travel reimbursement?', 'I travelled to the client site last week. What is the process and deadline for claims?',
-          v_e1, v_mgr, v_eng, 'answered', now(), now())
-  returning id into v_task;
-  insert into public.feedback_replies (feedback_id, responder_id, body)
-  values (v_task, v_hr, 'Upload bills in the expense portal within 30 days of travel. Your manager approves, and payment is made with the next salary.');
+          v_e1, v_mgr, v_eng, 'answered', now(), now(),
+          jsonb_build_array(jsonb_build_object(
+            'id', gen_random_uuid(), 'responder_id', v_hr, 'created_at', now(),
+            'body', 'Upload bills in the expense portal within 30 days of travel. Your manager approves, and payment is made with the next salary.',
+            'responder', jsonb_build_object('full_name', 'Priya Nair', 'role', 'hr'))));
 
   insert into public.feedback_items (type, audience, title, body, is_anonymous, recipient_manager_id, department_id)
   values ('feedback', 'manager', 'Stand-ups run too long', 'Daily stand-ups often go past 30 minutes. Could we time-box them to 15?', true, v_mgr, v_eng);

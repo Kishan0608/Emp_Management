@@ -38,7 +38,6 @@ import { COMPANY, SKFL_VIEWBOX } from './brand/skflPaths';
 const INK        = '#070705';
 const INK_MID    = '#0F0E0B';
 const GOLD       = '#E5E3AC';
-const GOLD_MID   = '#C9B96A';
 
 // ── Timing (Slow, Stately, Professional) ───────────────────────────────────────
 const MIN_VISIBLE_MS = 5000;

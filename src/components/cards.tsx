@@ -8,8 +8,6 @@ import {
   dueLabel,
   feedbackStatusLabel,
   feedbackStatusTone,
-  feedbackTypeLabel,
-  feedbackTypeTone,
   priorityLabel,
   priorityTone,
   resolveFeedbackDisplay,
@@ -79,8 +77,6 @@ export function TaskCard({ task, index = 0, showAssignee = true }: { task: Task;
     </Animated.View>
   );
 }
-
-const TYPE_ICON = { feedback: 'chatbubble-ellipses-outline', question: 'help-circle-outline', blocker: 'hand-left-outline' } as const;
 
 export function FeedbackCard({
   item,

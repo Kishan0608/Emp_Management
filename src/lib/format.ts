@@ -117,12 +117,7 @@ export function resolveFeedbackDisplay(item: { type: FeedbackType; title: string
   return {
     label: feedbackTypeLabel[item.type] ?? 'Feedback',
     tone: feedbackTypeTone[item.type] ?? 'info',
-    icon:
-      item.type === 'blocker'
-        ? 'hand-left-outline'
-        : item.type === 'question'
-          ? 'help-circle-outline'
-          : 'chatbubble-ellipses-outline',
+    icon: item.type === 'blocker' ? 'hand-left-outline' : 'chatbubble-ellipses-outline',
     cleanTitle: item.title,
   };
 }

@@ -27,27 +27,35 @@ const defaultValue: OrganizationContextValue = {
 
 const OrganizationContext = createContext<OrganizationContextValue>(defaultValue);
 
+const asOrganization = (o: { id: string; name: string }): Organization => ({ id: o.id, name: o.name, is_active: true, created_at: '' });
+
 export function OrganizationProvider({ children }: { children: ReactNode }) {
   const { session, ctx } = useAuth();
-  const [organizations, setOrganizations] = useState<Organization[]>(() => {
-    if (ctx?.organization) {
-      return [{ id: ctx.organization.id, name: ctx.organization.name, is_active: true, created_at: '' }];
-    }
-    return [{ id: '7d6560a3-b9d6-46b5-b8bf-685cf8dce53d', name: 'Shree Karni Fabcom Ltd', is_active: true, created_at: '' }];
-  });
+  // The signed-in person's own company, from my_context.
+  const ownOrg = ctx?.organization ?? null;
+  const ownOrgId = ctx?.user.organization_id ?? ownOrg?.id ?? null;
+
+  const [fetched, setFetched] = useState<Organization[] | null>(null);
   const [selectedOrgObj, setSelectedOrgObj] = useState<Organization | null>(null);
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(
-    ctx?.user.organization_id || ctx?.organization?.id || '7d6560a3-b9d6-46b5-b8bf-685cf8dce53d',
-  );
+  const [pickedOrgId, setPickedOrgId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // The full list once loaded, always including the person's own company.
+  const organizations = useMemo<Organization[]>(() => {
+    const own = ownOrg ? asOrganization(ownOrg) : null;
+    if (!fetched) return own ? [own] : [];
+    if (own && !fetched.some((o) => o.id === own.id)) return [own, ...fetched];
+    return fetched;
+  }, [fetched, ownOrg]);
+
+  // No choice yet (or the old "ALL" value): fall back to the person's own company.
+  const selectedOrgId = pickedOrgId && pickedOrgId !== 'ALL' ? pickedOrgId : (ownOrgId ?? pickedOrgId);
 
   const loadOrganizations = useCallback(async () => {
     setLoading(true);
     try {
       const list = await api.organizations();
-      if (list && Array.isArray(list)) {
-        setOrganizations(list);
-      }
+      if (Array.isArray(list)) setFetched(list);
       return list;
     } catch {
       return [];
@@ -56,20 +64,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Sync when ctx loads user organization
-  useEffect(() => {
-    if (ctx?.organization) {
-      setOrganizations((prev) => {
-        if (prev.some((o) => o.id === ctx.organization!.id)) return prev;
-        return [{ id: ctx.organization!.id, name: ctx.organization!.name, is_active: true, created_at: '' }, ...prev];
-      });
-    }
-    if (ctx?.user.organization_id && (!selectedOrgId || selectedOrgId === 'ALL')) {
-      setSelectedOrgId(ctx.user.organization_id);
-    }
-  }, [ctx?.organization, ctx?.user.organization_id, selectedOrgId]);
-
-  // Load saved organization choice on boot / sign-in without overwriting
+  // Load the saved company choice on boot / sign-in without overwriting
   useEffect(() => {
     if (!session) {
       return;
@@ -81,7 +76,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       try {
         savedId = await AsyncStorage.getItem(STORAGE_KEY);
         if (savedId && savedId !== 'ALL' && active) {
-          setSelectedOrgId(savedId);
+          setPickedOrgId(savedId);
         }
       } catch {}
 
@@ -92,14 +87,14 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         const found = (list || []).find((o) => o.id === savedId);
         if (found) {
           setSelectedOrgObj(found);
-          setSelectedOrgId(savedId);
+          setPickedOrgId(savedId);
           return;
         }
       }
 
       if (!savedId) {
-        const defaultId = ctx?.user.organization_id || list?.[0]?.id || '7d6560a3-b9d6-46b5-b8bf-685cf8dce53d';
-        setSelectedOrgId(defaultId);
+        const defaultId = ownOrgId || list?.[0]?.id || null;
+        setPickedOrgId(defaultId);
         const foundDefault = (list || []).find((o) => o.id === defaultId);
         if (foundDefault) {
           setSelectedOrgObj(foundDefault);
@@ -111,48 +106,31 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [session, ctx?.user.organization_id, loadOrganizations]);
+  }, [session, ownOrgId, loadOrganizations]);
 
-  const setSelectedOrg = useCallback(
-    async (org: Organization | null) => {
-      setSelectedOrgObj(org);
-      setSelectedOrgId(org ? org.id : null);
-      try {
-        if (org) {
-          await AsyncStorage.setItem(STORAGE_KEY, org.id);
-        } else {
-          await AsyncStorage.removeItem(STORAGE_KEY);
-        }
-      } catch {}
-    },
-    [],
-  );
+  const setSelectedOrg = useCallback(async (org: Organization | null) => {
+    setSelectedOrgObj(org);
+    setPickedOrgId(org ? org.id : null);
+    try {
+      if (org) {
+        await AsyncStorage.setItem(STORAGE_KEY, org.id);
+      } else {
+        await AsyncStorage.removeItem(STORAGE_KEY);
+      }
+    } catch {}
+  }, []);
 
-  const selectedOrg = useMemo<Organization>(() => {
-    const orgId = selectedOrgId || selectedOrgObj?.id || ctx?.user.organization_id;
+  const selectedOrg = useMemo<Organization | null>(() => {
+    const orgId = selectedOrgId || selectedOrgObj?.id || ownOrgId;
     if (orgId) {
       const found = organizations.find((o) => o.id === orgId);
       if (found) return found;
-      if (ctx?.organization && ctx.organization.id === orgId) {
-        return { id: ctx.organization.id, name: ctx.organization.name, is_active: true, created_at: '' };
-      }
+      if (ownOrg && ownOrg.id === orgId) return asOrganization(ownOrg);
     }
-    if (selectedOrgObj) {
-      return selectedOrgObj;
-    }
-    if (organizations.length > 0) {
-      return organizations[0];
-    }
-    if (ctx?.organization) {
-      return { id: ctx.organization.id, name: ctx.organization.name, is_active: true, created_at: '' };
-    }
-    return {
-      id: '7d6560a3-b9d6-46b5-b8bf-685cf8dce53d',
-      name: 'Shree Karni Fabcom Ltd',
-      is_active: true,
-      created_at: '',
-    };
-  }, [selectedOrgObj, selectedOrgId, organizations, ctx?.user.organization_id, ctx?.organization]);
+    if (selectedOrgObj) return selectedOrgObj;
+    if (organizations.length > 0) return organizations[0];
+    return ownOrg ? asOrganization(ownOrg) : null;
+  }, [selectedOrgObj, selectedOrgId, organizations, ownOrgId, ownOrg]);
 
   const refreshOrganizations = useCallback(async () => {
     await loadOrganizations();

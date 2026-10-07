@@ -31,7 +31,7 @@ import { fieldLabel, roleLabel } from '@/lib/format';
 import type { Role, VisibilityField } from '@/lib/types';
 import { useOrganization } from '@/providers/OrganizationProvider';
 import { useToast } from '@/providers/ToastProvider';
-import { colors, fonts, radius, shadow, spacing, type } from '@/theme/tokens';
+import { colors, fonts, radius, spacing, type } from '@/theme/tokens';
 
 const FIELDS = Object.keys(fieldLabel) as VisibilityField[];
 const FIELD_HELP: Record<VisibilityField, string> = {

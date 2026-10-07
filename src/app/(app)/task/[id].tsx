@@ -24,7 +24,7 @@ import {
 import { useLoad } from '@/hooks/useLoad';
 import { api, errorMessage } from '@/lib/api';
 import { dueLabel, formatDate, formatDateTime, priorityLabel, priorityTone, taskStatusLabel, taskStatusTone } from '@/lib/format';
-import type { ChecklistItem, Task, TaskQuestion, TaskStatus } from '@/lib/types';
+import type { ChecklistItem, Task, TaskStatus } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fonts, radius, spacing, type } from '@/theme/tokens';

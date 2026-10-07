@@ -257,8 +257,6 @@ export default function NewFeedback() {
   const [handoverPerson, setHandoverPerson] = useState('');
   const [customTimeFrom, setCustomTimeFrom] = useState('10:00 AM');
   const [customTimeTo, setCustomTimeTo] = useState('12:00 PM');
-  const [reasonInputFocused, setReasonInputFocused] = useState(false);
-  const [handoverInputFocused, setHandoverInputFocused] = useState(false);
 
   // Dropdown states
   const [typeDdlOpen, setTypeDdlOpen] = useState(false);

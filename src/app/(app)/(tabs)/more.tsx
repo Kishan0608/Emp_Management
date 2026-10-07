@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { router, type Href } from 'expo-router';
 import { type ReactNode, useState } from 'react';

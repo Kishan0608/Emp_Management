@@ -15,7 +15,6 @@ import {
   hasPattern,
   isAppLockEnabled,
   isBiometricEnabled,
-  lockSupported,
   resetLockFails,
   setAppLockEnabled,
   setAppLockType,
@@ -94,21 +93,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pushRegistered = useRef(false);
   /** Why phone notifications are not working on this device, if they should be. */
   const [pushIssue, setPushIssue] = useState<string | null>(null);
-
-  const syncLocalLockFlags = useCallback(async () => {
-    const [enabled, type, bio, pass, pat] = await Promise.all([
-      isAppLockEnabled(),
-      getAppLockType(),
-      isBiometricEnabled(),
-      hasPasscode(),
-      hasPattern(),
-    ]);
-    setAppLockState(enabled);
-    setAppLockTypeState(type);
-    setBiometricState(bio);
-    setHasConfiguredPasscode(pass);
-    setHasConfiguredPattern(pat);
-  }, []);
 
   const signOut = useCallback(async (allDevices = false, message?: string, forgetPasscode = false) => {
     // A signed-out phone must never keep sending location, or keep receiving this person's notifications.
@@ -230,7 +214,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    syncLocalLockFlags();
+    let active = true;
+    // This phone's saved App Lock settings, shown until the account's own settings arrive.
+    Promise.all([isAppLockEnabled(), getAppLockType(), isBiometricEnabled(), hasPasscode(), hasPattern()])
+      .then(([enabled, type, bio, pass, pat]) => {
+        if (!active) return;
+        setAppLockState(enabled);
+        setAppLockTypeState(type);
+        setBiometricState(bio);
+        setHasConfiguredPasscode(pass);
+        setHasConfiguredPattern(pat);
+      })
+      .catch(() => {});
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       resolve(data.session);
@@ -243,8 +238,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       if (event === 'MFA_CHALLENGE_VERIFIED') resolve(s);
     });
-    return () => sub.subscription.unsubscribe();
-  }, [resolve, syncLocalLockFlags]);
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [resolve]);
 
   // Record the login once the person is fully in, then register for push.
   useEffect(() => {

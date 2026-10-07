@@ -6,7 +6,7 @@ import Animated, { FadeInRight, ZoomIn } from 'react-native-reanimated';
 import { Button } from '@/components/ui';
 import { authenticate, getAppLockSupport, type AppLockSupport } from '@/lib/appLock';
 import { useAuth } from '@/providers/AuthProvider';
-import { colors, fonts, radius, spacing } from '@/theme/tokens';
+import { colors, fonts, spacing } from '@/theme/tokens';
 
 import { PatternLock } from './PatternLock';
 

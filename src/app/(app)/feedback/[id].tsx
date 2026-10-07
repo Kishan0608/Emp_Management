@@ -11,8 +11,6 @@ import {
   audienceLabel,
   feedbackStatusLabel,
   feedbackStatusTone,
-  feedbackTypeLabel,
-  feedbackTypeTone,
   formatDateTime,
   resolveFeedbackDisplay,
   roleLabel,

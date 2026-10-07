@@ -26,7 +26,7 @@ import type { Department, DirectoryUser } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
 import { useOrganization } from '@/providers/OrganizationProvider';
 import { useToast } from '@/providers/ToastProvider';
-import { colors, fonts, radius, shadow, spacing, type } from '@/theme/tokens';
+import { colors, fonts, radius, spacing, type } from '@/theme/tokens';
 
 export default function DepartmentsScreen() {
   const { isBoss } = useMe();
@@ -44,7 +44,7 @@ export default function DepartmentsScreen() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedDept, setSelectedDept] = useState<Department | null>(null);
 
-  const deptList = depts.data ?? [];
+  const deptList = useMemo(() => depts.data ?? [], [depts.data]);
 
   // Compute members per department for the active company
   const memberMap = useMemo(() => {

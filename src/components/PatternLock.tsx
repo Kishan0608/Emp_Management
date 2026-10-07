@@ -1,20 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  LayoutChangeEvent,
-  PanResponder,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSequence,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import { Platform, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, G, Line, Polyline } from 'react-native-svg';
 
 import { colors, fonts, spacing } from '@/theme/tokens';
@@ -49,28 +36,23 @@ export function PatternLock({
   const [status, setStatus] = useState<'idle' | 'drawing' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(error);
 
-  const containerLayout = useRef<{ x: number; y: number; width: number; height: number }>({
-    x: 0,
-    y: 0,
-    width: size,
-    height: size,
-  });
-
   const shakeAnim = useSharedValue(0);
 
   const triggerShake = useCallback(() => {
-    shakeAnim.value = withSequence(
-      withTiming(-10, { duration: 50 }),
-      withTiming(10, { duration: 50 }),
-      withTiming(-8, { duration: 50 }),
-      withTiming(8, { duration: 50 }),
-      withTiming(0, { duration: 50 })
+    shakeAnim.set(
+      withSequence(
+        withTiming(-10, { duration: 50 }),
+        withTiming(10, { duration: 50 }),
+        withTiming(-8, { duration: 50 }),
+        withTiming(8, { duration: 50 }),
+        withTiming(0, { duration: 50 }),
+      ),
     );
   }, [shakeAnim]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ translateX: shakeAnim.value }],
+      transform: [{ translateX: shakeAnim.get() }],
     };
   });
 
@@ -219,32 +201,11 @@ export function PatternLock({
     []
   );
 
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => !disabled,
-        onMoveShouldSetPanResponder: () => !disabled,
-        onPanResponderGrant: (evt) => {
-          const { x, y } = getCoordinates(evt);
-          handleTouch(x, y);
-        },
-        onPanResponderMove: (evt) => {
-          const { x, y } = getCoordinates(evt);
-          handleTouch(x, y);
-        },
-        onPanResponderRelease: () => {
-          handleEnd();
-        },
-        onPanResponderTerminate: () => {
-          handleEnd();
-        },
-      }),
-    [disabled, getCoordinates, handleTouch, handleEnd]
-  );
-
-  const onLayout = (evt: LayoutChangeEvent) => {
-    const { x, y, width, height } = evt.nativeEvent.layout;
-    containerLayout.current = { x, y, width, height };
+  // Touch handling uses the View's responder props directly (what PanResponder wraps),
+  // so the handlers are only ever called from events, never while rendering.
+  const onTouch = (evt: GestureResponderEvent) => {
+    const { x, y } = getCoordinates(evt);
+    handleTouch(x, y);
   };
 
   // Color scheme based on status and tone
@@ -287,7 +248,6 @@ export function PatternLock({
           { width: size, height: size },
           Platform.OS === 'web' && ({ userSelect: 'none', cursor: 'crosshair', touchAction: 'none' } as any),
         ]}
-        onLayout={onLayout}
         {...(Platform.OS === 'web'
           ? {
               onMouseDown: (e: any) => {
@@ -306,7 +266,12 @@ export function PatternLock({
               },
             }
           : {})}
-        {...panResponder.panHandlers}
+        onStartShouldSetResponder={() => !disabled}
+        onMoveShouldSetResponder={() => !disabled}
+        onResponderGrant={onTouch}
+        onResponderMove={onTouch}
+        onResponderRelease={handleEnd}
+        onResponderTerminate={handleEnd}
       >
         <Svg width={size} height={size} style={StyleSheet.absoluteFill} pointerEvents="none">
           {/* Completed lines */}

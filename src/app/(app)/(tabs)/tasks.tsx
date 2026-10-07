@@ -12,7 +12,6 @@ import { isTaskDone, sortTasks } from '@/lib/format';
 import type { TaskTeam } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
 import { useOrganization } from '@/providers/OrganizationProvider';
-import { useToast } from '@/providers/ToastProvider';
 import { colors, fonts, gradients, radius, shadow, spacing } from '@/theme/tokens';
 
 type Scope = 'mine' | 'assigned' | 'team' | 'all';
@@ -21,7 +20,6 @@ type Filter = 'all' | 'active' | 'done';
 export default function Tasks() {
   const { me, isEmployee, isBoss } = useMe();
   const { selectedOrgId, selectedOrg } = useOrganization();
-  const toast = useToast();
   const params = useLocalSearchParams<{ scope?: Scope; dept?: string }>();
   const [scope, setScope] = useState<Scope>(
     params.dept ? (isBoss ? 'all' : 'assigned') : isEmployee ? 'mine' : (params.scope ?? 'mine')

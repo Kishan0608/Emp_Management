@@ -2,7 +2,7 @@
 
 ![SKFL](assets/brand/skfl-logo-fullhd.png)
 
-App for **Shree Karni Fabcom Ltd (SKFL)** with three modules: **Tasks**, **Complaints** (anonymous), and **Feedback** (questions, ideas, blockers).
+App for **Shree Karni Fabcom Ltd (SKFL)** with **Tasks**, **Attendance** (clock in/out, breaks, leave, holidays), **Feedback** (questions, ideas, blockers) and **Live locations**.
 Built with React Native + Expo (SDK 57, Expo Router) on Supabase (Postgres, Auth, Storage, Edge Functions).
 
 Every permission is enforced in the database (row-level security and checked functions). The app screens only reflect what the server allows.
@@ -29,7 +29,7 @@ npx expo start        # press w for web, or scan the QR code with Expo Go
 | Role | Email | Notes |
 | --- | --- | --- |
 | Boss | boss@example.com | Must set up 2FA (authenticator app) at first sign-in |
-| HR | hr@example.com | Case handler + Internal Committee. Must set up 2FA |
+| HR | hr@example.com | Must set up 2FA |
 | Manager | manager@example.com | Manages Neha, Karan, Sneha |
 | Employee | neha@example.com | Also: karan@example.com, sneha@example.com |
 
@@ -50,20 +50,11 @@ In development the sign-in screen has one-tap buttons for these. **Delete these 
 | --- | --- | --- | --- | --- |
 | Assign tasks | Anyone | Employees & HR | Own team | Personal to-dos |
 | Employee details | Everything | Fields the Boss allows | Fields the Boss allows | Own profile |
-| Complaint counts | Yes (numbers only) | Case handler | – | – |
-| Complaint text | **Never** | Case handler only | – | – |
 | Feedback | All | All | Own team's & addressed to them | Own |
-| Disciplinary cases | Open, decide penalty, terminate | Run inquiry stages | – | Own case after notice |
 
 **Tasks:** Assigned → Accepted → In progress → (Blocked) → Submitted (with proof: comment, link or file) → Approved / Returned → Closed. Every change is timestamped. Blocking a task raises a blocker in Feedback.
 
-**Feedback:** feedback, work questions, blockers. Optional anonymity (except blockers). Blockers escalate to HR after 4 h and the Boss after 24 h (configurable, runs every 15 min). If the text looks like a complaint about a person, the app suggests using Complaints instead.
-
-**Complaints:**
-- Filed through the `submit-complaint` Edge Function. The database stores no author.
-- Counts: yellow at 3+ **different people**, red at 5+, within 90 days. Complaints HR tags as duplicate, unsubstantiated or malicious don't count. All thresholds are configurable.
-- Red lets the Boss open a case: preliminary inquiry → show-cause → employee reply (at least 7 days) → domestic inquiry → findings → penalty (Boss) → written order (Boss) → **Terminate** (only now, with name confirmation). Nothing is automatic.
-- Sexual harassment goes to a separate **confidential** (named) POSH form, readable only by Internal Committee members.
+**Feedback:** feedback, work questions, blockers. Optional anonymity (except blockers). Blockers escalate to HR after 4 h and the Boss after 24 h (configurable, runs every 15 min). Replies are stored on the item itself (`feedback_items.replies`).
 
 ---
 
@@ -80,59 +71,40 @@ src/
   app/                    Expo Router screens
     _layout.tsx           fonts, providers, auth-state routing, animated splash
     sign-in, mfa, change-password, consent
-    (app)/(tabs)/         home, tasks, feedback, complaints, more
-    (app)/task, feedback, complaint, case, people, admin, notifications
+    (app)/(tabs)/         home, tasks, attendance, feedback, more
+    (app)/task, feedback, people, team, admin, holidays, notifications, location-sharing, app-lock
   components/             AnimatedSplash, Logo, cards, ui kit (primitives, forms, layout)
   providers/              AuthProvider (session, 2FA, timeout), ToastProvider
   lib/                    supabase client, typed API, types, formatting, CSV export, push
   theme/tokens.ts         colours, type scale, spacing, shadows
 supabase/
   migrations/             001–008, applied to the project in order
-  functions/              submit-complaint, invite-user
-  tests/rls_role_tests.sql  76 role-by-role permission tests (runs in a rolled-back transaction)
+  functions/              signup-start, onboarding-mail, activate-account, invite-user, password-reset
+  tests/rls_role_tests.sql  28 role-by-role permission tests (runs in a rolled-back transaction)
   seed.sql                demo data
 ```
 
 ## Database tables
 
-`app_settings, departments, users, employee_details, visibility_rules, tasks, task_events, feedback_items, feedback_replies, complaints, complaint_counts, complaint_quota, disciplinary_cases, case_documents, committee_members, confidential_reports, notifications, audit_logs`
+16 tables: `organizations, departments, users, employee_details, visibility_rules, auth_codes, app_settings, tasks, task_events, task_questions, feedback_items, attendance_records, holidays, location_points, notifications, audit_logs`
 
 - RLS is on for every table. Clients get read access through policies. **All writes go through `security definer` functions** that check role, 2FA and business rules.
-- `complaints`, `complaint_quota` and `confidential_reports` have **no client access at all**.
-- Complaint and POSH text is encrypted with `pgp_sym_encrypt`. Keys are in Supabase Vault.
-- Scheduled jobs (pg_cron): blocker escalation (every 15 min), daily flag digest, and daily retention purge.
+- `auth_codes` (activation keys and email / approver / reset codes, all hashed) has **no client access at all**.
+- `employee_details` (salary, contact) is kept separate from `users` on purpose: `users` is readable by every employee.
+- Departments are shared by every company. A person's company is `users.organization_id`. Names use `first_name` + `last_name` (no middle name).
+- Scheduled jobs (pg_cron): blocker escalation (every 15 min), close missed attendance, location-point purge, and daily retention purge.
 
 To re-run the permission tests, paste `supabase/tests/rls_role_tests.sql` into the SQL editor. The last query lists PASS/FAIL, and everything is rolled back.
 
 ---
 
-## Where a complaint author could leak, and how it is closed
-
-| Place | Risk | How it's closed |
-| --- | --- | --- |
-| Complaint row | Author column | None exists. Only target, category, encrypted text, date, dedupe hash |
-| Timestamps | Exact time matched to who was online | Date only, no `created_at`. `complaint_counts` stores a date, not a time |
-| Notifications | "New complaint" alert time = submit time | No alert on submit. Flag alerts go out in a **daily batch** (`daily_flag_digest`) |
-| Quota table | Joining quota rows to complaints | Stores user + month + count only, no target |
-| Dedupe hash | Reversing who wrote it | Keyed HMAC. The key is in Vault, not in the table or the app |
-| API / DB logs | Logs showing which user wrote to `complaints` | The app never touches the table. The Edge Function writes as `service_role`, logs nothing about the user, and the RPC has no client grant |
-| HR inbox | Handler sees author | The function returns no author or hash (tested). Views are audited |
-| Complaints about the handler | Handler reads complaints about themselves | Filtered out server-side |
-| Small teams | Guessing by elimination | Warning when the team is under 5 (configurable) |
-| Writing style | Text identifies the writer | In-app warning before submitting |
-| Admin access | Project owner can read Vault and the database | **Organisational control**: the Boss must not own the Supabase project. Use a separate technical admin, enable Supabase audit logs, and restrict dashboard access |
-| Backups | Backups contain the data | Backups contain no author either. Retention purge deletes old rows |
-
----
-
 ## Check by hand (plain language)
 
-1. **Employee (Neha):** sign in, accept the notice. Accept → Start → Submit the release-notes task with a comment. Add a personal to-do. Ask HR a question. File an anonymous complaint about Karan. Confirm you cannot see anyone's salary.
+1. **Employee (Neha):** sign in, accept the notice. Accept → Start → Submit the release-notes task with a comment. Add a personal to-do. Ask HR a question. Confirm you cannot see anyone's salary.
 2. **Manager (Rohan):** approve or return Neha's task (a reason is required for return). Assign a task to Karan. Try to find HR in the assignee list (they are not there). Read the anonymous "stand-ups" feedback.
-3. **HR (Priya):** set up 2FA. Open Triage and tag Neha's complaint. Confirm the inbox shows text but no author. Open Neha's profile: contact and attendance are visible, salary is hidden.
-4. **Boss (Aarav):** set up 2FA. Complaints tab shows **numbers only**. In Visibility settings, allow Managers to see attendance, then check Rohan now sees it. Invite a new person and sign in with the one-time password.
-5. **Disciplinary flow:** file complaints about one person from 5 different accounts (the quota is 3 per person per month). The next day's digest, or the counts screen, shows red. Open a case and walk through the stages. Terminate stays locked until the written order.
-6. **Timeout:** leave the app idle for 30 minutes (configurable). It signs out.
+3. **HR (Priya):** set up 2FA. Answer Neha's question. Open Neha's profile: contact and attendance are visible, salary is hidden.
+4. **Boss (Aarav):** set up 2FA. In Visibility settings, allow Managers to see attendance, then check Rohan now sees it. Invite a new person and sign in with the one-time password.
+5. **Timeout:** leave the app idle for 30 minutes (configurable). It signs out.
 
 ---
 
@@ -142,6 +114,5 @@ To re-run the permission tests, paste `supabase/tests/rls_role_tests.sql` into t
 - [ ] Delete the demo accounts and demo data.
 - [ ] Supabase → Auth: turn on **leaked password protection**, set the minimum password length to 10, disable public sign-ups, and configure SMTP for password-reset emails.
 - [ ] Push notifications: run `npx eas-cli init` (adds the EAS project id), add FCM credentials for Android, and build with EAS. Push doesn't work in Expo Go on Android.
-- [ ] Have an Indian employment lawyer review the complaint thresholds, the case stages and the privacy notice. Name a grievance officer.
-- [ ] Penetration test the complaint module.
+- [ ] Have an Indian employment lawyer review the privacy notice. Name a grievance officer.
 - [ ] Optional hardening: store the session in an encrypted store (SecureStore-wrapped AsyncStorage) and add SMS OTP (needs an SMS provider).

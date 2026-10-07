@@ -38,7 +38,6 @@ import type {
   TaskEvent,
   TaskPriority,
   TaskQuestion,
-  TaskQuestionReply,
   TaskStatus,
   TaskVisibility,
   VisibilityField,
