@@ -124,6 +124,7 @@ export default function More() {
   const general: Item[] = [
     { icon: 'person-circle-outline', label: 'My profile', hint: 'Phone, email, address, joining date', href: `/people/${me.id}` },
     { icon: 'people-outline', label: 'People directory', href: '/people' },
+    ...(isBoss ? [] : [{ icon: 'document-text-outline' as const, label: 'Daily work log', hint: 'What you worked on each day', href: '/work-log' as Href }]),
   ];
 
   const admin: Item[] = [

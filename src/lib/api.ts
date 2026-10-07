@@ -28,6 +28,8 @@ import type {
   LocationDeviceStatus,
   LocationDay,
   MyLocationAlert,
+  MyWorkDay,
+  WorkAttachment,
   LocationPoint,
   MyAttendanceMonth,
   MyContext,
@@ -555,6 +557,29 @@ export const api = {
   liveLocations: async (log = false) => check<LiveLocation[]>(await supabase.rpc('location_live', { p_log: log })),
   locationDay: async (id: string, date: string, log = false) =>
     check<LocationDay>(await supabase.rpc('location_day', { p_target: id, p_date: date, p_log: log })),
+  // ---------- daily work log ----------
+  myWorkDay: async (date?: string) => check<MyWorkDay>(await supabase.rpc('my_work_day', { p_date: date ?? null })),
+  submitWorkLog: async (p: { date: string; summary: string; hours: number | null; attachments: WorkAttachment[] }) =>
+    check<string>(
+      await supabase.rpc('submit_work_log', { p_date: p.date, p_summary: p.summary, p_hours: p.hours, p_attachments: p.attachments }),
+    ),
+  /** Uploads one file to my folder (<my id>/<date>/...) and returns it as an attachment. */
+  uploadWorkLogFile: async (userId: string, date: string, file: { uri: string; name: string; mimeType?: string | null; size?: number | null }) => {
+    const safeName = file.name.replace(/[^\w.\-]+/g, '_').slice(-80);
+    const path = `${userId}/${date}/${Date.now()}_${safeName}`;
+    const bytes = await (await fetch(file.uri)).arrayBuffer();
+    const up = await supabase.storage.from('work-logs').upload(path, bytes, { contentType: file.mimeType ?? 'application/octet-stream' });
+    if (up.error) throw new Error(errorMessage(up.error));
+    return { path, name: file.name, size: file.size ?? bytes.byteLength, type: file.mimeType ?? null } as WorkAttachment;
+  },
+  removeWorkLogFile: async (path: string) => {
+    await supabase.storage.from('work-logs').remove([path]);
+  },
+  workLogFileUrl: async (path: string) => {
+    const { data, error } = await supabase.storage.from('work-logs').createSignedUrl(path, 300);
+    if (error) throw new Error(errorMessage(error));
+    return data.signedUrl;
+  },
   myLocationAlert: async (id: string) => check<MyLocationAlert>(await supabase.rpc('my_location_alert', { p_alert: id })),
   locationAlertReason: async (id: string, reason: string) =>
     check<{ paused_until: string | null }>(await supabase.rpc('location_alert_reason', { p_alert: id, p_reason: reason })),

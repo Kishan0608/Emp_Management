@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { TaskCard } from '@/components/cards';
+import { WorkLogCard } from '@/components/WorkLogCard';
 import {
   Banner,
   Card,
@@ -121,6 +122,9 @@ export default function Home() {
           />
         }>
         {stats.error && <Banner tone="danger">{stats.error}</Banner>}
+
+        {/* daily work log: required when there are no open tasks */}
+        {!isBoss && <WorkLogCard />}
 
         {/* personal numbers */}
         <SectionTitle style={styles.firstSection} title="My work" action="All tasks" onAction={() => router.push('/tasks')} />

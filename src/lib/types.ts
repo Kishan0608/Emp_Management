@@ -123,6 +123,43 @@ export interface MyLocationAlert {
   can_pause: boolean;
 }
 
+/** A file attached to a daily work log (private 'work-logs' bucket, under the owner's id). */
+export interface WorkAttachment {
+  path: string;
+  name: string;
+  size: number | null;
+  type: string | null;
+}
+
+/** One person's daily work log: what they did, hours, files; reviewed by their manager / HR / Boss. */
+export interface WorkLog {
+  id: string;
+  user_id: string;
+  work_date: string;
+  summary: string;
+  hours: number | null;
+  attachments: WorkAttachment[];
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_note: string | null;
+  reviewer?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** My day: is a work log required (no open tasks on a working day), and the log if added. */
+export interface MyWorkDay {
+  work_date: string;
+  today: string;
+  required: boolean;
+  open_tasks: number;
+  weekly_off: boolean;
+  holiday: string | null;
+  on_leave: boolean;
+  clocked_in: boolean;
+  log: WorkLog | null;
+}
+
 export interface LocationDay {
   person: { id: string; full_name: string; role: Role; sharing_enabled: boolean };
   work_date: string;

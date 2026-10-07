@@ -4,6 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import {
   AppText,
@@ -24,8 +25,8 @@ import {
 import { DateInput } from '@/components/DateInput';
 import { useLoad } from '@/hooks/useLoad';
 import { api, errorMessage } from '@/lib/api';
-import { dueLabel, formatDate, formatDateTime, priorityLabel, priorityTone, roleLabel, taskStatusLabel, taskStatusTone, toDateOnly } from '@/lib/format';
-import type { ChecklistItem, Task, TaskPriority, TaskStatus } from '@/lib/types';
+import { dueLabel, formatDate, formatDateTime, priorityLabel, priorityTone, roleLabel, taskStatusLabel, taskStatusTone, toDateOnly, toneColors, type Tone } from '@/lib/format';
+import type { ChecklistItem, Task, TaskEvent, TaskPriority, TaskStatus } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
 import { useOrganization } from '@/providers/OrganizationProvider';
 import { useToast } from '@/providers/ToastProvider';
@@ -284,20 +285,6 @@ export default function TaskDetail() {
           )}
 
           {!t.is_personal && t.status !== 'returned' && <Stepper status={t.status} />}
-
-          {!t.is_personal && (
-            <Card padded={false}>
-              <Person label="Assigned to" name={t.assignee?.full_name} id={t.assignee_id} />
-              <Divider inset={64} />
-              <Person label="Assigned by" name={t.creator?.full_name} id={t.created_by} />
-              {t.reviewer_id && t.reviewer_id !== t.created_by && (
-                <>
-                  <Divider inset={64} />
-                  <Person label="Reviewer" name={t.reviewer?.full_name} id={t.reviewer_id} />
-                </>
-              )}
-            </Card>
-          )}
 
           {t.checklist.length > 0 && (
             <>
@@ -588,6 +575,8 @@ export default function TaskDetail() {
       />
 
       <ReassignSheet visible={showReassign} onClose={() => setShowReassign(false)} task={t} busy={reassignBusy} onConfirm={reassign} />
+
+      <FlowSheet visible={showFlow} onClose={() => setShowFlow(false)} task={t} events={events.data ?? []} />
 
       {prompt && (
         <PromptSheet
@@ -913,6 +902,116 @@ function ReassignSheet({
   );
 }
 
+/** Icon, tone and label for one step in the flow timeline. */
+function flowStepMeta(e: TaskEvent): { icon: keyof typeof Ionicons.glyphMap; tone: Tone; label: string } {
+  if (e.to_status === 'assigned') {
+    return e.from_status === 'returned'
+      ? { icon: 'repeat', tone: 'brand', label: 'Reassigned' }
+      : { icon: 'person-add-outline', tone: 'neutral', label: 'Task created' };
+  }
+  if (e.to_status === 'accepted') return { icon: 'checkmark-circle-outline', tone: 'info', label: 'Accepted' };
+  if (e.to_status === 'returned') return { icon: 'close-circle-outline', tone: 'danger', label: 'Rejected' };
+  if (e.to_status === 'submitted') return { icon: 'paper-plane-outline', tone: 'warning', label: 'Submitted for review' };
+  if (e.to_status === 'approved' || e.to_status === 'closed') return { icon: 'checkmark-done', tone: 'success', label: 'Marked done' };
+  return { icon: 'ellipse-outline', tone: 'neutral', label: taskStatusLabel[e.to_status] };
+}
+
+/** x of the node "port" (the badge circle's centre) inside the flow canvas. */
+const FLOW_PORT_X = 19;
+const FLOW_BADGE = 38;
+
+/**
+ * Who the task has been through, step by step: created & assigned, then every
+ * accept / reject / submit / reassign / done — each a node card, connected by
+ * a drawn wire like a workflow builder (n8n-style), coloured by what happened.
+ * Replaces the static "Assigned to / Assigned by" card; opened from the
+ * "Flow" button in the header.
+ */
+function FlowSheet({ visible, onClose, task: t, events }: { visible: boolean; onClose: () => void; task: Task; events: TaskEvent[] }) {
+  // Each node's badge-centre Y, measured relative to the canvas, so the SVG wires land exactly on the ports.
+  const [portY, setPortY] = useState<number[]>([]);
+  const setPort = (i: number, y: number) => setPortY((prev) => { const next = [...prev]; next[i] = y + FLOW_BADGE / 2; return next; });
+
+  return (
+    <Sheet visible={visible} onClose={onClose} title="Assignment flow">
+      <View style={{ paddingHorizontal: spacing.lg, gap: spacing.lg, paddingBottom: spacing.md }}>
+        <Card padded={false}>
+          <Person label="Currently assigned to" name={t.assignee?.full_name} id={t.assignee_id} />
+          <Divider inset={64} />
+          <Person label="Assigned by" name={t.creator?.full_name} id={t.created_by} />
+          {t.reviewer_id && t.reviewer_id !== t.created_by && (
+            <>
+              <Divider inset={64} />
+              <Person label="Reviewer" name={t.reviewer?.full_name} id={t.reviewer_id} />
+            </>
+          )}
+        </Card>
+
+        {events.length === 0 ? (
+          <AppText variant="small" color={colors.textSecondary}>No activity yet.</AppText>
+        ) : (
+          <View style={{ position: 'relative' }}>
+            {/* Wires, drawn behind the node cards, one wavy bezier per gap between ports. */}
+            <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none">
+              {events.slice(0, -1).map((e, i) => {
+                const y0 = portY[i];
+                const y1 = portY[i + 1];
+                if (y0 == null || y1 == null) return null;
+                const wiggle = i % 2 === 0 ? 16 : -16;
+                const toneColor = toneColors[flowStepMeta(events[i + 1]).tone].fg;
+                return (
+                  <Path
+                    key={e.id}
+                    d={`M ${FLOW_PORT_X} ${y0} C ${FLOW_PORT_X + wiggle} ${y0 + (y1 - y0) / 3}, ${FLOW_PORT_X - wiggle} ${y0 + (2 * (y1 - y0)) / 3}, ${FLOW_PORT_X} ${y1}`}
+                    stroke={toneColor}
+                    strokeWidth={2.5}
+                    strokeLinecap="round"
+                    fill="none"
+                    opacity={0.55}
+                  />
+                );
+              })}
+              {portY.map((y, i) => (y == null ? null : <Circle key={i} cx={FLOW_PORT_X} cy={y} r={3} fill={toneColors[flowStepMeta(events[i]).tone].fg} />))}
+            </Svg>
+
+            {events.map((e, i) => {
+              const meta = flowStepMeta(e);
+              const toneColor = toneColors[meta.tone];
+              return (
+                <View key={e.id} style={styles.flowRow} onLayout={(ev) => setPort(i, ev.nativeEvent.layout.y)}>
+                  <View style={styles.flowRail}>
+                    <View style={[styles.flowBadge, { backgroundColor: toneColor.bg, borderColor: toneColor.fg }]}>
+                      <Ionicons name={meta.icon} size={17} color={toneColor.fg} />
+                    </View>
+                  </View>
+                  <View style={[styles.flowNode, { borderColor: toneColor.fg, backgroundColor: toneColor.bg }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
+                      <Text style={[type.bodyMedium, { color: toneColor.fg }]}>{meta.label}</Text>
+                      <Text style={[type.small, { fontSize: 11 }]}>{formatDateTime(e.created_at)}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      <Avatar name={e.actor?.full_name} id={e.actor_id ?? undefined} size={18} />
+                      <Text style={type.small}>{e.actor?.full_name ?? 'Someone'}</Text>
+                      {e.to_status === 'approved' && t.rating != null && (
+                        <Badge label={`${t.rating}/5`} tone="warning" icon="star" />
+                      )}
+                    </View>
+                    {e.note && (
+                      <View style={styles.flowNote}>
+                        <Text style={[type.body, { fontSize: 13, color: colors.textSecondary }]}>{`"${e.note}"`}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </View>
+    </Sheet>
+  );
+}
+
 function Person({ label, name, id }: { label: string; name?: string | null; id: string }) {
   return (
     <View style={styles.person}>
@@ -1066,5 +1165,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  flowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.brandTint,
+  },
+  flowBtnText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.brand },
+  flowRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.lg },
+  flowRail: { width: FLOW_BADGE, alignItems: 'center' },
+  flowBadge: {
+    width: FLOW_BADGE,
+    height: FLOW_BADGE,
+    borderRadius: FLOW_BADGE / 2,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flowNode: {
+    flex: 1,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    padding: spacing.md,
+  },
+  flowNote: {
+    marginTop: 6,
+    padding: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
   },
 });
