@@ -122,10 +122,10 @@ export interface MyContext {
   settings: AppSettings;
 }
 
+/** Departments are shared by every company. */
 export interface Department {
   id: string;
   name: string;
-  organization_id?: string | null;
 }
 
 export interface DirectoryUser {
@@ -233,9 +233,10 @@ export interface FeedbackItem {
   author?: { full_name: string } | null;
 }
 
+/** One entry of feedback_items.replies (jsonb). */
 export interface FeedbackReply {
   id: string;
-  feedback_id: string;
+  feedback_id?: string;
   responder_id: string | null;
   body: string;
   created_at: string;
@@ -265,7 +266,6 @@ export interface EmployeeProfile {
   manager_id: string | null;
   is_active: boolean;
   is_case_handler?: boolean;
-  is_committee?: boolean;
   created_at: string;
   organization_id?: string | null;
   organization?: string | null;

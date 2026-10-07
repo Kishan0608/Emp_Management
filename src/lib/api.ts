@@ -419,14 +419,11 @@ export const api = {
     check<FeedbackItem>(
       await supabase.from('feedback_items').select('*, author:users!feedback_items_author_id_fkey(full_name)').eq('id', id).single(),
     ),
-  feedbackReplies: async (id: string) =>
-    check<FeedbackReply[]>(
-      await supabase
-        .from('feedback_replies')
-        .select('*, responder:users!feedback_replies_responder_id_fkey(full_name, role)')
-        .eq('feedback_id', id)
-        .order('created_at', { ascending: true }),
-    ),
+  // Replies live inside the item (feedback_items.replies), oldest first.
+  feedbackReplies: async (id: string) => {
+    const row = check<{ replies: FeedbackReply[] | null }>(await supabase.from('feedback_items').select('replies').eq('id', id).single());
+    return (row.replies ?? []).map((r) => ({ ...r, feedback_id: id }));
+  },
   submitFeedback: async (p: { type: FeedbackType; audience: FeedbackAudience; title: string; body: string; anonymous: boolean; taskId?: string | null }) =>
     check<string>(
       await supabase.rpc('submit_feedback', {
@@ -452,30 +449,17 @@ export const api = {
   verifyEmail: async (code: string) => check(await supabase.rpc('onboarding_verify_email', { p_code: code })),
   verifyKey: async (key: string) => check(await supabase.rpc('onboarding_verify_key', { p_key: key })),
   onboardingOptions: async () => check<OnboardingOptions>(await supabase.rpc('onboarding_options')),
-  submitProfile: async (p: { first: string; last: string; jobTitle: string; departmentId: string; reportsTo: string; role: Role }) => {
-    const res = await supabase.rpc('onboarding_submit_profile', {
-      p_first: p.first,
-      p_middle: null,
-      p_last: p.last,
-      p_job_title: p.jobTitle,
-      p_department: p.departmentId,
-      p_reports_to: p.reportsTo,
-      p_role: p.role,
-    });
-    if (res.error && (res.error.message?.includes('Could not find the function') || res.error.code === 'PGRST202')) {
-      return check(
-        await supabase.rpc('onboarding_submit_profile', {
-          p_first: p.first,
-          p_last: p.last,
-          p_job_title: p.jobTitle,
-          p_department: p.departmentId,
-          p_reports_to: p.reportsTo,
-          p_role: p.role,
-        }),
-      );
-    }
-    return check(res);
-  },
+  submitProfile: async (p: { first: string; last: string; jobTitle: string; departmentId: string; reportsTo: string; role: Role }) =>
+    check(
+      await supabase.rpc('onboarding_submit_profile', {
+        p_first: p.first,
+        p_last: p.last,
+        p_job_title: p.jobTitle,
+        p_department: p.departmentId,
+        p_reports_to: p.reportsTo,
+        p_role: p.role,
+      }),
+    ),
   confirmApprover: async (code: string) => check(await supabase.rpc('onboarding_confirm_approver', { p_code: code })),
   passwordResetStart: async (email: string) =>
     invokeFn<{ ok: true; sent_to: string; test_code?: string }>('password-reset', { action: 'start', email }),
