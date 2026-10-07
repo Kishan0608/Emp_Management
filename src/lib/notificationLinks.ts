@@ -16,6 +16,10 @@ export function notificationHref(n: Ref): Href | null {
   if (n.ref_table === 'attendance_records' || n.kind === 'attendance') return '/attendance' as Href;
   if (!n.ref_id) return null;
   switch (n.ref_table) {
+    case 'location_alerts':
+      return `/location-alert/${n.ref_id}` as Href;
+    case 'location_trail':
+      return `/admin/location/${n.ref_id}` as Href;
     case 'tasks':
       return `/task/${n.ref_id}`;
     case 'feedback_items':
@@ -30,6 +34,7 @@ export function notificationHref(n: Ref): Href | null {
 export function notificationIcon(kind: string): { name: keyof typeof Ionicons.glyphMap; color: string; bg: string } {
   if (kind === 'holiday') return { name: 'sparkles', color: '#7C3AED', bg: '#F3EEFF' };
   if (kind === 'attendance') return { name: 'calendar', color: colors.info, bg: colors.infoSoft };
+  if (kind.startsWith('location_alert')) return { name: 'navigate', color: colors.danger, bg: colors.dangerSoft };
   if (kind.startsWith('task')) return { name: 'checkbox', color: colors.task, bg: colors.taskSoft };
   if (kind.includes('blocker')) return { name: 'hand-left', color: colors.danger, bg: colors.dangerSoft };
   if (kind.startsWith('feedback')) return { name: 'chatbubbles', color: colors.feedback, bg: colors.feedbackSoft };

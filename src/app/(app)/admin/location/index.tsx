@@ -34,7 +34,7 @@ const PHONE_PROBLEM: Partial<Record<LocationDeviceStatus, string>> = {
 };
 
 const isLive = (p: LiveLocation) =>
-  !!p.last_point && Date.now() - new Date(p.last_point.recorded_at).getTime() < LIVE_WINDOW_MS;
+  p.sharing_enabled && !!p.last_point && Date.now() - new Date(p.last_point.recorded_at).getTime() < LIVE_WINDOW_MS;
 
 type FilterMode = 'all' | 'live' | 'offline';
 
@@ -61,6 +61,7 @@ export default function LiveLocations() {
   );
 
   const onlineCount = useMemo(() => allRows.filter(isLive).length, [allRows]);
+  const sharingCount = useMemo(() => allRows.filter((p) => p.sharing_enabled).length, [allRows]);
 
   const filteredRows = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -88,9 +89,7 @@ export default function LiveLocations() {
           subtitle={
             live.loading
               ? 'Loading…'
-              : selectedOrg
-                ? `${selectedOrg.name} · ${onlineCount} live of ${allRows.length} sharing`
-                : `${allRows.length} sharing · ${onlineCount} active now`
+              : `${selectedOrg ? `${selectedOrg.name} · ` : ''}${onlineCount} live · ${sharingCount} sharing · ${allRows.length} ${allRows.length === 1 ? 'person' : 'people'}`
           }
         />
       }>
@@ -151,8 +150,8 @@ export default function LiveLocations() {
           <Card>
             <EmptyState
               icon="location-outline"
-              title="No one is sharing"
-              body="Nobody in this organization has switched on background location sharing yet."
+              title="No location data"
+              body="Nobody in this organization has switched on location sharing yet."
             />
           </Card>
         ) : filteredRows.length === 0 ? (
@@ -182,7 +181,9 @@ export default function LiveLocations() {
 function LocationRow({ person, onPress }: { person: LiveLocation; onPress: () => void }) {
   const last = person.last_point;
   const live = isLive(person);
-  const problem = person.device_status ? PHONE_PROBLEM[person.device_status] : undefined;
+  const sharingOff = !person.sharing_enabled;
+  // A phone problem only matters while the person is still meant to be sharing.
+  const problem = !sharingOff && person.device_status ? PHONE_PROBLEM[person.device_status] : undefined;
 
   return (
     <Card
@@ -218,7 +219,12 @@ function LocationRow({ person, onPress }: { person: LiveLocation; onPress: () =>
           </View>
 
           {/* Status Badge */}
-          {live ? (
+          {sharingOff ? (
+            <View style={styles.seenBadge}>
+              <Ionicons name="cloud-offline-outline" size={13} color={colors.textSecondary} />
+              <Text style={styles.seenBadgeText}>Offline</Text>
+            </View>
+          ) : live ? (
             <View style={styles.liveBadge}>
               <View style={styles.liveBeaconOuterSmall}>
                 <View style={styles.liveBeaconInnerSmall} />
@@ -234,6 +240,16 @@ function LocationRow({ person, onPress }: { person: LiveLocation; onPress: () =>
             </View>
           )}
         </View>
+
+        {/* Sharing off: Offline, but the last position and today's route stay visible below. */}
+        {sharingOff && (
+          <View style={styles.noLocationBox}>
+            <Ionicons name="eye-off-outline" size={18} color={colors.textMuted} />
+            <Text style={styles.noLocationText}>
+              {last ? `Location sharing is off · last seen ${timeAgo(last.recorded_at)}` : 'Location sharing is off'}
+            </Text>
+          </View>
+        )}
 
         {/* Telemetry Block */}
         {last ? (
@@ -274,12 +290,12 @@ function LocationRow({ person, onPress }: { person: LiveLocation; onPress: () =>
               </View>
             </View>
           </View>
-        ) : (
+        ) : !sharingOff ? (
           <View style={styles.noLocationBox}>
             <Ionicons name="cloud-offline-outline" size={18} color={colors.textMuted} />
             <Text style={styles.noLocationText}>No GPS fix recorded yet today</Text>
           </View>
-        )}
+        ) : null}
 
         {/* Device Alert Warning (if GPS or permission issue) */}
         {problem && (

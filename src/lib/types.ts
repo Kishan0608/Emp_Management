@@ -100,8 +100,27 @@ export interface LiveLocation {
   organization: string | null;
   last_point: LocationPoint | null;
   points_today: number;
+  /** Off = the person switched sharing off: shown as Offline; last_point and the trail are their data from before. */
+  sharing_enabled: boolean;
   device_status: LocationDeviceStatus | null;
   status_at: string | null;
+}
+
+/** A location problem during the person's office time; they are told first, then their manager / HR. */
+export interface MyLocationAlert {
+  id: string;
+  kind: 'sharing_off' | 'gps_off' | 'no_update';
+  work_date: string;
+  started_at: string;
+  employee_notified_at: string | null;
+  reason: string | null;
+  reason_at: string | null;
+  paused_until: string | null;
+  escalated_at: string | null;
+  resolved_at: string | null;
+  escalate_after_min: number;
+  pause_min: number;
+  can_pause: boolean;
 }
 
 export interface LocationDay {
@@ -380,9 +399,13 @@ export interface Holiday {
   organization?: string | null;
 }
 
-/** One row of a punching-machine export, as sent to import_punch_records. Times are the company's local time. */
+/**
+ * One day's punches, as sent to import_punch_records. Times are the company's local time.
+ * Matched by employee_code first; email is a fallback for rows that carry no code.
+ */
 export interface PunchRow {
-  email: string;
+  employee_code?: string | null;
+  email?: string | null;
   work_date: string; // YYYY-MM-DD
   clock_in: string; // HH:MM
   break_start?: string | null;

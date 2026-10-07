@@ -86,7 +86,8 @@ supabase/
 
 ## Database tables
 
-16 tables: `organizations, departments, users, employee_details, visibility_rules, auth_codes, app_settings, tasks, task_events, task_questions, feedback_items, attendance_records, holidays, location_points, notifications, audit_logs`
+16 tables: `organizations, departments, users, employee_details, visibility_rules, auth_codes, app_settings, tasks, task_events, task_questions, feedback_items, attendance_records, holidays, location_days, notifications, audit_logs`
+- `location_days`: one row per person per day (primary key `user_id, work_date`); the day's GPS fixes are a JSON list `[[epoch_ms, lat, lng, accuracy_m, speed_mps], ...]`, one a minute, kept 30 days.
 
 - RLS is on for every table. Clients get read access through policies. **All writes go through `security definer` functions** that check role, 2FA and business rules.
 - `auth_codes` (activation keys and email / approver / reset codes, all hashed) has **no client access at all**.

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import { api, errorMessage } from './api';
 import { distanceMeters } from './geo';
@@ -147,7 +147,27 @@ export async function requestLocationAccess(): Promise<'granted' | 'foreground_d
   const fg = await Location.requestForegroundPermissionsAsync();
   if (fg.status !== 'granted') return 'foreground_denied';
   const bg = await Location.requestBackgroundPermissionsAsync();
-  return bg.status === 'granted' ? 'granted' : 'background_denied';
+  if (bg.status === 'granted') return 'granted';
+  // Android sends people to a settings page for "Allow all the time", and the request can answer
+  // before they come back. Check again once SKFL is in front, so one tap is enough.
+  const access = await accessAfterReturn();
+  return access.background ? 'granted' : 'background_denied';
+}
+
+/** Waits until SKFL is back in the foreground (if it is not), lets the new permission settle, then reads it. */
+async function accessAfterReturn(): Promise<LocationAccess> {
+  if (AppState.currentState !== 'active') {
+    await new Promise<void>((resolve) => {
+      const sub = AppState.addEventListener('change', (state) => {
+        if (state === 'active') {
+          sub.remove();
+          resolve();
+        }
+      });
+    });
+  }
+  await new Promise((r) => setTimeout(r, 600));
+  return getLocationAccess();
 }
 
 export async function getDeviceStatus(): Promise<LocationDeviceStatus> {

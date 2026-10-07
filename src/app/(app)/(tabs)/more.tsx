@@ -67,6 +67,9 @@ export default function More() {
   const { selectedOrg } = useOrganization();
   const toast = useToast();
   const [locationBusy, setLocationBusy] = useState(false);
+  // Where the switch is heading while turning sharing on / off, so it moves on the first tap.
+  const [sharingTarget, setSharingTarget] = useState<boolean | null>(null);
+  const sharingOn = sharingTarget ?? !!me.location_sharing_enabled;
 
   const confirm = (title: string, message: string, fn: () => void) => {
     if (Platform.OS === 'web') {
@@ -86,6 +89,7 @@ export default function More() {
       return;
     }
     setLocationBusy(true);
+    setSharingTarget(next);
     try {
       if (next) {
         const current = await getLocationAccess();
@@ -113,6 +117,7 @@ export default function More() {
       toast(errorMessage(e), 'error');
     } finally {
       setLocationBusy(false);
+      setSharingTarget(null);
     }
   };
 
@@ -145,16 +150,22 @@ export default function More() {
     {
       icon: 'navigate-outline',
       label: 'Location sharing',
-      hint: me.location_sharing_enabled ? 'On · visible to Boss, HR and managers' : 'Off',
+      hint: locationBusy
+        ? sharingTarget
+          ? 'Turning on…'
+          : 'Turning off…'
+        : sharingOn
+          ? 'On · visible to Boss, HR and managers'
+          : 'Off',
       right: (
         <View pointerEvents="none">
           <AppSwitch
-            value={!!me.location_sharing_enabled}
+            value={sharingOn}
             disabled={locationBusy}
           />
         </View>
       ),
-      onPress: () => toggleLocationSharing(!me.location_sharing_enabled),
+      onPress: () => toggleLocationSharing(!sharingOn),
       chevron: false,
     },
     {

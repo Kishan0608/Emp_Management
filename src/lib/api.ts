@@ -27,6 +27,7 @@ import type {
   LiveLocation,
   LocationDeviceStatus,
   LocationDay,
+  MyLocationAlert,
   LocationPoint,
   MyAttendanceMonth,
   MyContext,
@@ -477,6 +478,10 @@ export const api = {
     check<{ imported: number; skipped: { email: string; reason: string }[] }>(
       await supabase.rpc('import_punch_records', { p_org: orgId, p_rows: rows }),
     ),
+  /** The code HR/Boss set for this person, matching the punching-machine's ID column. */
+  getEmployeeCode: async (userId: string) => check<string | null>(await supabase.rpc('admin_get_employee_code', { p_user_id: userId })),
+  setEmployeeCode: async (userId: string, code: string | null) =>
+    check(await supabase.rpc('admin_set_employee_code', { p_user_id: userId, p_code: code })),
   clockIn: async () => check<AttendanceToday>(await supabase.rpc('clock_in')),
   breakStart: async () => check<AttendanceToday>(await supabase.rpc('break_start')),
   breakEnd: async () => check<AttendanceToday>(await supabase.rpc('break_end')),
@@ -492,6 +497,9 @@ export const api = {
   liveLocations: async (log = false) => check<LiveLocation[]>(await supabase.rpc('location_live', { p_log: log })),
   locationDay: async (id: string, date: string, log = false) =>
     check<LocationDay>(await supabase.rpc('location_day', { p_target: id, p_date: date, p_log: log })),
+  myLocationAlert: async (id: string) => check<MyLocationAlert>(await supabase.rpc('my_location_alert', { p_alert: id })),
+  locationAlertReason: async (id: string, reason: string) =>
+    check<{ paused_until: string | null }>(await supabase.rpc('location_alert_reason', { p_alert: id, p_reason: reason })),
 
   setSalary: async (userId: string, salary: number) => check(await supabase.rpc('admin_set_salary', { p_user_id: userId, p_salary: salary })),
   /** HR/Boss only: fix a day's punches (e.g. an employee forgot to clock out). Pass null to clear a field. */

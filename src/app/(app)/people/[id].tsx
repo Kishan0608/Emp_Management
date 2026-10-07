@@ -262,10 +262,31 @@ function EditRecordSheet({
   const [busy, setBusy] = useState(false);
   const num = (s: string) => (s.trim() === '' ? null : Number(s));
 
+  // Employee code (for punching-machine imports): loaded separately so this sheet works
+  // the same whether or not the company uses a machine.
+  const code = useLoad(() => api.getEmployeeCode(id), [id]);
+  const [employeeCode, setEmployeeCode] = useState('');
+  const [codeTouched, setCodeTouched] = useState(false);
+  if (!codeTouched && code.data !== undefined && code.data !== null && employeeCode === '') {
+    setEmployeeCode(code.data);
+  }
+
   return (
     <Sheet visible onClose={onClose} title="Employee records">
       <View style={{ paddingHorizontal: spacing.lg, gap: spacing.md }}>
         <Banner tone="info">You can only edit the fields you are allowed to see. Every change is recorded in the audit log.</Banner>
+        <TextField
+          label="Employee code"
+          hint="Matches the ID this person's punching-machine card or fingerprint uses. Leave blank if the company does not use a machine."
+          icon="finger-print-outline"
+          value={employeeCode}
+          onChangeText={(t) => {
+            setEmployeeCode(t);
+            setCodeTouched(true);
+          }}
+          autoCapitalize="characters"
+          placeholder="e.g. 0042"
+        />
         {visible.has('contact') && (
           <>
             <TextField label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" icon="call-outline" placeholder="e.g. +91 98765 43210" />
@@ -293,6 +314,7 @@ function EditRecordSheet({
                 performance: num(perf),
                 joined_on: joined || null,
               });
+              if (codeTouched) await api.setEmployeeCode(id, employeeCode.trim() || null);
               onSaved();
             } catch (e) {
               toast(errorMessage(e), 'error');
