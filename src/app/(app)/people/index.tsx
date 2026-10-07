@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Avatar, Badge, Banner, Card, Divider, EmptyState, ListRow, ListSkeleton, PageHeader, Screen, TextField } from '@/components/ui';
+import { Avatar, Badge, Banner, Card, Divider, EmptyState, ListRow, ListSkeleton, PageHeader, Pagination, Screen, TextField, usePaged } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
 import { api } from '@/lib/api';
 import { roleLabel } from '@/lib/format';
@@ -33,6 +33,7 @@ export default function People() {
           (p.department_id ? (deptName.get(p.department_id) ?? '').toLowerCase().includes(term) : false)),
     );
   }, [people.data, q, isBoss, deptName]);
+  const paged = usePaged(list, [q]);
 
   const handleRefresh = () => {
     people.refresh();
@@ -85,7 +86,7 @@ export default function People() {
           </Card>
         ) : (
           <Card padded={false}>
-            {list.map((p, i) => {
+            {paged.rows.map((p, i) => {
               const dept = p.department || (p.department_id ? deptName.get(p.department_id) : null);
               const deptDisplay = dept || (p.role === 'boss' ? 'Management' : '—');
               return (
@@ -111,6 +112,7 @@ export default function People() {
             })}
           </Card>
         )}
+        <Pagination page={paged.page} total={paged.total} onChange={paged.setPage} />
       </View>
     </Screen>
   );

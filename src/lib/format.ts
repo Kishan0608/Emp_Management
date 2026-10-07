@@ -27,7 +27,7 @@ export const taskStatusLabel: Record<TaskStatus, string> = {
   blocked: 'Blocked',
   submitted: 'Submitted',
   approved: 'Approved',
-  returned: 'Returned',
+  returned: 'Rejected',
   closed: 'Done',
 };
 

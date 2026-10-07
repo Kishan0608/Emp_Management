@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
-import { Banner, Button, Card, EmptyState, ListSkeleton, PageHeader, Screen } from '@/components/ui';
+import { Banner, Button, Card, EmptyState, ListSkeleton, PageHeader, PAGE_SIZE, Pagination, Screen } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
 import { api } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
@@ -19,13 +20,15 @@ const icon = notificationIcon;
 export default function Notifications() {
   const { me } = useMe();
   const { pushIssue } = useAuth();
-  const { refresh: refreshUnread, lastArrival } = useNotifications();
-  const list = useLoad(() => api.notifications(), [lastArrival]);
-  const unread = (list.data ?? []).filter((n) => !n.is_read).length;
+  const { refresh: refreshUnread, lastArrival, unread } = useNotifications();
+  const [page, setPage] = useState(0);
+  // 20 at a time from the server, newest first; a new arrival reloads the current page.
+  const list = useLoad(() => api.notificationsPage(page * PAGE_SIZE), [lastArrival, page]);
+  const rows = list.data?.rows ?? [];
 
   const open = async (n: NotificationRow) => {
     if (!n.is_read) {
-      list.setData((list.data ?? []).map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
+      if (list.data) list.setData({ ...list.data, rows: list.data.rows.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)) });
       api.markRead(n.id).then(refreshUnread).catch(() => {});
     }
     const href = target(n);
@@ -62,15 +65,15 @@ export default function Notifications() {
         </Banner>
       )}
       {list.error && <Banner tone="danger">{list.error}</Banner>}
-      {list.loading ? (
+      {list.loading && !list.data ? (
         <ListSkeleton rows={5} />
-      ) : (list.data ?? []).length === 0 ? (
+      ) : rows.length === 0 ? (
         <Card>
           <EmptyState icon="notifications-off-outline" title="No notifications" body="You'll see task assignments, replies and escalations here." />
         </Card>
       ) : (
         <View style={{ gap: spacing.sm }}>
-          {(list.data ?? []).map((n, i) => {
+          {rows.map((n, i) => {
             const ic = icon(n.kind);
             return (
               <Animated.View key={n.id} entering={FadeInUp.delay(Math.min(i, 8) * 25).duration(260)}>
@@ -94,6 +97,7 @@ export default function Notifications() {
               </Animated.View>
             );
           })}
+          <Pagination page={page} total={list.data?.total ?? 0} onChange={setPage} busy={list.loading} />
         </View>
       )}
     </Screen>

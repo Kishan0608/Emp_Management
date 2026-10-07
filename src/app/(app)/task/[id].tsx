@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import {
   AppText,
@@ -21,17 +21,19 @@ import {
   Sheet,
   TextField,
 } from '@/components/ui';
+import { DateInput } from '@/components/DateInput';
 import { useLoad } from '@/hooks/useLoad';
 import { api, errorMessage } from '@/lib/api';
-import { dueLabel, formatDate, formatDateTime, priorityLabel, priorityTone, taskStatusLabel, taskStatusTone } from '@/lib/format';
-import type { ChecklistItem, Task, TaskStatus } from '@/lib/types';
+import { dueLabel, formatDate, formatDateTime, priorityLabel, priorityTone, roleLabel, taskStatusLabel, taskStatusTone, toDateOnly } from '@/lib/format';
+import type { ChecklistItem, Task, TaskPriority, TaskStatus } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
+import { useOrganization } from '@/providers/OrganizationProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fonts, radius, spacing, type } from '@/theme/tokens';
 
-const FLOW: TaskStatus[] = ['assigned', 'accepted', 'closed'];
-const STEP_LABEL: Partial<Record<TaskStatus, string>> = { assigned: 'Assigned', accepted: 'Accepted', closed: 'Done' };
-const STEP_HINT: Partial<Record<TaskStatus, string>> = { assigned: 'Task given', accepted: 'Working on it', closed: 'Completed' };
+const FLOW: TaskStatus[] = ['assigned', 'accepted', 'submitted', 'approved'];
+const STEP_LABEL: Partial<Record<TaskStatus, string>> = { assigned: 'Assigned', accepted: 'Accepted', submitted: 'Submitted', approved: 'Done' };
+const STEP_HINT: Partial<Record<TaskStatus, string>> = { assigned: 'Task given', accepted: 'Working on it', submitted: 'Sent for review', approved: 'Completed' };
 
 type Prompt = null | { to: TaskStatus; title: string; message: string; label: string; required: boolean; danger?: boolean; proof?: boolean };
 
@@ -41,9 +43,14 @@ export default function TaskDetail() {
   const toast = useToast();
   const task = useLoad(() => api.task(id), [id]);
   const questions = useLoad(() => api.taskQuestions(id), [id]);
+  const events = useLoad(() => api.taskEvents(id), [id]);
   const [prompt, setPrompt] = useState<Prompt>(null);
   const [proofLink, setProofLink] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [showRating, setShowRating] = useState(false);
+  const [showReassign, setShowReassign] = useState(false);
+  const [reassignBusy, setReassignBusy] = useState(false);
+  const [showFlow, setShowFlow] = useState(false);
 
   // Question sheet & composer state
   const [showQuestionSheet, setShowQuestionSheet] = useState(false);
@@ -60,20 +67,47 @@ export default function TaskDetail() {
   const reload = () => {
     task.reload();
     questions.reload();
+    events.reload();
   };
 
-  const move = async (to: TaskStatus, note?: string, proof?: string) => {
+  const move = async (to: TaskStatus, note?: string, proof?: string, rating?: number) => {
     setBusy(to);
     try {
-      await api.changeTaskStatus(id, to, note, proof);
-      toast(to === 'accepted' ? 'Task accepted' : to === 'closed' ? 'Task marked as done' : `Moved to ${taskStatusLabel[to].toLowerCase()}`);
+      await api.changeTaskStatus(id, to, note, proof, rating);
+      toast(
+        to === 'accepted'
+          ? 'Task accepted'
+          : to === 'submitted'
+            ? 'Task submitted for review'
+            : to === 'approved'
+              ? `Task marked as done${rating ? ` · rated ${rating}★` : ''}`
+              : to === 'closed'
+                ? 'Task marked as done'
+                : `Moved to ${taskStatusLabel[to].toLowerCase()}`,
+      );
       setPrompt(null);
       setProofLink('');
+      setShowRating(false);
       reload();
     } catch (e) {
       toast(errorMessage(e), 'error');
     } finally {
       setBusy(null);
+    }
+  };
+
+  const reassign = async (p: { assignee: string; title: string; description: string; priority: TaskPriority; due: string | null }) => {
+    if (!t) return;
+    setReassignBusy(true);
+    try {
+      await api.reassignTask({ id: t.id, assignee: p.assignee, title: p.title, description: p.description, priority: p.priority, due: p.due });
+      toast('Task reassigned');
+      setShowReassign(false);
+      reload();
+    } catch (e) {
+      toast(errorMessage(e), 'error');
+    } finally {
+      setReassignBusy(false);
     }
   };
 
@@ -86,8 +120,15 @@ export default function TaskDetail() {
   }
 
   const isAssignee = t.assignee_id === me.id;
-  const isReviewer = t.reviewer_id === me.id || t.created_by === me.id || isBoss;
-  const canEditChecklist = (isAssignee || t.created_by === me.id) && !['approved', 'closed'].includes(t.status);
+  const isCreator = t.created_by === me.id;
+  const isReviewer = t.reviewer_id === me.id || isCreator || isBoss;
+  const canEditChecklist = (isAssignee || isCreator) && !['submitted', 'approved', 'closed'].includes(t.status);
+  const canApprove = !t.is_personal && isCreator && t.status === 'submitted';
+  const canReassign = !t.is_personal && isCreator && t.status === 'returned';
+  const rejectionNote =
+    t.status === 'returned'
+      ? [...(events.data ?? [])].reverse().find((e) => e.to_status === 'returned')?.note
+      : null;
   const due = dueLabel(t.due_date, t.status);
 
   const questionRecipientName = isAssignee
@@ -172,17 +213,39 @@ export default function TaskDetail() {
 
   const actions = buildActions(t, isAssignee);
   const qList = questions.data ?? [];
+  const footerActions = canApprove
+    ? [...actions, { label: 'Mark as done & rate', to: 'approved' as TaskStatus, icon: 'star' as const, kind: 'approve' as const }]
+    : canReassign
+      ? [...actions, { label: 'Reassign task', to: 'assigned' as TaskStatus, icon: 'repeat' as const, kind: 'reassign' as const }]
+      : actions;
 
   return (
     <>
       <Screen
         refreshing={task.refreshing || questions.refreshing}
         onRefresh={reload}
-        header={<PageHeader title={t.is_personal ? 'Personal to-do' : 'Task'} subtitle={`Created ${formatDate(t.created_at)}`} />}
+        header={
+          <PageHeader
+            title={t.is_personal ? 'Personal to-do' : 'Task'}
+            subtitle={`Created ${formatDate(t.created_at)}`}
+            right={
+              !t.is_personal ? (
+                <Pressable
+                  onPress={() => setShowFlow(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="View assignment flow"
+                  style={({ pressed }) => [styles.flowBtn, pressed && { opacity: 0.8 }]}>
+                  <Ionicons name="git-branch-outline" size={16} color={colors.brand} />
+                  <Text style={styles.flowBtnText}>Flow</Text>
+                </Pressable>
+              ) : undefined
+            }
+          />
+        }
         footer={
-          actions.length > 0 ? (
+          footerActions.length > 0 ? (
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              {actions.map((a) => (
+              {footerActions.map((a) => (
                 <Button
                   key={a.label}
                   title={a.label}
@@ -190,7 +253,15 @@ export default function TaskDetail() {
                   variant={a.variant}
                   style={{ flex: 1 }}
                   loading={busy === a.to}
-                  onPress={() => (a.prompt ? setPrompt(a.prompt) : move(a.to))}
+                  onPress={() =>
+                    a.kind === 'approve'
+                      ? setShowRating(true)
+                      : a.kind === 'reassign'
+                        ? setShowReassign(true)
+                        : a.prompt
+                          ? setPrompt(a.prompt)
+                          : move(a.to)
+                  }
                 />
               ))}
             </View>
@@ -202,12 +273,17 @@ export default function TaskDetail() {
               <Badge label={taskStatusLabel[t.status]} tone={taskStatusTone[t.status]} />
               {!t.is_personal && <Badge label={`${priorityLabel[t.priority]} priority`} tone={priorityTone[t.priority]} icon="flag-outline" />}
               {due && <Badge label={due.text} tone={due.tone} icon="time-outline" />}
+              {t.rating != null && <Badge label={`${t.rating}/5`} tone="warning" icon="star" />}
             </View>
             <AppText variant="h1">{t.title}</AppText>
             {t.description && <AppText variant="body" color={colors.textSecondary}>{t.description}</AppText>}
           </Card>
 
-          {!t.is_personal && <Stepper status={t.status} />}
+          {t.status === 'returned' && rejectionNote && (
+            <Banner tone="danger">{`${t.assignee?.full_name ?? 'The assignee'} rejected this task: "${rejectionNote}"`}</Banner>
+          )}
+
+          {!t.is_personal && t.status !== 'returned' && <Stepper status={t.status} />}
 
           {!t.is_personal && (
             <Card padded={false}>
@@ -243,7 +319,17 @@ export default function TaskDetail() {
             </>
           )}
 
-          <SectionTitle title="Files" action={isAssignee || isReviewer ? (busy === 'upload' ? 'Uploading…' : 'Attach file') : undefined} onAction={attach} />
+          <SectionTitle
+            title="Files"
+            action={
+              (isAssignee && !['submitted', 'approved', 'closed'].includes(t.status)) || isReviewer
+                ? busy === 'upload'
+                  ? 'Uploading…'
+                  : 'Attach file'
+                : undefined
+            }
+            onAction={attach}
+          />
           {t.attachments.length === 0 ? (
             <AppText variant="small">No files yet. Attach photos or documents of the work here.</AppText>
           ) : (
@@ -494,6 +580,15 @@ export default function TaskDetail() {
         </View>
       </Sheet>
 
+      <RatingSheet
+        visible={showRating}
+        onClose={() => setShowRating(false)}
+        busy={busy === 'approved'}
+        onConfirm={(stars, note) => move('approved', note, undefined, stars)}
+      />
+
+      <ReassignSheet visible={showReassign} onClose={() => setShowReassign(false)} task={t} busy={reassignBusy} onConfirm={reassign} />
+
       {prompt && (
         <PromptSheet
           visible
@@ -517,28 +612,64 @@ export default function TaskDetail() {
   );
 }
 
-/** Tasks go Assigned -> Accepted -> Done. Only the assignee moves them forward. */
+/**
+ * Team tasks go Assigned -> Accepted -> Submitted -> Done, with a Reject
+ * branch off Assigned. Only the assignee moves the task through Accept /
+ * Reject / Submit; after submitting (or rejecting), the assignee can't act
+ * on the task any more. Only the person who assigned it ("Assigned by") can
+ * then mark it Done (with a rating) or, if it was rejected, reassign it to
+ * someone else — see `canApprove` / `canReassign` and `footerActions` in
+ * TaskDetail. Personal to-dos skip straight to Done.
+ */
 function buildActions(t: Task, isAssignee: boolean) {
-  type A = { label: string; to: TaskStatus; icon?: keyof typeof Ionicons.glyphMap; variant?: 'primary' | 'outline' | 'danger' | 'secondary'; prompt?: Prompt };
+  type A = {
+    label: string;
+    to: TaskStatus;
+    icon?: keyof typeof Ionicons.glyphMap;
+    variant?: 'primary' | 'outline' | 'danger' | 'secondary';
+    prompt?: Prompt;
+    kind?: 'approve' | 'reassign';
+  };
   const a: A[] = [];
-  if (!isAssignee || t.status === 'closed') return a;
+  if (!isAssignee) return a;
   if (t.is_personal) {
-    a.push({ label: 'Mark as done', to: 'closed', icon: 'checkmark-done' });
+    if (t.status !== 'closed') a.push({ label: 'Mark as done', to: 'closed', icon: 'checkmark-done' });
     return a;
   }
-  if (t.status === 'assigned') a.push({ label: 'Accept task', to: 'accepted', icon: 'hand-right-outline' });
-  else
+  if (t.status === 'assigned') {
+    a.push({ label: 'Accept task', to: 'accepted', icon: 'hand-right-outline' });
     a.push({
-      label: 'Mark as done',
-      to: 'closed',
-      icon: 'checkmark-done',
-      prompt: { to: 'closed', title: 'Mark this task as done?', message: 'Add a short note or a link to the result if you like. Files can be attached on the task.', label: 'Mark as done', required: false, proof: true },
+      label: 'Reject',
+      to: 'returned',
+      icon: 'close-circle-outline',
+      variant: 'danger',
+      prompt: {
+        to: 'returned',
+        title: 'Reject this task?',
+        message: 'Tell whoever assigned it why you\'re rejecting this task. They will be notified and can reassign it to someone else.',
+        label: 'Reject task',
+        required: true,
+        danger: true,
+      },
     });
+  } else if (t.status === 'accepted')
+    a.push({
+      label: 'Submit work',
+      to: 'submitted',
+      icon: 'paper-plane-outline',
+      prompt: { to: 'submitted', title: 'Submit this task for review?', message: 'Add a short note or a link to the result if you like. Files can be attached on the task. Once submitted, you can no longer edit this task.', label: 'Submit for review', required: false, proof: true },
+    });
+  // submitted / returned / approved / closed: the assignee has nothing left to do.
   return a;
 }
 
-/** Old in-between stages count as Accepted; approved counts as Done. */
-const stepOf = (s: TaskStatus): TaskStatus => (s === 'assigned' ? 'assigned' : s === 'closed' || s === 'approved' ? 'closed' : 'accepted');
+/** Old in-between stages (in_progress, blocked, returned) count as Accepted; 'closed' is legacy Done. */
+const stepOf = (s: TaskStatus): TaskStatus => {
+  if (s === 'assigned') return 'assigned';
+  if (s === 'submitted') return 'submitted';
+  if (s === 'approved' || s === 'closed') return 'approved';
+  return 'accepted';
+};
 
 function Stepper({ status }: { status: TaskStatus }) {
   const idx = FLOW.indexOf(stepOf(status));
@@ -561,6 +692,224 @@ function Stepper({ status }: { status: TaskStatus }) {
         })}
       </View>
     </Card>
+  );
+}
+
+/** Rate the assignee's work (1-5 stars) and mark the task done. Only shown to whoever assigned the task. */
+function RatingSheet({
+  visible,
+  onClose,
+  busy,
+  onConfirm,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  busy: boolean;
+  onConfirm: (stars: number, note?: string) => void;
+}) {
+  const [stars, setStars] = useState(0);
+  const [note, setNote] = useState('');
+  return (
+    <Sheet
+      visible={visible}
+      onClose={() => {
+        setStars(0);
+        setNote('');
+        onClose();
+      }}
+      title="Mark this task as done">
+      <View style={{ paddingHorizontal: spacing.lg, gap: spacing.lg, paddingBottom: spacing.md }}>
+        <AppText variant="small" color={colors.textSecondary}>
+          Rate the work before closing the task. This also updates their performance rating.
+        </AppText>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.sm }}>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <Pressable key={n} onPress={() => setStars(n)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`${n} star${n > 1 ? 's' : ''}`}>
+              <Ionicons name={n <= stars ? 'star' : 'star-outline'} size={34} color={colors.warning} />
+            </Pressable>
+          ))}
+        </View>
+        <TextField label="Note (optional)" multiline numberOfLines={3} style={{ minHeight: 70 }} value={note} onChangeText={setNote} placeholder="Any feedback on the work" />
+        <Button title="Mark as done" icon="checkmark-done" variant="primary" disabled={stars === 0} loading={busy} onPress={() => onConfirm(stars, note.trim() || undefined)} />
+      </View>
+    </Sheet>
+  );
+}
+
+const PRIORITIES: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
+
+/** Reassign a rejected task to someone else. Only shown to whoever assigned the task. */
+function ReassignSheet({
+  visible,
+  onClose,
+  task,
+  busy,
+  onConfirm,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  task: Task;
+  busy: boolean;
+  onConfirm: (p: { assignee: string; title: string; description: string; priority: TaskPriority; due: string | null }) => void;
+}) {
+  const { me, isBoss, isHR, isManager } = useMe();
+  const { selectedOrgId } = useOrganization();
+  const people = useLoad(() => api.taskAssignees(isBoss ? selectedOrgId : null), [selectedOrgId]);
+
+  const [assigneeId, setAssigneeId] = useState<string | null>(null);
+  const [title, setTitle] = useState(task.title);
+  const [description, setDescription] = useState(task.description ?? '');
+  const [priority, setPriority] = useState<TaskPriority>(task.priority);
+  const [due, setDue] = useState<string | null>(task.due_date);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const assignable = useMemo(
+    () =>
+      (people.data ?? []).filter((p) => {
+        if (!p.is_active || p.id === task.assignee_id) return false;
+        if (isBoss) return true;
+        if (isHR) return p.role === 'employee' || p.role === 'hr';
+        if (isManager) return p.manager_id === me.id;
+        return p.id === me.id;
+      }),
+    [people.data, me.id, isBoss, isHR, isManager, task.assignee_id],
+  );
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return assignable;
+    return assignable.filter((p) => p.full_name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q));
+  }, [assignable, search]);
+
+  const selected = assignable.find((p) => p.id === assigneeId);
+  const reset = () => {
+    setAssigneeId(null);
+    setTitle(task.title);
+    setDescription(task.description ?? '');
+    setPriority(task.priority);
+    setDue(task.due_date);
+  };
+
+  return (
+    <>
+      <Sheet
+        visible={visible}
+        onClose={() => {
+          reset();
+          onClose();
+        }}
+        title="Reassign this task">
+        <View style={{ paddingHorizontal: spacing.lg, gap: spacing.lg, paddingBottom: spacing.md }}>
+          <AppText variant="small" color={colors.textSecondary}>
+            {(task.assignee?.full_name ?? 'The previous assignee') + " rejected this task, so they can't be picked again. You can change anything about the task before sending it to someone new."}
+          </AppText>
+
+          <View style={{ gap: 6 }}>
+            <Text style={styles.fieldLabel}>Reassign to *</Text>
+            <Pressable onPress={() => setPickerOpen(true)} style={styles.reassignPicker}>
+              {selected ? (
+                <>
+                  <Avatar name={selected.full_name} id={selected.id} size={30} />
+                  <Text style={styles.reassignPickerText} numberOfLines={1}>
+                    {selected.full_name}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="search-outline" size={18} color={colors.brand} />
+                  <Text style={[styles.reassignPickerText, { color: colors.textMuted }]}>Search person by name…</Text>
+                </>
+              )}
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </Pressable>
+          </View>
+
+          <TextField label="Task title *" value={title} onChangeText={setTitle} icon="document-text-outline" />
+          <TextField label="Description" value={description} onChangeText={setDescription} multiline numberOfLines={3} style={{ minHeight: 70 }} />
+
+          <View style={{ gap: 6 }}>
+            <Text style={styles.fieldLabel}>Priority</Text>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
+              {PRIORITIES.map((p) => (
+                <Pressable
+                  key={p}
+                  onPress={() => setPriority(p)}
+                  style={[styles.priorityChip, priority === p && { backgroundColor: colors.brandSoft, borderColor: colors.brand }]}>
+                  <Text style={[styles.priorityChipText, priority === p && { color: colors.brand, fontFamily: fonts.bold }]}>{priorityLabel[p]}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          <DateInput label="Due date" value={due} onChange={setDue} min={toDateOnly(new Date())} />
+
+          <Button
+            title="Reassign task"
+            icon="repeat"
+            variant="primary"
+            loading={busy}
+            disabled={!assigneeId || title.trim().length < 3}
+            onPress={() =>
+              assigneeId &&
+              onConfirm({ assignee: assigneeId, title: title.trim(), description: description.trim(), priority, due })
+            }
+          />
+        </View>
+      </Sheet>
+
+      <Modal visible={pickerOpen} animationType="slide" onRequestClose={() => setPickerOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: colors.bg }}>
+          <View style={styles.reassignSearchRow}>
+            <View style={styles.reassignSearchBar}>
+              <Ionicons name="search-outline" size={18} color={colors.brand} />
+              <TextInput
+                autoFocus
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search by name or email…"
+                placeholderTextColor={colors.textMuted}
+                style={styles.reassignSearchInput}
+              />
+              {search.length > 0 && (
+                <Pressable onPress={() => setSearch('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                </Pressable>
+              )}
+            </View>
+            <Pressable onPress={() => setPickerOpen(false)} hitSlop={10} accessibilityLabel="Close">
+              <Ionicons name="close" size={24} color={colors.text} />
+            </Pressable>
+          </View>
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}
+            ListEmptyComponent={
+              <AppText variant="small" color={colors.textSecondary} style={{ padding: spacing.lg, textAlign: 'center' }}>
+                No matching person
+              </AppText>
+            }
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => {
+                  setAssigneeId(item.id);
+                  setPickerOpen(false);
+                  setSearch('');
+                }}
+                style={({ pressed }) => [styles.reassignRow, pressed && { backgroundColor: colors.surfaceAlt }]}>
+                <Avatar name={item.full_name} id={item.id} size={38} />
+                <View style={{ flex: 1 }}>
+                  <Text style={type.bodyMedium}>{item.full_name}</Text>
+                  <Text style={type.small}>{roleLabel[item.role]}{item.job_title ? ` · ${item.job_title}` : ''}</Text>
+                </View>
+              </Pressable>
+            )}
+          />
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -665,5 +1014,57 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  fieldLabel: { fontFamily: fonts.semibold, fontSize: 13.5, color: colors.text },
+  reassignPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  reassignPickerText: { flex: 1, fontFamily: fonts.medium, fontSize: 14.5, color: colors.text },
+  priorityChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  priorityChipText: { fontFamily: fonts.medium, fontSize: 13, color: colors.textSecondary },
+  reassignSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  reassignSearchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    height: 48,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.brand,
+    backgroundColor: colors.surface,
+  },
+  reassignSearchInput: { flex: 1, fontFamily: fonts.regular, fontSize: 14, color: colors.text },
+  reassignRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
 });

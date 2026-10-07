@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { FeedbackCard } from '@/components/cards';
@@ -11,9 +11,13 @@ import {
   HeaderAddButton,
   HeroHeader,
   ListSkeleton,
+  PAGE_SIZE,
+  Pagination,
   Screen,
 } from '@/components/ui';
+import { useDebounced } from '@/hooks/useDebounced';
 import { useLoad } from '@/hooks/useLoad';
+import { usePageFor } from '@/hooks/usePageFor';
 import { api } from '@/lib/api';
 import { useMe } from '@/providers/AuthProvider';
 import { useOrganization } from '@/providers/OrganizationProvider';
@@ -49,9 +53,14 @@ export default function Feedback() {
     }
   }
 
+  // The Boss's company filter applies to other people's posts, not to their own.
+  const orgFilter = isBoss && scope !== 'mine' ? selectedOrgId : null;
+  const search = useDebounced(q);
+  // 20 at a time from the server; category, search and company run in the database.
+  const [page, setPage] = usePageFor([scope, category, search, orgFilter]);
   const { data, loading, refreshing, refresh, error } = useLoad(
-    () => api.feedback(scope, me.id, isStaff, isBoss ? selectedOrgId : null),
-    [scope, me.id, isStaff, selectedOrgId]
+    () => api.feedbackPage({ scope, category, search, isStaff, orgId: orgFilter, offset: page * PAGE_SIZE }),
+    [scope, category, search, isStaff, orgFilter, page]
   );
 
   const counts = useLoad(
@@ -64,30 +73,7 @@ export default function Feedback() {
     counts.reload();
   };
 
-  const list = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    return (data ?? []).filter((f) => {
-      if (category === 'leave') {
-        const isLeave = f.title.startsWith('[Leave]') || f.title.toLowerCase().startsWith('[leave]') || f.title.toLowerCase().includes('leave');
-        if (!isLeave) return false;
-      } else if (category === 'general_question' || category === 'question') {
-        const isQ = f.title.startsWith('[General Question]') || f.title.toLowerCase().startsWith('[general') || f.type === 'question';
-        if (!isQ) return false;
-      } else if (category === 'feedback') {
-        const isF = f.type === 'feedback' && !f.title.toLowerCase().includes('leave');
-        if (!isF) return false;
-      } else if (category === 'blockers' || category === 'blocker') {
-        if (f.type !== 'blocker') return false;
-      }
-
-      if (!term) return true;
-      return (
-        f.title.toLowerCase().includes(term) ||
-        f.body.toLowerCase().includes(term) ||
-        (f.author?.full_name?.toLowerCase().includes(term) ?? false)
-      );
-    });
-  }, [data, q, category]);
+  const list = data?.rows ?? [];
 
   const filters: {
     value: string;
@@ -203,7 +189,7 @@ export default function Feedback() {
 
           {error && <Banner tone="danger">{error}</Banner>}
 
-          {loading ? (
+          {loading && !data ? (
             <ListSkeleton rows={4} />
           ) : list.length === 0 ? (
             <Card>
@@ -250,14 +236,17 @@ export default function Feedback() {
               />
             </Card>
           ) : (
-            list.map((f, i) => (
-              <FeedbackCard
-                key={f.id}
-                item={f}
-                index={i}
-                currentUserId={me.id}
-              />
-            ))
+            <>
+              {list.map((f, i) => (
+                <FeedbackCard
+                  key={f.id}
+                  item={f}
+                  index={i}
+                  currentUserId={me.id}
+                />
+              ))}
+              <Pagination page={page} total={data?.total ?? 0} onChange={setPage} busy={loading} />
+            </>
           )}
         </View>
       </Screen>

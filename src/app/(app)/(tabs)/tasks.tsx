@@ -1,14 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { TaskCard } from '@/components/cards';
 import { CountTiles, leadsTeam, PeopleGroup, pendingOf } from '@/components/TaskPeople';
-import { Banner, Card, ChoiceChips, EmptyState, HeaderAddButton, HeroHeader, ListSkeleton, Screen } from '@/components/ui';
+import { Banner, Card, ChoiceChips, EmptyState, HeaderAddButton, HeroHeader, ListSkeleton, PAGE_SIZE, Pagination, Screen } from '@/components/ui';
+import { useDebounced } from '@/hooks/useDebounced';
 import { useLoad } from '@/hooks/useLoad';
+import { usePageFor } from '@/hooks/usePageFor';
 import { api } from '@/lib/api';
-import { isTaskDone, sortTasks } from '@/lib/format';
 import type { TaskTeam } from '@/lib/types';
 import { useMe } from '@/providers/AuthProvider';
 import { useOrganization } from '@/providers/OrganizationProvider';
@@ -18,7 +19,7 @@ type Scope = 'mine' | 'assigned' | 'team' | 'all';
 type Filter = 'all' | 'active' | 'done';
 
 export default function Tasks() {
-  const { me, isEmployee, isBoss } = useMe();
+  const { isEmployee, isBoss } = useMe();
   const { selectedOrgId, selectedOrg } = useOrganization();
   const params = useLocalSearchParams<{ scope?: Scope; dept?: string }>();
   const [scope, setScope] = useState<Scope>(
@@ -45,26 +46,21 @@ export default function Tasks() {
   }
 
   const people = scope === 'team' && !isEmployee;
+  const listScope = isEmployee ? 'mine' : scope;
+  // The Boss's company filter applies to other people's tasks, not to their own.
+  const orgFilter = isBoss && listScope !== 'mine' ? selectedOrgId : null;
+  const search = useDebounced(q);
+  // 20 at a time from the server; status, search, company and sorting run in the database.
+  const [page, setPage] = usePageFor([listScope, filter, search, orgFilter]);
   const { data, loading, refreshing, refresh, error } = useLoad(
-    () => (people ? Promise.resolve([]) : api.tasks(isEmployee ? 'mine' : scope, me.id, isBoss ? selectedOrgId : null)),
-    [scope, isEmployee, selectedOrgId]
+    () =>
+      people
+        ? Promise.resolve(null)
+        : api.tasksPage({ scope: listScope, status: filter, search, orgId: orgFilter, offset: page * PAGE_SIZE }),
+    [listScope, filter, search, orgFilter, page, people]
   );
   const team = useLoad(() => (people ? api.taskTeam() : Promise.resolve(null)), [people]);
-
-  const list = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    return sortTasks(data ?? []).filter((t) => {
-      const done = isTaskDone(t.status);
-      if (filter === 'active' && done) return false;
-      if (filter === 'done' && !done) return false;
-      return (
-        !term ||
-        t.title.toLowerCase().includes(term) ||
-        (t.description?.toLowerCase().includes(term) ?? false) ||
-        (t.assignee?.full_name.toLowerCase().includes(term) ?? false)
-      );
-    });
-  }, [data, filter, q]);
+  const list = data?.rows ?? [];
 
   const scopes: {
     value: Scope;
@@ -238,7 +234,7 @@ export default function Tasks() {
           ) : (
             <>
               {error && <Banner tone="danger">{error}</Banner>}
-              {loading ? (
+              {loading && !data ? (
                 <ListSkeleton rows={4} />
               ) : list.length === 0 ? (
                 <Card>
@@ -249,7 +245,12 @@ export default function Tasks() {
                   />
                 </Card>
               ) : (
-                list.map((t, i) => <TaskCard key={t.id} task={t} index={i} showAssignee={scope !== 'mine'} />)
+                <>
+                  {list.map((t, i) => (
+                    <TaskCard key={t.id} task={t} index={i} showAssignee={scope !== 'mine'} />
+                  ))}
+                  <Pagination page={page} total={data?.total ?? 0} onChange={setPage} busy={loading} />
+                </>
               )}
             </>
           )}

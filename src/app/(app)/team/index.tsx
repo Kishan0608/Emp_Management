@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
-import { Avatar, Banner, Card, EmptyState, ListSkeleton, PageHeader, Screen, TextField } from '@/components/ui';
+import { Avatar, Banner, Card, EmptyState, ListSkeleton, PageHeader, Pagination, Screen, TextField, usePaged } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
 import { api } from '@/lib/api';
 import { timeAgo } from '@/lib/format';
@@ -28,6 +28,7 @@ export default function Team() {
     const t = q.trim().toLowerCase();
     return members.filter((m) => !t || `${m.full_name} ${m.job_title ?? ''} ${m.department ?? ''}`.toLowerCase().includes(t));
   }, [members, q]);
+  const paged = usePaged(list, [q]);
 
   const sum = members.reduce(
     (a, m) => ({ open: a.open + m.open, overdue: a.overdue + m.overdue, done: a.done + m.done }),
@@ -57,7 +58,8 @@ export default function Team() {
         ) : members.length === 0 ? (
           <EmptyState icon="people-outline" title="No one reports to you yet" body="When people choose you as their manager, they appear here." />
         ) : (
-          list.map((m, i) => {
+          <>
+          {paged.rows.map((m, i) => {
             const h = health(m);
             const pct = m.total ? m.done / m.total : 0;
             return (
@@ -102,7 +104,9 @@ export default function Team() {
                 </Card>
               </Animated.View>
             );
-          })
+          })}
+          <Pagination page={paged.page} total={paged.total} onChange={paged.setPage} />
+          </>
         )}
       </View>
     </Screen>

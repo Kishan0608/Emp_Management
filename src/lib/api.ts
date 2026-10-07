@@ -82,6 +82,12 @@ export function errorMessage(e: unknown): string {
   return msg;
 }
 
+/** One page from the server: the rows and how many match in total. */
+export interface Paged<T> {
+  total: number;
+  rows: T[];
+}
+
 function check<T>(res: { data: T | null; error: unknown }): T {
   if (res.error) throw new Error(errorMessage(res.error));
   return res.data as T;
@@ -288,6 +294,20 @@ export const api = {
     }
     return items;
   },
+  /** One page of the Tasks list; status, search, company and sorting run in the database (tasks_page). */
+  tasksPage: async (o: { scope: 'mine' | 'assigned' | 'review' | 'team' | 'all'; status: 'all' | 'active' | 'done'; search?: string; orgId?: string | null; offset: number; limit?: number }) =>
+    check<Paged<Task>>(
+      await supabase.rpc('tasks_page', {
+        p_scope: o.scope,
+        p_status: o.status,
+        p_priority: null,
+        p_search: o.search?.trim() || null,
+        p_org: o.orgId || null,
+        p_sort: 'smart',
+        p_offset: o.offset,
+        p_limit: o.limit ?? 20,
+      }),
+    ),
   task: async (id: string) => check<Task>(await supabase.from('tasks').select(TASK_SELECT).eq('id', id).single()),
   /** A person's team with task counts; no id = my own team (for the Boss: every manager and HR). */
   taskTeam: async (leader?: string) => check<TaskTeam>(await supabase.rpc('task_team', { p_leader: leader ?? null })),
@@ -328,8 +348,30 @@ export const api = {
         p_checklist: p.checklist,
       }),
     ),
-  changeTaskStatus: async (id: string, to: TaskStatus, note?: string, proofUrl?: string) =>
-    check(await supabase.rpc('change_task_status', { p_task: id, p_to: to, p_note: note ?? null, p_proof_url: proofUrl ?? null })),
+  changeTaskStatus: async (id: string, to: TaskStatus, note?: string, proofUrl?: string, rating?: number) =>
+    check(await supabase.rpc('change_task_status', { p_task: id, p_to: to, p_note: note ?? null, p_proof_url: proofUrl ?? null, p_rating: rating ?? null })),
+  /** Reassign a rejected task to someone else (only the person who assigned it can call this). Anything left out keeps its current value. */
+  reassignTask: async (p: {
+    id: string;
+    assignee: string;
+    title?: string;
+    description?: string;
+    priority?: TaskPriority;
+    due?: string | null;
+    note?: string;
+  }) =>
+    check<string>(
+      await supabase.rpc('reassign_task', {
+        p_task: p.id,
+        p_new_assignee: p.assignee,
+        p_title: p.title ?? null,
+        p_description: p.description ?? null,
+        p_priority: p.priority ?? null,
+        p_due: p.due ?? null,
+        p_checklist: null,
+        p_note: p.note ?? null,
+      }),
+    ),
   updateChecklist: async (id: string, checklist: ChecklistItem[]) =>
     check(await supabase.rpc('update_task_checklist', { p_task: id, p_checklist: checklist })),
   uploadTaskFile: async (taskId: string, file: { uri: string; name: string; mimeType?: string | null }) => {
@@ -382,6 +424,22 @@ export const api = {
     }
     return items;
   },
+  /** One page of the Feedback list; category, search and company run in the database (feedback_page). */
+  feedbackPage: async (o: { scope: 'inbox' | 'mine' | 'blockers' | 'all'; category: string; search?: string; isStaff?: boolean; orgId?: string | null; offset: number; limit?: number }) =>
+    check<Paged<FeedbackItem>>(
+      await supabase.rpc('feedback_page', {
+        p_scope: o.scope,
+        p_view: 'all',
+        p_category: o.category,
+        p_type: null,
+        p_audience: null,
+        p_search: o.search?.trim() || null,
+        p_org: o.orgId || null,
+        p_staff: !!o.isStaff,
+        p_offset: o.offset,
+        p_limit: o.limit ?? 20,
+      }),
+    ),
   feedbackCounts: async (me: string, isStaff?: boolean) => {
     try {
       const [inboxRes, mineRes, blockersRes] = await Promise.all([
@@ -563,10 +621,15 @@ export const api = {
   },
 
   // ---------- notifications ----------
-  notifications: async () =>
-    check<NotificationRow[]>(
-      await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(100),
-    ),
+  /** One page of my notifications, newest first, with the total. */
+  notificationsPage: async (offset: number, limit = 20): Promise<{ rows: NotificationRow[]; total: number }> => {
+    const res = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    return { rows: check<NotificationRow[]>(res), total: res.count ?? 0 };
+  },
   markRead: async (id: string) => check(await supabase.from('notifications').update({ is_read: true }).eq('id', id)),
   markAllRead: async (me: string) =>
     check(await supabase.from('notifications').update({ is_read: true }).eq('user_id', me).eq('is_read', false)),
@@ -574,12 +637,16 @@ export const api = {
   // ---------- admin ----------
   updateSettings: async (patch: Partial<AppSettings>) =>
     check(await supabase.from('app_settings').update(patch).eq('id', 1)),
-  auditLogs: async (limit = 150) =>
-    check<AuditLog[]>(
-      await supabase
-        .from('audit_logs')
-        .select('*, actor:users!audit_logs_actor_id_fkey(full_name)')
-        .order('created_at', { ascending: false })
-        .limit(limit),
-    ),
+  /** One page of the audit log, newest first, with the total. */
+  auditPage: async (group: 'all' | 'auth' | 'access', offset: number, limit = 20): Promise<{ rows: AuditLog[]; total: number }> => {
+    let q = supabase
+      .from('audit_logs')
+      .select('*, actor:users!audit_logs_actor_id_fkey(full_name)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (group === 'auth') q = q.like('action', 'auth.%');
+    if (group === 'access') q = q.or('action.like.visibility.%,action.like.user.%,action.like.settings.%');
+    const res = await q;
+    return { rows: check<AuditLog[]>(res), total: res.count ?? 0 };
+  },
 };

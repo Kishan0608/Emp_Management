@@ -191,6 +191,8 @@ export interface Task {
   is_personal: boolean;
   submitted_at: string | null;
   approved_at: string | null;
+  /** 1-5 stars, set by whoever assigned the task when they mark it done. */
+  rating: number | null;
   created_at: string;
   updated_at: string;
   assignee?: { full_name: string; organization_id?: string | null; department_id?: string | null } | null;

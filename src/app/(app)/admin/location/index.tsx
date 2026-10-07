@@ -10,8 +10,10 @@ import {
   EmptyState,
   ListSkeleton,
   PageHeader,
+  Pagination,
   Screen,
   TextField,
+  usePaged,
 } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
 import { usePolling } from '@/hooks/usePolling';
@@ -78,6 +80,7 @@ export default function LiveLocations() {
       );
     });
   }, [allRows, q, filter]);
+  const paged = usePaged(filteredRows, [q, filter, selectedOrgId]);
 
   return (
     <Screen
@@ -164,13 +167,14 @@ export default function LiveLocations() {
           </Card>
         ) : (
           <View style={styles.cardsGrid}>
-            {filteredRows.map((p) => (
+            {paged.rows.map((p) => (
               <LocationRow
                 key={p.user_id}
                 person={p}
                 onPress={() => router.push(`/admin/location/${p.user_id}` as Href)}
               />
             ))}
+            <Pagination page={paged.page} total={paged.total} onChange={paged.setPage} />
           </View>
         )}
       </View>

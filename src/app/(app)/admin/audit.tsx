@@ -1,16 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Text, View } from 'react-native';
 
-import { Badge, Card, ChoiceChips, Divider, EmptyState, ListSkeleton, PageHeader, Screen } from '@/components/ui';
+import { Badge, Card, ChoiceChips, Divider, EmptyState, ListSkeleton, PageHeader, PAGE_SIZE, Pagination, Screen } from '@/components/ui';
 import { useLoad } from '@/hooks/useLoad';
 import { api } from '@/lib/api';
 import { formatDateTime, type Tone } from '@/lib/format';
 import { spacing, type } from '@/theme/tokens';
 
-const GROUPS: { value: string; label: string; match: (a: string) => boolean }[] = [
-  { value: 'all', label: 'All', match: () => true },
-  { value: 'auth', label: 'Sign-ins', match: (a) => a.startsWith('auth.') },
-  { value: 'access', label: 'Access changes', match: (a) => a.startsWith('visibility.') || a.startsWith('user.') || a.startsWith('settings.') },
+type Group = 'all' | 'auth' | 'access';
+const GROUPS: { value: Group; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'auth', label: 'Sign-ins' },
+  { value: 'access', label: 'Access changes' },
 ];
 
 function tone(action: string): Tone {
@@ -20,15 +21,24 @@ function tone(action: string): Tone {
 }
 
 export default function Audit() {
-  const logs = useLoad(() => api.auditLogs(300));
-  const [group, setGroup] = useState('all');
-  const list = useMemo(() => (logs.data ?? []).filter((l) => GROUPS.find((g) => g.value === group)!.match(l.action)), [logs.data, group]);
+  const [group, setGroup] = useState<Group>('all');
+  const [page, setPage] = useState(0);
+  // 20 at a time from the server; the filter runs there too.
+  const logs = useLoad(() => api.auditPage(group, page * PAGE_SIZE), [group, page]);
+  const list = logs.data?.rows ?? [];
 
   return (
     <Screen refreshing={logs.refreshing} onRefresh={logs.refresh} header={<PageHeader title="Audit log" subtitle="Read-only · kept per retention setting" />}>
       <View style={{ gap: spacing.md }}>
-        <ChoiceChips options={GROUPS.map(({ value, label }) => ({ value, label }))} value={group} onChange={setGroup} />
-        {logs.loading ? (
+        <ChoiceChips
+          options={GROUPS}
+          value={group}
+          onChange={(g) => {
+            setGroup(g);
+            setPage(0);
+          }}
+        />
+        {logs.loading && !logs.data ? (
           <ListSkeleton rows={6} />
         ) : list.length === 0 ? (
           <Card>
@@ -55,6 +65,7 @@ export default function Audit() {
             ))}
           </Card>
         )}
+        <Pagination page={page} total={logs.data?.total ?? 0} onChange={setPage} busy={logs.loading} />
       </View>
     </Screen>
   );
